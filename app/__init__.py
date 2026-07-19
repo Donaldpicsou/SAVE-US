@@ -2,7 +2,10 @@
 
 import os
 
+import click
 from flask import Flask
+
+from .extensions import db, migrate
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -10,6 +13,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY", "save-us-dev-only-secret"),
+        SQLALCHEMY_DATABASE_URI=os.environ.get(
+            "DATABASE_URL",
+            f"sqlite:///{os.path.join(app.instance_path, 'save_us.sqlite3')}",
+        ),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
 
     if test_config is None:
@@ -19,7 +27,17 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     os.makedirs(app.instance_path, exist_ok=True)
 
-    from . import routes
+    db.init_app(app)
+    migrate.init_app(app, db)
+
+    # Register SQLAlchemy models before migrations inspect db.metadata.
+    from . import models, routes  # noqa: F401
+
+    @app.cli.command("init-db")
+    def init_db_command() -> None:
+        """Create all tables defined by the current SQLAlchemy metadata."""
+        db.create_all()
+        click.echo(f"Database ready: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
     app.register_blueprint(routes.bp)
     return app
