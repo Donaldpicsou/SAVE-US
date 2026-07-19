@@ -14,6 +14,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
+  const markNotificationsSeen = async () => {
+    try {
+      const response = await fetch("/notifications/mark-seen", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      if (!response.ok) return;
+      document.querySelectorAll(".notification-badge").forEach((badge) => badge.remove());
+      document.querySelectorAll("[data-unread-count]").forEach((element) => {
+        element.textContent = "0";
+      });
+    } catch {
+      // Keep the badge unchanged if the local development request cannot complete.
+    }
+  };
+
   triggers.forEach((trigger) => {
     trigger.addEventListener("click", () => {
       const menu = document.getElementById(trigger.dataset.popoverTrigger);
@@ -23,6 +39,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isOpen) {
         menu.hidden = false;
         trigger.setAttribute("aria-expanded", "true");
+        if (trigger.dataset.markNotifications === "true") {
+          markNotificationsSeen();
+        }
       }
     });
   });

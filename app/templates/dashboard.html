@@ -5,7 +5,7 @@
 {% block content %}
   <!-- Dashboard heading: recipient context and alert search. -->
   <section class="dashboard-head">
-    <div><p class="eyebrow">Cameroon · Centre region</p><h1>Good morning,<br>Amina</h1></div>
+    <div><p class="eyebrow">{{ current_user.country }} · {{ current_user.primary_region }} region</p><h1>Good morning,<br>{{ current_user.display_name or "community member" }}</h1></div>
     <label class="search-box">⌕ <input type="search" placeholder="Search alerts…"></label>
   </section>
   <!-- Alert-type filter controls. -->

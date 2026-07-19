@@ -6,9 +6,9 @@
   <!-- Account-profile template accessed from the account popover. -->
   <section class="account-page">
     <!-- Profile summary and editable identity fields. -->
-    <div class="account-page-heading"><div><p class="eyebrow">Verified community member</p><h1>Profile &amp; account</h1><p class="lead">Manage the information that helps SAVE-US protect your community.</p></div><span class="profile-avatar-large">A</span></div>
+    <div class="account-page-heading"><div><p class="eyebrow">Verified community member</p><h1>Profile &amp; account</h1><p class="lead">Manage the information that helps SAVE-US protect your community.</p></div><span class="profile-avatar-large">{{ current_user.display_name[:1] if current_user.display_name else "U" }}</span></div>
     <div class="account-grid">
-      <article class="account-panel"><h2>Profile</h2><label>Display name<input value="Amina N."></label><label>Verified phone<input value="+237 6•• •• •• ••" readonly></label><label>Primary country<select><option>Cameroon</option></select></label><a class="button emergency" href="{{ url_for('main.settings') }}">Manage alert preferences</a></article>
+      <article class="account-panel"><h2>Profile</h2><label>Display name<input value="{{ current_user.display_name or '' }}"></label><label>Verified phone<input value="{{ current_user.phone_number[:5] }}••••••" readonly></label><label>Primary country<select><option>{{ current_user.country }}</option></select></label><a class="button emergency" href="{{ url_for('main.settings') }}">Manage alert preferences</a></article>
       <!-- Account security and privacy quick links. -->
       <aside class="account-panel account-security"><h2>Account safety</h2><p>Your phone number is verified. Family contact details you provide in a report are never displayed publicly.</p><a href="{{ url_for('main.information_page', page='privacy') }}">Read privacy policy →</a><form action="{{ url_for('main.logout') }}" method="post"><button class="text-button" type="submit">Sign out</button></form></aside>
     </div>

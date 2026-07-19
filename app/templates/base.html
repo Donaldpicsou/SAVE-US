@@ -10,6 +10,7 @@
     <title>{% block title %}SAVE-US{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
   </head>
   <body>
@@ -27,11 +28,11 @@
       <div class="header-actions">
         <span class="country-pill">● Cameroon</span>
         <!-- Notification-menu trigger and unread count. -->
-        <button class="icon-link notification-menu-trigger" type="button" data-popover-trigger="notification-menu" aria-label="Open notifications" aria-expanded="false" aria-controls="notification-menu">{{ icons.icon('bell') }}{% if app_shell %}<span class="notification-badge">{{ notification_count }}</span>{% endif %}</button>
+        <button class="icon-link notification-menu-trigger" type="button" data-popover-trigger="notification-menu" data-mark-notifications="{{ 'true' if is_authenticated else 'false' }}" aria-label="Open notifications" aria-expanded="false" aria-controls="notification-menu">{{ icons.icon('bell') }}{% if is_authenticated and notification_count %}<span class="notification-badge" data-unread-count>{{ notification_count }}</span>{% endif %}</button>
         <div id="notification-menu" class="notification-menu" data-popover hidden>
-          {% if app_shell %}
+          {% if is_authenticated %}
             <!-- Alerts shown here match the user's country, followed regions, and enabled categories. -->
-            <div class="notification-menu-heading"><div><strong>{{ notification_count }} new alerts</strong><small>Centre &amp; Cameroon · based on your preferences</small></div><span class="notification-count">{{ notification_count }}</span></div>
+            <div class="notification-menu-heading"><div><strong><span data-unread-count>{{ notification_count }}</span> new alerts</strong><small>Centre &amp; Cameroon · based on your preferences</small></div><span class="notification-count" data-unread-count>{{ notification_count }}</span></div>
             <div class="notification-preview-list">
               {% for item in notification_items %}
                 <a class="notification-preview" href="{{ url_for('main.alert_detail', alert_id=item.id) }}"><span class="notification-type-dot {{ item.type|lower|replace(' ', '-') }}"></span><span><strong>{{ item.title }}</strong><small>{{ item.type }} · {{ item.location }} · {{ item.time }}</small></span></a>
@@ -47,9 +48,9 @@
         <!-- Account-menu trigger; popup content changes for public and signed-in pages. -->
         <button class="icon-link account-menu-trigger" type="button" data-popover-trigger="account-menu" aria-label="Open account menu" aria-expanded="false" aria-controls="account-menu">{{ icons.icon('account') }}</button>
         <div id="account-menu" class="account-menu" data-popover hidden>
-          {% if app_shell %}
+          {% if is_authenticated %}
             <!-- Signed-in account actions. -->
-            <div class="account-menu-identity"><span class="account-avatar">A</span><span><strong>Amina N.</strong><small>Verified community member</small></span></div>
+            <div class="account-menu-identity"><span class="account-avatar">{{ current_user.display_name[:1] if current_user.display_name else "U" }}</span><span><strong>{{ current_user.display_name or "SAVE-US user" }}</strong><small>Verified community member</small></span></div>
             <a href="{{ url_for('main.account') }}">{{ icons.icon('account') }} Profile &amp; account settings</a>
             <a href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }} Alert preferences</a>
             <form action="{{ url_for('main.logout') }}" method="post"><button class="account-menu-logout" type="submit">Sign out</button></form>

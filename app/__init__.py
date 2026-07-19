@@ -18,6 +18,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             f"sqlite:///{os.path.join(app.instance_path, 'save_us.sqlite3')}",
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
     )
 
     if test_config is None:
