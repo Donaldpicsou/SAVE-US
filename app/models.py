@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum as SqlEnum, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, JSON, Boolean, DateTime, Enum as SqlEnum, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .extensions import db
@@ -52,6 +52,15 @@ class AlertStatus(str, Enum):
     REPORTED_FOUND = "reported_found"
     WITHDRAWN = "withdrawn"
     EXPIRED = "expired"
+
+
+class MissingPersonSex(str, Enum):
+    """Sex values used to describe a missing person in the MVP report form."""
+
+    FEMALE = "female"
+    MALE = "male"
+    INTERSEX = "intersex"
+    UNKNOWN = "unknown"
 
 
 class User(db.Model):
@@ -162,9 +171,95 @@ class Alert(db.Model):
         back_populates="submitted_alerts",
         foreign_keys=[reporter_id],
     )
+    missing_person_details: Mapped["MissingPersonDetails | None"] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
     def __repr__(self) -> str:
         return f"<Alert {self.id} {self.alert_type.value} {self.status.value}>"
+
+
+class MissingPersonDetails(db.Model):
+    """Private reporting details attached to exactly one missing-person alert.
+
+    Fields intentionally remain nullable while a report is a draft.  The
+    ``validation_errors`` method is the single rule set used before a draft can
+    progress to AI review or publication; it prevents incomplete reports from
+    being submitted while allowing reporters to save their work during T11.
+    """
+
+    __tablename__ = "missing_person_details"
+    __table_args__ = (
+        CheckConstraint("age IS NULL OR (age >= 0 AND age <= 125)", name="ck_missing_person_age_range"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    name: Mapped[str | None] = mapped_column(String(180))
+    age: Mapped[int | None] = mapped_column()
+    sex: Mapped[str | None] = mapped_column(String(16))
+    photo_path: Mapped[str | None] = mapped_column(String(500))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen_location: Mapped[str | None] = mapped_column(String(255))
+    clothing_description: Mapped[str | None] = mapped_column(Text)
+    private_family_contact: Mapped[str | None] = mapped_column(String(64))
+    circumstances: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    alert: Mapped[Alert] = relationship(back_populates="missing_person_details")
+
+    def validation_errors(self, *, now: datetime | None = None) -> dict[str, str]:
+        """Return required-field and safety errors before a report is submitted."""
+        errors: dict[str, str] = {}
+        reference_time = now or utc_now()
+
+        if not self.name or not self.name.strip():
+            errors["name"] = "Name is required."
+        if self.age is None:
+            errors["age"] = "Age is required."
+        elif not 0 <= self.age <= 125:
+            errors["age"] = "Age must be between 0 and 125."
+        if self.sex not in {item.value for item in MissingPersonSex}:
+            errors["sex"] = "Choose a valid sex."
+        if not self.photo_path:
+            errors["photo"] = "A photo is required."
+        if self.last_seen_at is None:
+            errors["last_seen_at"] = "Last-seen date and time are required."
+        else:
+            # SQLite may return a naive datetime despite the timezone-aware
+            # column declaration; SAVE-US treats stored timestamps as UTC.
+            last_seen_at = self.last_seen_at
+            if last_seen_at.tzinfo is None:
+                last_seen_at = last_seen_at.replace(tzinfo=timezone.utc)
+            if reference_time.tzinfo is None:
+                reference_time = reference_time.replace(tzinfo=timezone.utc)
+            if last_seen_at > reference_time:
+                errors["last_seen_at"] = "Last-seen date and time cannot be in the future."
+        if not self.last_seen_location or not self.last_seen_location.strip():
+            errors["last_seen_location"] = "Last-seen location is required."
+        if not self.private_family_contact or not self.private_family_contact.strip():
+            errors["private_family_contact"] = "A private family contact is required."
+        return errors
+
+    @property
+    def is_submission_ready(self) -> bool:
+        """Whether all mandatory missing-person fields are available and valid."""
+        return not self.validation_errors()
+
+    def __repr__(self) -> str:
+        return f"<MissingPersonDetails alert_id={self.alert_id}>"
 
 
 __all__ = [
@@ -172,6 +267,8 @@ __all__ = [
     "AlertPreference",
     "AlertStatus",
     "AlertType",
+    "MissingPersonDetails",
+    "MissingPersonSex",
     "User",
     "UserRole",
     "db",

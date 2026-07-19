@@ -1,10 +1,21 @@
 """Regression tests for SAVE-US core entities."""
 
 import unittest
+from datetime import timedelta
 
 from app import create_app
 from app.extensions import db
-from app.models import Alert, AlertPreference, AlertStatus, AlertType, User, UserRole
+from app.models import (
+    Alert,
+    AlertPreference,
+    AlertStatus,
+    AlertType,
+    MissingPersonDetails,
+    MissingPersonSex,
+    User,
+    UserRole,
+    utc_now,
+)
 
 
 class CoreModelTestCase(unittest.TestCase):
@@ -56,6 +67,52 @@ class CoreModelTestCase(unittest.TestCase):
         self.assertEqual(saved_alert.reporter.phone_number, "+237612345678")
         self.assertEqual(saved_alert.status, AlertStatus.DRAFT)
         self.assertEqual(saved_alert.alert_type, AlertType.MISSING_PERSON)
+
+    def test_missing_person_rules_identify_required_fields_and_complete_details(self) -> None:
+        user = User(
+            phone_number="+237699999999",
+            country="Cameroon",
+            primary_region="Centre",
+            is_phone_verified=True,
+        )
+        alert = Alert(
+            reporter=user,
+            alert_type=AlertType.MISSING_PERSON,
+            title="Draft missing-person report",
+            country="Cameroon",
+            region="Centre",
+        )
+        details = MissingPersonDetails(alert=alert)
+        db.session.add_all([user, alert, details])
+        db.session.commit()
+
+        self.assertEqual(
+            set(details.validation_errors()),
+            {"name", "age", "sex", "photo", "last_seen_at", "last_seen_location", "private_family_contact"},
+        )
+        self.assertFalse(details.is_submission_ready)
+
+        details.name = "Jean Bakary"
+        details.age = 8
+        details.sex = MissingPersonSex.MALE.value
+        details.photo_path = "uploads/jean-bakary.jpg"
+        details.last_seen_at = utc_now() - timedelta(hours=2)
+        details.last_seen_location = "Mfoundi district, Yaoundé"
+        details.clothing_description = "Blue school uniform and red backpack"
+        details.private_family_contact = "+237 612 345 678"
+        details.circumstances = "Did not return home after school."
+        db.session.commit()
+
+        self.assertEqual(details.validation_errors(), {})
+        self.assertTrue(details.is_submission_ready)
+        self.assertEqual(db.session.get(Alert, alert.id).missing_person_details.name, "Jean Bakary")
+
+    def test_missing_person_rules_reject_future_last_seen_date(self) -> None:
+        details = MissingPersonDetails(last_seen_at=utc_now() + timedelta(minutes=1))
+        self.assertEqual(
+            details.validation_errors()["last_seen_at"],
+            "Last-seen date and time cannot be in the future.",
+        )
 
 
 if __name__ == "__main__":

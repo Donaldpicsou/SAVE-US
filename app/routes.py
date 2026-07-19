@@ -1,13 +1,23 @@
 """Presentation routes, simulated authentication, and session helpers."""
 
 import re
+from datetime import datetime, timezone
 from functools import wraps
 
-from flask import Blueprint, abort, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .extensions import db
 from .cemac import load_cemac_data
-from .models import AlertPreference, AlertType, User
+from .media import PhotoUploadError, delete_private_media, private_media_path, store_missing_person_photo
+from .models import (
+    Alert,
+    AlertPreference,
+    AlertStatus,
+    AlertType,
+    MissingPersonDetails,
+    MissingPersonSex,
+    User,
+)
 
 
 bp = Blueprint("main", __name__)
@@ -196,10 +206,179 @@ def alert_detail(alert_id: str):
     return render_template("alert_detail.html", alert=alert, active_page="alerts", app_shell=True)
 
 
-@bp.get("/report/missing-person")
+def owned_missing_person_draft(draft_id: str | None) -> Alert | None:
+    """Load a draft only when it belongs to the signed-in reporter."""
+    if not draft_id:
+        return None
+    alert = db.session.get(Alert, draft_id)
+    if (
+        alert is None
+        or alert.reporter_id != g.current_user.id
+        or alert.alert_type != AlertType.MISSING_PERSON
+        or alert.status != AlertStatus.DRAFT
+    ):
+        abort(404)
+    return alert
+
+
+def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str]]:
+    """Parse draft-safe fields and return only format errors from the report form."""
+    data: dict[str, object | None] = {
+        "name": request.form.get("name", "").strip() or None,
+        "sex": request.form.get("sex", "").strip() or None,
+        "last_seen_location": request.form.get("last_seen_location", "").strip() or None,
+        "approximate_zone": request.form.get("approximate_zone", "").strip() or None,
+        "clothing_description": request.form.get("clothing_description", "").strip() or None,
+        "private_family_contact": request.form.get("private_family_contact", "").strip() or None,
+        "circumstances": request.form.get("circumstances", "").strip() or None,
+        "age": None,
+        "last_seen_at": None,
+    }
+    errors: dict[str, str] = {}
+    raw_age = request.form.get("age", "").strip()
+    if raw_age:
+        try:
+            data["age"] = int(raw_age)
+        except ValueError:
+            errors["age"] = "Age must be a whole number."
+
+    raw_last_seen_at = request.form.get("last_seen_at", "").strip()
+    if raw_last_seen_at:
+        try:
+            parsed_last_seen_at = datetime.fromisoformat(raw_last_seen_at)
+            data["last_seen_at"] = (
+                parsed_last_seen_at.replace(tzinfo=timezone.utc)
+                if parsed_last_seen_at.tzinfo is None
+                else parsed_last_seen_at
+            )
+        except ValueError:
+            errors["last_seen_at"] = "Enter a valid last-seen date and time."
+
+    if data["age"] is not None and not 0 <= data["age"] <= 125:
+        errors["age"] = "Age must be between 0 and 125."
+    if data["sex"] and data["sex"] not in {item.value for item in MissingPersonSex}:
+        errors["sex"] = "Choose a valid sex."
+    return data, errors
+
+
+def report_form_values(details: MissingPersonDetails | None = None) -> dict[str, str]:
+    """Supply safe values to repopulate a draft or a failed server validation."""
+    if details is None:
+        return {field: "" for field in (
+            "name", "age", "sex", "last_seen_at", "last_seen_location",
+            "approximate_zone", "clothing_description", "private_family_contact", "circumstances",
+        )}
+    return {
+        "name": details.name or "",
+        "age": str(details.age) if details.age is not None else "",
+        "sex": details.sex or "",
+        "last_seen_at": details.last_seen_at.strftime("%Y-%m-%dT%H:%M") if details.last_seen_at else "",
+        "last_seen_location": details.last_seen_location or "",
+        "approximate_zone": details.alert.approximate_zone or "",
+        "clothing_description": details.clothing_description or "",
+        "private_family_contact": details.private_family_contact or "",
+        "circumstances": details.circumstances or "",
+    }
+
+
+@bp.route("/report/missing-person", methods=("GET", "POST"))
 @login_required
 def report_missing_person():
-    return render_template("report_missing_person.html", active_page="report", app_shell=True)
+    """Create, resume, and validate a missing-person report draft."""
+    draft = owned_missing_person_draft(request.values.get("draft_id") or request.args.get("draft"))
+    details = draft.missing_person_details if draft else None
+    errors: dict[str, str] = {}
+    saved = request.args.get("saved") == "1"
+
+    if request.method == "POST":
+        form_data, errors = parse_missing_person_form()
+        if not errors:
+            if draft is None:
+                draft = Alert(
+                    reporter=g.current_user,
+                    alert_type=AlertType.MISSING_PERSON,
+                    status=AlertStatus.DRAFT,
+                    title=form_data["name"] or "Missing-person report draft",
+                    country=g.current_user.country,
+                    region=g.current_user.primary_region,
+                    approximate_zone=form_data["approximate_zone"],
+                )
+                details = MissingPersonDetails(alert=draft)
+                db.session.add(draft)
+            else:
+                draft.title = form_data["name"] or "Missing-person report draft"
+                draft.approximate_zone = form_data["approximate_zone"]
+
+            for field, value in form_data.items():
+                if field != "approximate_zone":
+                    setattr(details, field, value)
+
+            action = request.form.get("action", "save_draft")
+            selected_photo = request.files.get("photo")
+            replaced_photo_path = None
+            new_photo_path = None
+            if selected_photo and selected_photo.filename:
+                try:
+                    # Alert ids are generated on flush before their media folder is created.
+                    if draft.id is None:
+                        db.session.flush()
+                    replaced_photo_path = details.photo_path
+                    new_photo_path = store_missing_person_photo(
+                        selected_photo,
+                        upload_root=current_app.config["UPLOAD_FOLDER"],
+                        alert_id=draft.id,
+                        max_bytes=current_app.config["MAX_PHOTO_UPLOAD_BYTES"],
+                    )
+                    details.photo_path = new_photo_path
+                except PhotoUploadError as error:
+                    errors["photo"] = str(error)
+            if action == "review":
+                errors = {**details.validation_errors(), **errors}
+
+            if action == "review":
+                # Preserve the reporter's work even if the server blocks review.
+                db.session.commit()
+                if new_photo_path:
+                    delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
+            elif not errors:
+                db.session.commit()
+                if new_photo_path:
+                    delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
+                return redirect(url_for("main.report_missing_person", draft=draft.id, saved=1))
+
+    if details is not None:
+        values = report_form_values(details)
+    elif request.method == "POST":
+        values = {key: str(value or "") for key, value in form_data.items()}
+        values["last_seen_at"] = request.form.get("last_seen_at", "")
+    else:
+        values = report_form_values()
+
+    return render_template(
+        "report_missing_person.html",
+        active_page="report",
+        app_shell=True,
+        draft=draft,
+        values=values,
+        errors=errors,
+        saved=saved,
+    )
+
+
+@bp.get("/report/missing-person/<alert_id>/photo")
+@login_required
+def missing_person_photo_preview(alert_id: str):
+    """Serve a stored image only to the reporter who owns its draft."""
+    draft = owned_missing_person_draft(alert_id)
+    details = draft.missing_person_details
+    if details is None or not details.photo_path:
+        abort(404)
+    photo_path = private_media_path(current_app.config["UPLOAD_FOLDER"], details.photo_path)
+    if photo_path is None:
+        abort(404)
+    response = send_file(photo_path, conditional=True, max_age=0)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @bp.get("/reports")

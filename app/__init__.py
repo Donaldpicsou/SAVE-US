@@ -20,6 +20,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads"),
+        MAX_PHOTO_UPLOAD_BYTES=5 * 1024 * 1024,
     )
 
     if test_config is None:

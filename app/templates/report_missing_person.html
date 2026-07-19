@@ -3,18 +3,54 @@
 {% block title %}Report missing person · SAVE-US{% endblock %}
 
 {% block content %}
-  <!-- Missing-person report workflow. -->
-  <section class="report-page">
+  <!-- Guided missing-person report workflow; each step exposes only the relevant fields. -->
+  <section class="report-page" data-report-wizard data-step-count="3" data-has-stored-photo="{{ 'true' if draft and draft.missing_person_details and draft.missing_person_details.photo_path else 'false' }}">
     <!-- Mandatory emergency-services disclaimer. -->
     <p class="emergency-notice blue">ⓘ SAVE-US does not replace emergency services. If there is immediate danger to life, contact local emergency services before continuing.</p>
-    <!-- Report title and multi-step progress indicator. -->
-    <div class="report-heading"><div><p class="eyebrow">Step 1 of 3 · Identifying information</p><h1>Report missing person</h1></div><div class="progress"><span></span><small>1 / 3</small></div></div>
+    <!-- Dynamic title and multi-step progress indicator. -->
+    <div class="report-heading"><div><p class="eyebrow" data-report-step-label>Step 1 of 3 · Identifying information</p><h1>Report missing person</h1></div><div class="progress" aria-label="Report progress"><span data-report-progress></span><small data-report-progress-text>1 / 3</small></div></div>
     <div class="report-layout">
-      <!-- Reporter form: personal details, photo, and draft/review actions. -->
-      <form class="report-form" action="#" method="post">
-        <section><h2>Basic details</h2><label>Full name <input placeholder="Enter missing person's full name" required></label><div class="form-grid"><label>Age <input type="number" placeholder="Approximate age" required></label><label>Sex <select required><option>Select sex</option><option>Female</option><option>Male</option><option>Other / Prefer not to say</option></select></label></div></section>
-        <section><h2>Recent photo</h2><label class="upload-zone"><strong>⇧</strong><span>Click to upload or drag and drop</span><small>PNG, JPG or GIF · max. 5 MB</small><input type="file" hidden></label></section>
-        <div class="form-actions"><a class="button secondary" href="{{ url_for('main.dashboard') }}">Save draft</a><button class="button emergency" type="button">Review with SAVE-US AI</button></div>
+      <!-- The complete report is split into small, validated steps. -->
+      <form class="report-form" method="post" enctype="multipart/form-data" novalidate>
+        <!-- Existing draft id makes repeated saves update the same report. -->
+        {% if draft %}<input type="hidden" name="draft_id" value="{{ draft.id }}">{% endif %}
+        {% if saved %}<p class="form-success" role="status">Draft saved. You can return and continue this report at any time.</p>{% endif %}
+        {% if errors %}<p class="form-error" role="alert">Please correct the highlighted fields before continuing.</p>{% endif %}
+        <!-- Step 1: identity and photo. -->
+        <section data-report-step="1">
+          <h2>Basic details</h2>
+          <label>Full name <input name="name" value="{{ values.name }}" placeholder="Enter missing person's full name" autocomplete="name" required>{% if errors.name %}<small class="field-error">{{ errors.name }}</small>{% endif %}</label>
+          <div class="form-grid"><label>Age <input name="age" type="number" min="0" max="125" value="{{ values.age }}" placeholder="Approximate age" required>{% if errors.age %}<small class="field-error">{{ errors.age }}</small>{% endif %}</label><label>Sex <select name="sex" required><option value="">Select sex</option><option value="female" {{ "selected" if values.sex == "female" else "" }}>Female</option><option value="male" {{ "selected" if values.sex == "male" else "" }}>Male</option><option value="intersex" {{ "selected" if values.sex == "intersex" else "" }}>Intersex</option><option value="unknown" {{ "selected" if values.sex == "unknown" else "" }}>Unknown</option></select>{% if errors.sex %}<small class="field-error">{{ errors.sex }}</small>{% endif %}</label></div>
+          <h2 class="section-subheading">Recent photo</h2>
+          <label class="upload-zone" for="missing-person-photo"><strong>⇧</strong><span>Click to upload or drag and drop</span><small>PNG, JPG or GIF · max. 5 MB</small><input id="missing-person-photo" name="photo" type="file" accept="image/png,image/jpeg,image/gif"></label>{% if errors.photo %}<small class="field-error">{{ errors.photo }}</small>{% endif %}
+          <!-- Existing photos remain private and are previewed through an owner-only route. -->
+          <div class="photo-selection" data-photo-selection {{ "" if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "hidden" }} aria-live="polite"><img data-photo-preview src="{{ url_for('main.missing_person_photo_preview', alert_id=draft.id) if draft and draft.missing_person_details and draft.missing_person_details.photo_path else '' }}" alt="Selected photo preview" {{ "" if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "hidden" }}><span><strong data-photo-status>{{ "Photo saved securely" if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "Photo added" }}</strong><small data-photo-name>{{ "Replace the photo by selecting another image." if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "" }}</small></span></div>
+        </section>
+
+        <!-- Step 2: last-seen information used for regional targeting. -->
+        <section data-report-step="2" hidden>
+          <h2>Last seen</h2>
+          <p class="field-help">Give the most accurate details you have. SAVE-US only shows an approximate area publicly.</p>
+          <div class="form-grid"><label>Date and time <input name="last_seen_at" type="datetime-local" value="{{ values.last_seen_at }}" required>{% if errors.last_seen_at %}<small class="field-error">{{ errors.last_seen_at }}</small>{% endif %}</label><label>Approximate public area <input name="approximate_zone" value="{{ values.approximate_zone }}" placeholder="e.g. Mfoundi district, Yaoundé" required></label></div>
+          <label class="full-field">Private last-seen location <input name="last_seen_location" value="{{ values.last_seen_location }}" placeholder="Landmark, neighbourhood, or address" required><small>Only reporters and moderators can access a precise location.</small>{% if errors.last_seen_location %}<small class="field-error">{{ errors.last_seen_location }}</small>{% endif %}</label>
+          <label class="full-field">Clothing and distinguishing details <textarea name="clothing_description" rows="4" placeholder="Clothing, bag, hairstyle, scars, or other useful identifying details">{{ values.clothing_description }}</textarea></label>
+        </section>
+
+        <!-- Step 3: private contact and circumstances. -->
+        <section data-report-step="3" hidden>
+          <h2>Contact and circumstances</h2>
+          <label>Private family contact <input name="private_family_contact" type="tel" value="{{ values.private_family_contact }}" placeholder="Phone number or WhatsApp contact" required><small>This contact is never displayed in the public alert.</small>{% if errors.private_family_contact %}<small class="field-error">{{ errors.private_family_contact }}</small>{% endif %}</label>
+          <label class="full-field">What happened? <textarea name="circumstances" rows="6" placeholder="Explain when the person was last seen and any facts that could help the search.">{{ values.circumstances }}</textarea></label>
+          <p class="report-ready-note" data-report-ready hidden aria-live="polite"></p>
+        </section>
+
+        <!-- Wizard navigation and server-side draft/review actions. -->
+        <div class="form-actions" data-report-actions>
+          <button class="button secondary" type="submit" name="action" value="save_draft" formnovalidate data-report-cancel>Save draft</button>
+          <button class="button secondary" type="button" data-report-back hidden>Back</button>
+          <button class="button emergency" type="button" data-report-next>Continue</button>
+          <button class="button emergency" type="submit" name="action" value="review" data-report-finish hidden>Review with SAVE-US AI</button>
+        </div>
       </form>
       <!-- Contextual privacy and data-quality guidance. -->
       <aside class="report-help"><span>✦</span><h2>Why accurate data matters</h2><p>SAVE-US AI structures information and checks active alerts before an alert is shared.</p><ul><li>Clear photos help identification.</li><li>Accurate age and location improve targeting.</li><li>Private contact details are never displayed publicly.</li></ul></aside>
