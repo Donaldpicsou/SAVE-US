@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+
+{% block title %}Notifications · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Full notification centre reached from the header popover. -->
+  <section class="notifications-page">
+    <!-- Page heading explains the country and preference-based filtering context. -->
+    <div class="notifications-heading"><div><p class="eyebrow">Centre &amp; Cameroon</p><h1>All notifications</h1><p class="lead">Alerts selected from your country, followed regions, and enabled categories.</p></div><span class="notification-count large">{{ notifications|length }}</span></div>
+    <!-- Notification list; each item opens the matching alert detail page. -->
+    <div class="notifications-list">
+      {% for item in notifications %}
+        <a class="notification-row" href="{{ url_for('main.alert_detail', alert_id=item.id) }}"><span class="notification-type-dot {{ item.type|lower|replace(' ', '-') }}"></span><span class="notification-row-copy"><strong>{{ item.title }}</strong><span>{{ item.type }} · {{ item.location }}</span><small>{{ item.time }}</small></span>{{ icons.icon('arrow') }}</a>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}{{ alert.title }} · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Safe public alert-detail template opened from a notification. -->
+  <section class="alert-detail-page">
+    <a class="back-link" href="{{ url_for('main.notifications') }}">← Back to notifications</a>
+    <!-- Alert identity, status, location, and expiry metadata. -->
+    <article class="alert-detail-card">
+      <div class="alert-detail-top"><span class="status-chip">Published</span><span class="critical-label">{{ alert.type }}</span></div>
+      <h1>{{ alert.title }}</h1>
+      <p class="alert-detail-location">⌖ {{ alert.location }} · {{ alert.time }}</p>
+      <p class="lead">{{ alert.description }}</p>
+      <!-- Safe actions: no direct family phone number or precise GPS coordinates. -->
+      <div class="button-row"><button class="button emergency" type="button">Contact family on WhatsApp</button><button class="button secondary" type="button">Share alert</button></div>
+      <p class="alert-detail-note">SAVE-US does not display private contact details or precise locations publicly.</p>
+    </article>
+  </section>
+{% endblock %}

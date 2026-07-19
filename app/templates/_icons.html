@@ -1,0 +1,17 @@
+{# Shared inline-SVG icon library. Add new icons here before using them in templates. #}
+{% macro icon(name) -%}
+{% if name == 'home' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+{% elif name == 'alert' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+{% elif name == 'report' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><path d="M5 5h14v14H5z"/></svg>
+{% elif name == 'folder' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/></svg>
+{% elif name == 'shield' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+{% elif name == 'settings' %}<svg class="ui-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.8v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3L9 19l-2-2 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.7v-2.8h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L7 8.2l2-2 .1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.8v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2 2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1"/></svg>
+{% elif name == 'bell' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+{% elif name == 'account' %}<svg class="ui-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4 21c.8-4 3.4-6 8-6s7.2 2 8 6"/><circle cx="12" cy="12" r="10"/></svg>
+{% elif name == 'person-search' %}<svg class="ui-icon" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3"/><path d="M4 19c.6-3.2 2.6-5 6-5s5.4 1.8 6 5M16 16l5 5M18 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/></svg>
+{% elif name == 'warning' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 3 2.8 20h18.4z"/><path d="M12 9v4M12 17h.01"/></svg>
+{% elif name == 'hospital' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16M9 21v-4h6v4M12 7v6M9 10h6"/></svg>
+{% elif name == 'car' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="m5 16 1.5-6h11l1.5 6M4 16h16v4H4zM7 20v1M17 20v1M8 16l1-6M16 16l-1-6"/><path d="m14 5 3 3M17 5l-3 3"/></svg>
+{% elif name == 'arrow' %}<svg class="ui-icon" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+{% endif %}
+{%- endmacro %}

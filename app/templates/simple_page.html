@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Generic placeholder used while the corresponding roadmap feature is implemented. -->
+  <section class="simple-page">
+    <p class="eyebrow">{{ eyebrow }}</p>
+    <h1>{{ title }}</h1>
+    <p class="lead">{{ description }}</p>
+    <!-- Next-step call to action. -->
+    <article class="template-card">
+      <h2>Template ready for the next implementation task</h2>
+      <p>This screen is connected to the SAVE-US navigation shell and will receive its functional content in the corresponding roadmap task.</p>
+      <a class="button emergency" href="{{ url_for(primary_url|default('main.dashboard')) }}">{{ primary_action }}</a>
+    </article>
+  </section>
+{% endblock %}

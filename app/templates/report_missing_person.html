@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Report missing person · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Missing-person report workflow. -->
+  <section class="report-page">
+    <!-- Mandatory emergency-services disclaimer. -->
+    <p class="emergency-notice blue">ⓘ SAVE-US does not replace emergency services. If there is immediate danger to life, contact local emergency services before continuing.</p>
+    <!-- Report title and multi-step progress indicator. -->
+    <div class="report-heading"><div><p class="eyebrow">Step 1 of 3 · Identifying information</p><h1>Report missing person</h1></div><div class="progress"><span></span><small>1 / 3</small></div></div>
+    <div class="report-layout">
+      <!-- Reporter form: personal details, photo, and draft/review actions. -->
+      <form class="report-form" action="#" method="post">
+        <section><h2>Basic details</h2><label>Full name <input placeholder="Enter missing person's full name" required></label><div class="form-grid"><label>Age <input type="number" placeholder="Approximate age" required></label><label>Sex <select required><option>Select sex</option><option>Female</option><option>Male</option><option>Other / Prefer not to say</option></select></label></div></section>
+        <section><h2>Recent photo</h2><label class="upload-zone"><strong>⇧</strong><span>Click to upload or drag and drop</span><small>PNG, JPG or GIF · max. 5 MB</small><input type="file" hidden></label></section>
+        <div class="form-actions"><a class="button secondary" href="{{ url_for('main.dashboard') }}">Save draft</a><button class="button emergency" type="button">Review with SAVE-US AI</button></div>
+      </form>
+      <!-- Contextual privacy and data-quality guidance. -->
+      <aside class="report-help"><span>✦</span><h2>Why accurate data matters</h2><p>SAVE-US AI structures information and checks active alerts before an alert is shared.</p><ul><li>Clear photos help identification.</li><li>Accurate age and location improve targeting.</li><li>Private contact details are never displayed publicly.</li></ul></aside>
+    </div>
+  </section>
+{% endblock %}

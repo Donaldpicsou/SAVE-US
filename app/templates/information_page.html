@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · SAVE-US{% endblock %}
+{% block content %}
+<!-- Informational page content used by footer navigation. -->
+<section class="information-page">
+  <!-- Introductory heading and summary. -->
+  <p class="eyebrow">{{ eyebrow }}</p><h1>{{ title }}</h1><p class="lead">{{ description }}</p>
+  <!-- Reusable information sections populated by the route. -->
+  <div class="information-grid">{% for heading, body in sections %}<article><h2>{{ heading }}</h2><p>{{ body }}</p></article>{% endfor %}</div>
+  <!-- Return action for public-information pages. -->
+  <a class="button secondary" href="{{ url_for('main.home') }}">Back to home</a>
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+# Python environments and cache
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Flask runtime data
+instance/
+uploads/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/

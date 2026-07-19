@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+
+{% block title %}SAVE-US — CEMAC Emergency Network{% endblock %}
+
+{% block content %}
+  <!-- Landing hero: proposition of value and primary entry points. -->
+  <section class="public-hero">
+    <div>
+      <p class="emergency-notice">ⓘ SAVE-US does not replace emergency services. Contact local emergency services immediately when lives are in danger.</p>
+      <p class="eyebrow">CEMAC Emergency Network</p>
+      <h1>When every second matters, communities respond.</h1>
+      <p class="lead">SAVE-US connects citizens and care professionals to structure, review, and responsibly share critical alerts across Central Africa.</p>
+      <div class="button-row">
+        <a class="button emergency" href="{{ url_for('main.sign_in') }}">Join SAVE-US</a>
+        <a class="button secondary" href="{{ url_for('main.alerts') }}">Browse active alerts</a>
+      </div>
+    </div>
+    <div class="hero-card">
+      <img src="{{ url_for('static', filename='images/save-us-logo.png') }}" alt="SAVE-US protection and community network">
+      <p>Connected communities. Faster, safer alerts.</p>
+    </div>
+  </section>
+
+  <!-- Incident category cards: entry points to reporting and alert templates. -->
+  <section class="category-section">
+    <p class="eyebrow">How SAVE-US helps</p>
+    <h2>Critical incident categories</h2>
+    <p class="category-intro">Rapid reporting channels designed for specific emergency types.</p>
+    <div class="category-grid">
+      <article class="incident-card missing"><div class="incident-icon">{{ icons.icon('person-search') }}</div><h3>Missing people</h3><p>Mobilize the community to locate individuals who have disappeared.</p><a href="{{ url_for('main.report_missing_person') }}">Report missing {{ icons.icon('arrow') }}</a></article>
+      <article class="incident-card abduction"><div class="incident-icon">{{ icons.icon('warning') }}</div><h3>Suspected abductions</h3><p>High-priority alerts for suspected kidnappings or abductions.</p><a href="{{ url_for('main.report_missing_person') }}">Urgent alert {{ icons.icon('arrow') }}</a></article>
+      <article class="incident-card patient"><div class="incident-icon">{{ icons.icon('hospital') }}</div><h3>Unknown patients</h3><p>Help identify unconscious or uncommunicative individuals in medical care.</p><a href="{{ url_for('main.alerts') }}">View patients {{ icons.icon('arrow') }}</a></article>
+      <article class="incident-card accident"><div class="incident-icon">{{ icons.icon('car') }}</div><h3>Road accidents</h3><p>Report collisions to alert nearby drivers and coordinate first responders.</p><a href="{{ url_for('main.report_missing_person') }}">Report accident {{ icons.icon('arrow') }}</a></article>
+    </div>
+  </section>
+
+  <!-- CEMAC coverage strip: highlights the current launch country. -->
+  <section class="cemac-strip" aria-label="CEMAC region coverage">
+    <div><span class="coverage-label">CEMAC region coverage:</span><div class="coverage-countries"><span class="active"><i></i>Cameroon</span><span><i></i>CAR</span><span><i></i>Chad</span><span><i></i>Equatorial Guinea</span><span><i></i>Gabon</span><span><i></i>Republic of Congo</span></div></div>
+  </section>
+{% endblock %}

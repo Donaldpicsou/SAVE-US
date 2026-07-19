@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Home · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Dashboard heading: recipient context and alert search. -->
+  <section class="dashboard-head">
+    <div><p class="eyebrow">Cameroon · Centre region</p><h1>Good morning,<br>Amina</h1></div>
+    <label class="search-box">⌕ <input type="search" placeholder="Search alerts…"></label>
+  </section>
+  <!-- Alert-type filter controls. -->
+  <div class="filter-row"><button class="selected">All alerts</button><button>Missing persons</button><button>Abduction</button><button>Medical emergency</button></div>
+  <!-- Main feed and contextual network sidebar. -->
+  <div class="dashboard-grid">
+    <section>
+      <!-- Featured high-priority alert card. -->
+      <article class="alert-card featured-alert">
+        <div class="portrait-placeholder">JB</div>
+        <div><span class="status-chip">Published 2h ago</span><p class="critical-label">Missing person</p><h2>Jean Bakary, 8</h2><p>Last seen near a primary school in Yaoundé, Centre Region. Wearing a blue school uniform and red backpack.</p><p class="alert-meta">◷ Today · ◉ Yaoundé area</p><div class="button-row"><a class="button danger" href="{{ url_for('main.alerts') }}">View alert</a><button class="button secondary">Share</button></div></div>
+      </article>
+      <!-- Secondary alert card. -->
+      <article class="alert-card compact-alert"><div class="portrait-placeholder pale">SV</div><div><p class="critical-label">Road accident</p><h3>Serious incident reported</h3><p>Support requested near Douala, Littoral.</p><a href="{{ url_for('main.alerts') }}">View details →</a></div></article>
+    </section>
+    <!-- Network status and local-coverage panels. -->
+    <aside class="dashboard-side"><article class="side-card"><h3>◉ Network status</h3><p>Active alerts in region <strong>12</strong></p><div class="status-line"><span></span></div><small>40% increase from last week</small></article><article class="side-card"><h3>⌖ Local coverage</h3><p>Cameroon · Centre</p><a class="button secondary full-width" href="{{ url_for('main.settings') }}">Manage coverage</a></article></aside>
+  </div>
+{% endblock %}
