@@ -6,6 +6,7 @@ from functools import wraps
 from flask import Blueprint, abort, g, jsonify, redirect, render_template, request, session, url_for
 
 from .extensions import db
+from .cemac import load_cemac_data
 from .models import User
 
 
@@ -176,8 +177,65 @@ def settings():
 
 
 @bp.get("/onboarding/location")
+@bp.post("/onboarding/location")
 def onboarding_location():
-    return render_template("simple_page.html", title="Where should SAVE-US protect you?", eyebrow="Step 1 of 2 · Location", description="Choose your country and primary region to receive relevant alerts.", active_page=None, app_shell=False, primary_action="Continue")
+    """Save a new or existing user's country and primary region."""
+    cemac_data = load_cemac_data()
+    pending_phone = session.get("onboarding_phone")
+    user = g.current_user
+
+    if user is None and pending_phone is None:
+        return redirect(url_for("main.sign_in"))
+
+    selected_country_code = request.form.get("country_code", "")
+    selected_region = request.form.get("primary_region", "")
+    error = None
+
+    if request.method == "POST":
+        country = cemac_data.get(selected_country_code)
+        supported_regions = {item["nom"] for item in country["subdivisions"]} if country else set()
+        if country is None:
+            error = "Choose a supported CEMAC country."
+        elif selected_region not in supported_regions:
+            error = f"Choose a valid {country['type_subdivision'].lower()} for {country['name']}."
+        else:
+            if user is None:
+                user = User(
+                    phone_number=pending_phone,
+                    is_phone_verified=True,
+                    country=country["name"],
+                    primary_region=selected_region,
+                )
+                db.session.add(user)
+                db.session.flush()
+                session["user_id"] = user.id
+                session.pop("onboarding_phone", None)
+            else:
+                user.country = country["name"]
+                user.primary_region = selected_region
+
+            db.session.commit()
+            return redirect(url_for("main.dashboard"))
+
+    if user is not None:
+        selected_country_code = next(
+            (code for code, country in cemac_data.items() if country["name"] == user.country),
+            "cameroun",
+        )
+        selected_region = user.primary_region
+    elif not selected_country_code:
+        selected_country_code = "cameroun"
+
+    return render_template(
+        "onboarding_location.html",
+        active_page=None,
+        app_shell=False,
+        cemac_data=cemac_data,
+        selected_country_code=selected_country_code,
+        selected_region=selected_region,
+        error=error,
+        is_profile_update=user is not None,
+    )
 
 
 @bp.get("/notifications")

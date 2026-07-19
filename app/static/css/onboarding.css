@@ -1,0 +1,14 @@
+/* Country and primary-region onboarding. */
+.onboarding-page { align-items:center; display:flex; justify-content:center; min-height:calc(100vh - 80px); padding:4rem 1.5rem; }
+.onboarding-card { background:#fff; border:1px solid var(--line); border-radius:1.5rem; box-shadow:0 20px 40px -10px rgba(0,41,76,.12); max-width:620px; padding:2.5rem; width:100%; }
+.onboarding-card h1 { font-size:2.3rem; max-width:17ch; }
+.onboarding-progress { align-items:center; display:flex; gap:.55rem; margin-bottom:1.25rem; }
+.onboarding-progress span { align-items:center; background:#d6e7fb; border-radius:50%; color:#5c6b7e; display:inline-flex; font-size:.75rem; font-weight:800; height:1.7rem; justify-content:center; width:1.7rem; }
+.onboarding-progress span.active { background:var(--blue); color:#fff; }
+.onboarding-progress i { background:#d6e7fb; height:.25rem; width:3rem; }
+.onboarding-form { display:grid; gap:1.1rem; margin:1.75rem 0 1rem; }
+.onboarding-form label { color:var(--navy); display:grid; font-size:.88rem; font-weight:800; gap:.45rem; }
+.onboarding-form select { background:#fff; border:1px solid #b8c7dc; border-radius:.55rem; color:var(--ink); padding:.85rem; }
+.onboarding-form .button { margin-top:.5rem; width:100%; }
+.onboarding-note { color:var(--muted); font-size:.84rem; line-height:1.5; text-align:center; }
+@media (max-width:700px) { .onboarding-page { min-height:calc(100vh - 68px); padding:2rem 1.25rem 4rem; }.onboarding-card { padding:1.5rem; } }

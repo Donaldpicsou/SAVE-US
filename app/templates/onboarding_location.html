@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Choose your location · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Location onboarding: country and primary region determine alert targeting. -->
+  <section class="onboarding-page">
+    <article class="onboarding-card">
+      <!-- Progress indicator; alert preferences are delivered in roadmap task T9. -->
+      <div class="onboarding-progress"><span class="active">1</span><i></i><span>2</span></div>
+      <p class="eyebrow">{{ "Update location" if is_profile_update else "Step 1 of 2 · Location" }}</p>
+      <h1>Where should SAVE-US protect you?</h1>
+      <p class="lead">Choose your country and primary region. This helps SAVE-US send relevant alerts to the right community.</p>
+      {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+      <!-- Values are validated again server-side against the CEMAC reference dataset. -->
+      <form method="post" class="onboarding-form">
+        <label>Country
+          <select name="country_code" id="country-code" required>
+            {% for code, country in cemac_data.items() %}
+              <option value="{{ code }}" {{ "selected" if code == selected_country_code else "" }}>{{ country.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label><span id="subdivision-label">Primary {{ cemac_data[selected_country_code].type_subdivision }}</span>
+          <select name="primary_region" id="primary-region" required></select>
+        </label>
+        <button class="button emergency" type="submit">{{ "Save location" if is_profile_update else "Continue" }}</button>
+      </form>
+      <p class="onboarding-note">You can follow additional regions and select alert categories in the next step.</p>
+    </article>
+  </section>
+  <!-- Local reference data drives the dynamic subdivision selector without an external request. -->
+  <script id="cemac-data" type="application/json">{{ cemac_data|tojson }}</script>
+  <script>window.SAVE_US_SELECTED_REGION = {{ selected_region|tojson }};</script>
+  <script src="{{ url_for('static', filename='js/onboarding.js') }}" defer></script>
+{% endblock %}

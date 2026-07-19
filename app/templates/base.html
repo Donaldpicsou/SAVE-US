@@ -11,6 +11,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding.css') }}">
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
   </head>
   <body>
@@ -58,7 +59,7 @@
             <!-- Visitor actions: sign-in and platform registration. -->
             <div class="account-menu-identity"><span class="account-avatar guest">S</span><span><strong>Welcome to SAVE-US</strong><small>Join the CEMAC safety network</small></span></div>
             <a class="account-menu-primary" href="{{ url_for('main.sign_in') }}">Sign in with phone</a>
-            <a href="{{ url_for('main.onboarding_location') }}">Create an account</a>
+            <a href="{{ url_for('main.sign_in') }}">Create an account</a>
           {% endif %}
         </div>
       </div>

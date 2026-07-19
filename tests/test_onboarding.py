@@ -1,0 +1,59 @@
+"""Tests for CEMAC location onboarding and profile persistence."""
+
+import unittest
+
+from app import create_app
+from app.extensions import db
+from app.models import User
+
+
+class OnboardingTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "SECRET_KEY": "test-secret",
+                "SQLALCHEMY_DATABASE_URI": "sqlite://",
+            }
+        )
+        self.context = self.app.app_context()
+        self.context.push()
+        db.create_all()
+        self.client = self.app.test_client()
+
+    def tearDown(self) -> None:
+        db.session.remove()
+        db.drop_all()
+        self.context.pop()
+
+    def test_verified_new_phone_creates_location_profile(self) -> None:
+        self.client.post("/sign-in", data={"phone_number": "+237600000000"})
+        response = self.client.post("/verify-otp", data={"otp_code": "123456"})
+        self.assertTrue(response.headers["Location"].endswith("/onboarding/location"))
+
+        response = self.client.post(
+            "/onboarding/location",
+            data={"country_code": "gabon", "primary_region": "Estuaire"},
+        )
+        self.assertTrue(response.headers["Location"].endswith("/dashboard"))
+
+        user = db.session.scalar(db.select(User).where(User.phone_number == "+237600000000"))
+        self.assertEqual((user.country, user.primary_region), ("Gabon", "Estuaire"))
+        self.assertTrue(user.is_phone_verified)
+
+    def test_invalid_region_is_not_saved(self) -> None:
+        with self.client.session_transaction() as browser_session:
+            browser_session["onboarding_phone"] = "+237600000001"
+        response = self.client.post(
+            "/onboarding/location",
+            data={"country_code": "gabon", "primary_region": "Centre"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Choose a valid province", response.data)
+        self.assertIsNone(
+            db.session.scalar(db.select(User).where(User.phone_number == "+237600000001"))
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
