@@ -37,7 +37,7 @@ AI_REVIEW_INPUT_SCHEMA: dict[str, Any] = {
             "additionalProperties": False,
             "required": [
                 "alert_id", "alert_type", "country", "region", "approximate_zone",
-                "details", "photo_available",
+                "details", "photo_available", "private_family_contact_available",
             ],
             "properties": {
                 "alert_id": {"type": "string"},
@@ -46,6 +46,7 @@ AI_REVIEW_INPUT_SCHEMA: dict[str, Any] = {
                 "region": {"type": ["string", "null"]},
                 "approximate_zone": {"type": ["string", "null"]},
                 "photo_available": {"type": "boolean"},
+                "private_family_contact_available": {"type": "boolean"},
                 "details": {"type": "object"},
             },
         },
@@ -116,6 +117,7 @@ def build_missing_person_review_input(alert: Alert) -> dict[str, Any]:
             "region": alert.region,
             "approximate_zone": alert.approximate_zone,
             "photo_available": bool(details.photo_path),
+            "private_family_contact_available": bool(details.private_family_contact),
             "details": _serialise_missing_person_details(details),
         },
         "duplicate_search_scope": {

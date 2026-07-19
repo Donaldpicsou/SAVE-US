@@ -10,6 +10,7 @@ from app.ai_contract import (
     build_missing_person_review_input,
     validate_ai_review_output,
 )
+from app.ai_fallback import FALLBACK_REVIEW_SOURCE, deterministic_ai_review
 from app.extensions import db
 from app.models import Alert, AlertType, MissingPersonDetails, User, utc_now
 
@@ -86,6 +87,28 @@ class AIContractTestCase(unittest.TestCase):
         output["unsafe_extra"] = True
         with self.assertRaisesRegex(AIContractValidationError, "unexpected keys"):
             validate_ai_review_output(output)
+
+    def test_deterministic_fallback_returns_a_publish_candidate_for_complete_data(self) -> None:
+        review_input = build_missing_person_review_input(self.alert)
+        first_result = deterministic_ai_review(review_input)
+        second_result = deterministic_ai_review(review_input)
+        self.assertEqual(FALLBACK_REVIEW_SOURCE, "deterministic_demo_fallback")
+        self.assertEqual(first_result, second_result)
+        self.assertEqual(first_result["decision"], "publish_candidate")
+        self.assertEqual((first_result["confidence_score"], first_result["fraud_risk_score"]), (88, 12))
+
+    def test_deterministic_fallback_handles_missing_fields_and_demo_duplicates(self) -> None:
+        review_input = build_missing_person_review_input(self.alert)
+        review_input["report"]["photo_available"] = False
+        missing_result = deterministic_ai_review(review_input)
+        self.assertEqual(missing_result["decision"], "needs_information")
+        self.assertIn("photo", missing_result["missing_fields"])
+
+        review_input = build_missing_person_review_input(self.alert)
+        review_input["report"]["details"]["name"] = "Samuel Mbo"
+        duplicate_result = deterministic_ai_review(review_input)
+        self.assertEqual(duplicate_result["decision"], "needs_moderation")
+        self.assertEqual(duplicate_result["duplicate_candidates"][0]["similarity_score"], 91)
 
 
 if __name__ == "__main__":
