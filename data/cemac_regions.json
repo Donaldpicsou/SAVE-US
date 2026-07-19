@@ -1,0 +1,124 @@
+{
+  "cameroun": {
+    "name": "Cameroon",
+    "type_subdivision": "Region",
+    "subdivisions": [
+      {"nom": "Adamaoua", "chef_lieu": "Ngaoundéré"},
+      {"nom": "Centre", "chef_lieu": "Yaoundé"},
+      {"nom": "Est", "chef_lieu": "Bertoua"},
+      {"nom": "Extrême-Nord", "chef_lieu": "Maroua"},
+      {"nom": "Littoral", "chef_lieu": "Douala"},
+      {"nom": "Nord", "chef_lieu": "Garoua"},
+      {"nom": "Nord-Ouest", "chef_lieu": "Bamenda"},
+      {"nom": "Ouest", "chef_lieu": "Bafoussam"},
+      {"nom": "Sud", "chef_lieu": "Ebolowa"},
+      {"nom": "Sud-Ouest", "chef_lieu": "Buéa"}
+    ]
+  },
+  "gabon": {
+    "name": "Gabon",
+    "type_subdivision": "Province",
+    "subdivisions": [
+      {"nom": "Estuaire", "chef_lieu": "Libreville"},
+      {"nom": "Haut-Ogooué", "chef_lieu": "Franceville"},
+      {"nom": "Moyen-Ogooué", "chef_lieu": "Lambaréné"},
+      {"nom": "Ngounié", "chef_lieu": "Mouila"},
+      {"nom": "Nyanga", "chef_lieu": "Tchibanga"},
+      {"nom": "Ogooué-Ivindo", "chef_lieu": "Makokou"},
+      {"nom": "Ogooué-Lolo", "chef_lieu": "Koulamoutou"},
+      {"nom": "Ogooué-Maritime", "chef_lieu": "Port-Gentil"},
+      {"nom": "Woleu-Ntem", "chef_lieu": "Oyem"}
+    ]
+  },
+  "guinee_equatoriale": {
+    "name": "Equatorial Guinea",
+    "type_subdivision": "Province",
+    "subdivisions": [
+      {"nom": "Annobón", "chef_lieu": "San Antonio de Palé"},
+      {"nom": "Bioko Norte", "chef_lieu": "Malabo"},
+      {"nom": "Bioko Sur", "chef_lieu": "Luba"},
+      {"nom": "Centro Sur", "chef_lieu": "Evinayong"},
+      {"nom": "Djibloho", "chef_lieu": "Ciudad de la Paz"},
+      {"nom": "Kié-Ntem", "chef_lieu": "Ebebiyín"},
+      {"nom": "Litoral", "chef_lieu": "Bata"},
+      {"nom": "Wele-Nzas", "chef_lieu": "Mongomo"}
+    ]
+  },
+  "congo_brazzaville": {
+    "name": "Republic of the Congo",
+    "type_subdivision": "Department",
+    "subdivisions": [
+      {"nom": "Bouenza", "chef_lieu": "Madingou"},
+      {"nom": "Brazzaville", "chef_lieu": "Brazzaville"},
+      {"nom": "Congo-Oubangui", "chef_lieu": "Mossaka"},
+      {"nom": "Cuvette", "chef_lieu": "Owando"},
+      {"nom": "Cuvette-Ouest", "chef_lieu": "Ewo"},
+      {"nom": "Djoué-Léfini", "chef_lieu": "Odziba"},
+      {"nom": "Kouilou", "chef_lieu": "Loango"},
+      {"nom": "Lékoumou", "chef_lieu": "Sibiti"},
+      {"nom": "Likouala", "chef_lieu": "Impfondo"},
+      {"nom": "Niari", "chef_lieu": "Dolisie"},
+      {"nom": "Nkéni-Alima", "chef_lieu": "Gamboma"},
+      {"nom": "Plateaux", "chef_lieu": "Djambala"},
+      {"nom": "Pointe-Noire", "chef_lieu": "Pointe-Noire"},
+      {"nom": "Pool", "chef_lieu": "Kinkala"},
+      {"nom": "Sangha", "chef_lieu": "Ouesso"}
+    ]
+  },
+  "rca": {
+    "name": "Central African Republic",
+    "type_subdivision": "Prefecture",
+    "subdivisions": [
+      {"nom": "Bamingui-Bangoran", "chef_lieu": "Ndélé"},
+      {"nom": "Bangui", "chef_lieu": "Bangui"},
+      {"nom": "Basse-Kotto", "chef_lieu": "Mobaye"},
+      {"nom": "Haute-Kotto", "chef_lieu": "Bria"},
+      {"nom": "Haut-Mbomou", "chef_lieu": "Obo"},
+      {"nom": "Kémo", "chef_lieu": "Sibut"},
+      {"nom": "Lim-Pendé", "chef_lieu": "Paoua"},
+      {"nom": "Lobaye", "chef_lieu": "Mbaïki"},
+      {"nom": "Mambéré", "chef_lieu": "Carnot"},
+      {"nom": "Mambéré-Kadéï", "chef_lieu": "Berbérati"},
+      {"nom": "Mbomou", "chef_lieu": "Bangassou"},
+      {"nom": "M'Bomou", "chef_lieu": "Gamboula"},
+      {"nom": "Nana-Barya", "chef_lieu": "Bogangolo"},
+      {"nom": "Nana-Grébizi", "chef_lieu": "Kaga-Bandoro"},
+      {"nom": "Nana-Mambéré", "chef_lieu": "Bouar"},
+      {"nom": "Ombella-M'Poko", "chef_lieu": "Boali"},
+      {"nom": "Ouaka", "chef_lieu": "Bambari"},
+      {"nom": "Ouham", "chef_lieu": "Bossangoa"},
+      {"nom": "Ouham-Pendé", "chef_lieu": "Bozoum"},
+      {"nom": "Sangha-Mbaéré", "chef_lieu": "Nola"},
+      {"nom": "Vakaga", "chef_lieu": "Birao"}
+    ]
+  },
+  "tchad": {
+    "name": "Chad",
+    "type_subdivision": "Province",
+    "subdivisions": [
+      {"nom": "Bahr el Ghazel", "chef_lieu": "Moussoro"},
+      {"nom": "Batha", "chef_lieu": "Ati"},
+      {"nom": "Borkou", "chef_lieu": "Faya-Largeau"},
+      {"nom": "Chari-Baguirmi", "chef_lieu": "Massenya"},
+      {"nom": "Ennedi-Est", "chef_lieu": "Amdjarass"},
+      {"nom": "Ennedi-Ouest", "chef_lieu": "Fada"},
+      {"nom": "Guéra", "chef_lieu": "Mongo"},
+      {"nom": "Hadjer-Lamis", "chef_lieu": "Massakory"},
+      {"nom": "Kanem", "chef_lieu": "Mao"},
+      {"nom": "Lac", "chef_lieu": "Bol"},
+      {"nom": "Logone Occidental", "chef_lieu": "Moundou"},
+      {"nom": "Logone Oriental", "chef_lieu": "Doba"},
+      {"nom": "Mandoul", "chef_lieu": "Koumra"},
+      {"nom": "Mayo-Kebbi Est", "chef_lieu": "Bongor"},
+      {"nom": "Mayo-Kebbi Ouest", "chef_lieu": "Pala"},
+      {"nom": "Moyen-Chari", "chef_lieu": "Sarh"},
+      {"nom": "N'Djaména", "chef_lieu": "N'Djaména"},
+      {"nom": "Ouaddaï", "chef_lieu": "Abéché"},
+      {"nom": "Salamat", "chef_lieu": "Am Timan"},
+      {"nom": "Sila", "chef_lieu": "Goza Beïda"},
+      {"nom": "Tandjilé", "chef_lieu": "Laï"},
+      {"nom": "Tibesti", "chef_lieu": "Bardaï"},
+      {"nom": "Wadi Fira", "chef_lieu": "Biltine"}
+    ]
+  }
+}

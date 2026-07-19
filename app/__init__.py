@@ -39,5 +39,16 @@ def create_app(test_config: dict | None = None) -> Flask:
         db.create_all()
         click.echo(f"Database ready: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
+    @app.cli.command("seed-demo")
+    def seed_demo_command() -> None:
+        """Create the idempotent CEMAC demo users and their preferences."""
+        from .seed import seed_demo_data
+
+        users_created, preferences_created = seed_demo_data()
+        click.echo(
+            "Demo data ready: "
+            f"{users_created} user(s) and {preferences_created} preference set(s) created."
+        )
+
     app.register_blueprint(routes.bp)
     return app
