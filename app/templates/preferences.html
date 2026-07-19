@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Alert preferences" if not onboarding else "Choose alert preferences" }} · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Preference form: alert categories, followed regions, and e-mail delivery. -->
+  <section class="preferences-page {{ 'onboarding-preferences' if onboarding else '' }}">
+    <article class="preferences-card">
+      {% if onboarding %}
+        <!-- Second and final onboarding step. -->
+        <div class="onboarding-progress"><span class="complete">✓</span><i class="complete"></i><span class="active">2</span></div>
+        <p class="eyebrow">Step 2 of 2 · Alert preferences</p>
+        <h1>Choose the alerts that matter to you</h1>
+      {% else %}
+        <!-- Settings view for a signed-in profile. -->
+        <p class="eyebrow">{{ country.name }} · {{ primary_region }}</p>
+        <h1>Alert preferences</h1>
+      {% endif %}
+      <p class="lead">Your primary region is always covered. You can add other regions and choose the alert categories you want to receive.</p>
+      {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+      <form method="post" class="preferences-form">
+        <!-- Category toggles control the notification types the user receives. -->
+        <fieldset>
+          <legend>Alert categories</legend>
+          <div class="category-preference-grid">
+            {% for category in categories %}
+              <label class="category-preference">
+                <input type="checkbox" name="enabled_categories" value="{{ category.value }}" {{ "checked" if category.value in enabled_categories else "" }}>
+                <span><strong>{{ category.title }}</strong><small>{{ category.description }}</small></span>
+                <i class="toggle-indicator"></i>
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <!-- Additional regions are validated against the selected country. -->
+        <fieldset>
+          <legend>Additional regions to follow</legend>
+          <p class="field-help">Primary region: <strong>{{ primary_region }}</strong>. Select any additional {{ country.type_subdivision|lower }}s below.</p>
+          <div class="region-checklist">
+            {% for subdivision in country.subdivisions %}
+              {% if subdivision.nom != primary_region %}
+                <label><input type="checkbox" name="followed_regions" value="{{ subdivision.nom }}" {{ "checked" if subdivision.nom in followed_regions else "" }}><span>{{ subdivision.nom }} <small>{{ subdivision.chef_lieu }}</small></span></label>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <!-- E-mail is the only live notification channel included in this MVP. -->
+        <label class="email-preference"><input type="checkbox" name="email_notifications_enabled" {{ "checked" if email_enabled else "" }}><span><strong>Receive e-mail alerts</strong><small>Get selected SAVE-US alerts by e-mail. SMS and push notifications are planned for a future iteration.</small></span></label>
+        <button class="button emergency" type="submit">{{ "Finish setup" if onboarding else "Save preferences" }}</button>
+      </form>
+    </article>
+  </section>
+{% endblock %}

@@ -4,7 +4,7 @@ import unittest
 
 from app import create_app
 from app.extensions import db
-from app.models import User
+from app.models import AlertPreference, User
 
 
 class OnboardingTestCase(unittest.TestCase):
@@ -35,11 +35,27 @@ class OnboardingTestCase(unittest.TestCase):
             "/onboarding/location",
             data={"country_code": "gabon", "primary_region": "Estuaire"},
         )
-        self.assertTrue(response.headers["Location"].endswith("/dashboard"))
+        self.assertTrue(response.headers["Location"].endswith("/onboarding/preferences"))
 
         user = db.session.scalar(db.select(User).where(User.phone_number == "+237600000000"))
         self.assertEqual((user.country, user.primary_region), ("Gabon", "Estuaire"))
         self.assertTrue(user.is_phone_verified)
+
+        response = self.client.post(
+            "/onboarding/preferences",
+            data={
+                "enabled_categories": "missing_person",
+                "followed_regions": "Haut-Ogooué",
+                "email_notifications_enabled": "on",
+            },
+        )
+        self.assertTrue(response.headers["Location"].endswith("/dashboard"))
+        self.assertEqual(
+            db.session.scalar(
+                db.select(AlertPreference).where(AlertPreference.user_id == user.id)
+            ).followed_regions,
+            ["Haut-Ogooué"],
+        )
 
     def test_invalid_region_is_not_saved(self) -> None:
         with self.client.session_transaction() as browser_session:

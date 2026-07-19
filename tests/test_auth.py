@@ -57,6 +57,28 @@ class AuthenticationTestCase(unittest.TestCase):
         self.assertIn(b"not valid", response.data)
         self.assertEqual(self.client.get("/dashboard").status_code, 302)
 
+    def test_sign_in_accepts_cemac_numbers_and_rejects_invalid_ones(self) -> None:
+        for phone_number in (
+            "+23512345678",
+            "+23612345678",
+            "+237512345678",
+            "+240123456789",
+            "+24174001122",
+            "+242123456789",
+        ):
+            response = self.client.post("/sign-in", data={"phone_number": phone_number})
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("/verify-otp", response.headers["Location"])
+
+        for phone_number in ("+243123456789", "+23761234567"):
+            response = self.client.post("/sign-in", data={"phone_number": phone_number})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b"valid CEMAC phone number", response.data)
+
+        response = self.client.post("/sign-in", data={"phone_number": "+237 612 345 678"})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/verify-otp", response.headers["Location"])
+
     def test_opening_notifications_can_clear_the_unread_count(self) -> None:
         self.client.post("/sign-in", data={"phone_number": "+237612345678"})
         self.client.post("/verify-otp", data={"otp_code": "123456"})

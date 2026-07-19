@@ -7,11 +7,21 @@ from flask import Blueprint, abort, g, jsonify, redirect, render_template, reque
 
 from .extensions import db
 from .cemac import load_cemac_data
-from .models import User
+from .models import AlertPreference, AlertType, User
 
 
 bp = Blueprint("main", __name__)
 DEMO_OTP_CODE = "123456"
+# CEMAC numbering plans represented as country code -> national-number length.
+# The OTP MVP stores a normalised E.164-style value and supports all six members.
+CEMAC_PHONE_NUMBER_LENGTHS = {
+    "235": 8,  # Chad
+    "236": 8,  # Central African Republic
+    "237": 9,  # Cameroon
+    "240": 9,  # Equatorial Guinea
+    "241": 8,  # Gabon
+    "242": 9,  # Republic of the Congo
+}
 
 DEMO_NOTIFICATIONS = [
     {"id": "missing-jean-bakary", "type": "Missing person", "title": "Jean Bakary, 8", "location": "Yaoundé area · Centre", "time": "2 hours ago", "description": "Jean was last seen near a primary school in Yaoundé. He was wearing a blue school uniform and a red backpack."},
@@ -29,6 +39,29 @@ INFORMATION_PAGES = {
     "data-protection": ("Data protection", "Trust & safety", "Sensitive report information is treated with care and public alerts disclose only what is necessary.", [("Purpose limitation", "Report information is used to structure, review, distribute, and manage emergency alerts."), ("Audit trail", "Reasoned withdrawals, safety reports, and moderation decisions retain a non-public audit record.")]),
     "report-misuse": ("Report misuse", "Trust & safety", "Report false information, privacy concerns, or harmful use so the SAVE-US moderation team can review it.", [("What to report", "Use this channel for incorrect information, a person already found, privacy concerns, or suspected fraudulent use."), ("What happens next", "The report is reviewed by a moderator. Users should never confront or harass another reporter.")]),
 }
+
+PREFERENCE_CATEGORIES = (
+    {
+        "value": AlertType.MISSING_PERSON.value,
+        "title": "Missing people",
+        "description": "Alerts from your primary and followed regions.",
+    },
+    {
+        "value": AlertType.SUSPECTED_ABDUCTION.value,
+        "title": "Suspected abductions",
+        "description": "Urgent alerts distributed across your country.",
+    },
+    {
+        "value": AlertType.UNKNOWN_HOSPITAL_PATIENT.value,
+        "title": "Unknown hospital patients",
+        "description": "Identification requests from verified hospitals in your country.",
+    },
+    {
+        "value": AlertType.ROAD_ACCIDENT.value,
+        "title": "Road accidents",
+        "description": "Serious road incidents near your primary and followed regions.",
+    },
+)
 
 
 @bp.before_app_request
@@ -71,6 +104,17 @@ def normalise_phone(phone_number: str) -> str:
     return re.sub(r"[^\d+]", "", phone_number.strip())
 
 
+def is_valid_cemac_phone(phone_number: str) -> bool:
+    """Accept a normalised international number from one of the six CEMAC countries."""
+    if not phone_number.startswith("+") or not phone_number[1:].isdigit():
+        return False
+    return any(
+        phone_number.startswith(f"+{country_code}")
+        and len(phone_number) == 1 + len(country_code) + national_length
+        for country_code, national_length in CEMAC_PHONE_NUMBER_LENGTHS.items()
+    )
+
+
 def safe_next_url(next_url: str | None) -> str:
     """Keep post-login redirects within this application."""
     if next_url and next_url.startswith("/") and not next_url.startswith("//"):
@@ -93,8 +137,8 @@ def sign_in():
     phone_number = ""
     if request.method == "POST":
         phone_number = normalise_phone(request.form.get("phone_number", ""))
-        if not re.fullmatch(r"\+\d{8,15}", phone_number):
-            error = "Enter a valid phone number, including the country code."
+        if not is_valid_cemac_phone(phone_number):
+            error = "Enter a valid CEMAC phone number, for example +237 612 345 678 or +241 74 00 11 22."
         else:
             session["pending_phone"] = phone_number
             session["pending_otp"] = DEMO_OTP_CODE
@@ -170,10 +214,73 @@ def moderator_queue():
     return render_template("simple_page.html", title="Moderator queue", eyebrow="Verified moderator access", description="Review reports flagged for possible duplicates, unsafe media, or high fraud risk.", active_page="moderator", app_shell=True, primary_action="View review queue")
 
 
-@bp.get("/settings")
+def preference_country_data(user: User) -> tuple[str, dict]:
+    """Find the CEMAC dataset entry corresponding to a user's country."""
+    dataset = load_cemac_data()
+    country_code, country = next(
+        (
+            (code, data)
+            for code, data in dataset.items()
+            if data["name"] == user.country
+        ),
+        ("cameroun", dataset["cameroun"]),
+    )
+    return country_code, country
+
+
+def manage_preferences(*, onboarding: bool):
+    """Render and persist a user's alert-preference selection."""
+    user = g.current_user
+    country_code, country = preference_country_data(user)
+    preference = user.alert_preference
+    enabled_categories = set(preference.enabled_categories) if preference else set()
+    followed_regions = set(preference.followed_regions) if preference else set()
+    email_enabled = preference.email_notifications_enabled if preference else True
+    error = None
+
+    if request.method == "POST":
+        enabled_categories = set(request.form.getlist("enabled_categories"))
+        followed_regions = set(request.form.getlist("followed_regions"))
+        email_enabled = request.form.get("email_notifications_enabled") == "on"
+        valid_categories = {category["value"] for category in PREFERENCE_CATEGORIES}
+        valid_regions = {item["nom"] for item in country["subdivisions"]}
+
+        if not enabled_categories:
+            error = "Choose at least one alert category."
+        elif not enabled_categories.issubset(valid_categories):
+            error = "One or more alert categories are not supported."
+        elif not followed_regions.issubset(valid_regions):
+            error = "Choose followed regions from your selected country."
+        else:
+            if preference is None:
+                preference = AlertPreference(user=user)
+                db.session.add(preference)
+            preference.enabled_categories = sorted(enabled_categories)
+            preference.followed_regions = sorted(followed_regions)
+            preference.email_notifications_enabled = email_enabled
+            db.session.commit()
+            return redirect(url_for("main.dashboard"))
+
+    return render_template(
+        "preferences.html",
+        active_page="settings" if not onboarding else None,
+        app_shell=not onboarding,
+        onboarding=onboarding,
+        country_code=country_code,
+        country=country,
+        categories=PREFERENCE_CATEGORIES,
+        enabled_categories=enabled_categories,
+        followed_regions=followed_regions,
+        email_enabled=email_enabled,
+        error=error,
+        primary_region=user.primary_region,
+    )
+
+
+@bp.route("/settings", methods=("GET", "POST"))
 @login_required
 def settings():
-    return render_template("simple_page.html", title="Alert preferences", eyebrow="Cameroon · Centre", description="Control the alert categories and regions you want to follow.", active_page="settings", app_shell=True, primary_action="Save preferences")
+    return manage_preferences(onboarding=False)
 
 
 @bp.get("/onboarding/location")
@@ -215,7 +322,7 @@ def onboarding_location():
                 user.primary_region = selected_region
 
             db.session.commit()
-            return redirect(url_for("main.dashboard"))
+            return redirect(url_for("main.onboarding_preferences"))
 
     if user is not None:
         selected_country_code = next(
@@ -236,6 +343,12 @@ def onboarding_location():
         error=error,
         is_profile_update=user is not None,
     )
+
+
+@bp.route("/onboarding/preferences", methods=("GET", "POST"))
+@login_required
+def onboarding_preferences():
+    return manage_preferences(onboarding=True)
 
 
 @bp.get("/notifications")

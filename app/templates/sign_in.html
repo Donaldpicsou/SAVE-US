@@ -9,11 +9,11 @@
       <img src="{{ url_for('static', filename='images/save-us-logo.png') }}" alt="SAVE-US logo">
       <p class="eyebrow">Secure community access</p>
       <h1>Welcome to SAVE-US</h1>
-      <p class="lead">Sign in with your phone number to access emergency alerts for your country and regions.</p>
+      <p class="lead">Sign in with a CEMAC phone number to access emergency alerts for your country and regions.</p>
       {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
       <!-- Phone number is stored temporarily in the session until OTP verification. -->
       <form method="post" class="auth-form">
-        <label>Phone number<input name="phone_number" type="tel" value="{{ phone_number }}" placeholder="+237 612 345 678" autocomplete="tel" required></label>
+        <label>CEMAC phone number<input name="phone_number" type="tel" value="{{ phone_number }}" placeholder="+237 612 345 678" pattern="\+?(235|236|237|240|241|242)[0-9\s-]+" title="Use a phone number from Cameroon, CAR, Chad, Equatorial Guinea, Gabon, or Republic of the Congo." inputmode="tel" autocomplete="tel" required></label>
         <button class="button emergency" type="submit">Send verification code</button>
       </form>
       <p class="demo-note"><strong>Hackathon demo:</strong> use the seeded phone <code>+237 612 345 678</code> and code <code>{{ demo_otp_code }}</code>.</p>
