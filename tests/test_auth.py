@@ -4,7 +4,7 @@ import unittest
 
 from app import create_app
 from app.extensions import db
-from app.models import User
+from app.models import Notification, User
 
 
 class AuthenticationTestCase(unittest.TestCase):
@@ -80,6 +80,16 @@ class AuthenticationTestCase(unittest.TestCase):
         self.assertIn("/verify-otp", response.headers["Location"])
 
     def test_opening_notifications_can_clear_the_unread_count(self) -> None:
+        user = db.session.scalar(db.select(User).where(User.phone_number == "+237612345678"))
+        db.session.add(
+            Notification(
+                recipient=user,
+                kind="report_needs_moderation",
+                title="Your report needs moderator review",
+                body="Open the review to see the next steps.",
+            )
+        )
+        db.session.commit()
         self.client.post("/sign-in", data={"phone_number": "+237612345678"})
         self.client.post("/verify-otp", data={"otp_code": "123456"})
         self.assertIn(b"notification-badge", self.client.get("/dashboard").data)

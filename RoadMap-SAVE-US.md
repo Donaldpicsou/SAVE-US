@@ -43,6 +43,9 @@ flowchart LR
   T11 --> T23
   T16 --> T23
   T17 --> T23
+  T17 --> T24["T24 Centre de notifications persistant"]
+  T18 --> T24
+  T23 --> T24
 ```
 
 ## Tâches unitaires
@@ -77,12 +80,13 @@ flowchart LR
 | T21 | Aligner l’accueil avec le fil d’alertes | Home devient un tableau de bord vivant affichant jusqu’à trois alertes récentes ciblées par préférences, un compteur d’alertes actives et la couverture ; Alerts conserve le fil complet, recherché et filtrable. | T18, T19 | Terminé |
 | T22 | Diffuser les photos d’alerte de manière protégée | Les photos téléversées restent privées et ne sont visibles dans Home, Alerts et le détail que par le déclarant ou un destinataire éligible d’une alerte publiée. Les requêtes non autorisées renvoient `404` ; les réponses photo sont privées et non mises en cache. | T12, T17, T18, T19 | Terminé |
 | T23 | Construire l’espace déclarant | My reports affiche uniquement les rapports du déclarant connecté, propose filtres statut/catégorie/recherche, reprise des brouillons, accès aux revues et alertes publiées, et consigne les actions motivées « personne retrouvée » ou « retrait » dans une piste d’audit non publique. | T4, T7, T11, T16, T17 | Terminé |
+| T24 | Livrer le centre de notifications persistant | Les événements de publication, modération et clôture créent des notifications ciblées ; l’aperçu d’en-tête et la page de notifications affichent les états réels lu/non lu, les filtres, l’action explicite « tout marquer comme lu », des liens d’alerte protégés et l’état simulé de l’e-mail. | T17, T18, T23 | Terminé |
 
 ## Chemin critique
 
 `T1 → T2 → T3 → T4 → T10 → T11 → T16 → T17 → T18 → T19 → T20`
 
-Consolidation post-T20 : `T19 → T21`, `T12 + T17 + T18 + T19 → T22` et `T4 + T7 + T11 + T16 + T17 → T23`.
+Consolidation post-T20 : `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, `T4 + T7 + T11 + T16 + T17 → T23` et `T17 + T18 + T23 → T24`.
 
 ## Travail parallélisable
 

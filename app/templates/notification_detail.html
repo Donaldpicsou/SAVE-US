@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Notification · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Safe status-update page for closure and other non-alert notification events. -->
+  <section class="notifications-page notification-detail-page">
+    <a class="back-link" href="{{ url_for('main.notifications') }}">← Back to notifications</a>
+    <article class="notification-detail-card">
+      <p class="eyebrow">SAVE-US update</p>
+      <h1>{{ notification.title }}</h1>
+      <p class="lead">{{ notification.body }}</p>
+      <dl class="notification-detail-meta"><div><dt>Location</dt><dd>{{ notification.location }}</dd></div><div><dt>Received</dt><dd>{{ notification.created_label }}</dd></div>{% if notification.email_delivery_status == 'simulated_sent' %}<div><dt>Delivery</dt><dd>Demo e-mail sent</dd></div>{% endif %}</dl>
+    </article>
+  </section>
+{% endblock %}

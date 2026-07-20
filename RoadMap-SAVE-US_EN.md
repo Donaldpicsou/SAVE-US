@@ -43,6 +43,9 @@ flowchart LR
   T11 --> T23
   T16 --> T23
   T17 --> T23
+  T17 --> T24["T24 Persisted notification centre"]
+  T18 --> T24
+  T23 --> T24
 ```
 
 ## Atomic tasks
@@ -77,12 +80,13 @@ flowchart LR
 | T21 | Align Home with the alert feed | Home is a compact live dashboard showing up to three recent preference-targeted alerts, an active-alert count, and coverage; Alerts remains the complete searchable and filterable feed. | T18, T19 | Completed |
 | T22 | Deliver protected alert photos | Uploaded photos stay in private storage and appear on Home, Alerts, and alert detail only for the report owner or an eligible recipient of a published alert. Unauthorised requests return `404`; photo responses are private and non-cacheable. | T12, T17, T18, T19 | Completed |
 | T23 | Build the reporter workspace | My reports lists only the signed-in reporter’s reports, supports status/category/search filters, resumes drafts, opens reviews and published alerts, and records reasoned “found” or “withdrawn” actions in a non-public audit trail. | T4, T7, T11, T16, T17 | Completed |
+| T24 | Deliver the persistent notification centre | Publication, moderation, and closure events create targeted in-app notifications; the header preview and notification page show real unread/read state, filters, explicit “mark all as read”, safe alert links, and simulated e-mail delivery state. | T17, T18, T23 | Completed |
 
 ## Critical path
 
 `T1 → T2 → T3 → T4 → T10 → T11 → T16 → T17 → T18 → T19 → T20`
 
-Post-T20 consolidation: `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, and `T4 + T7 + T11 + T16 + T17 → T23`.
+Post-T20 consolidation: `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, `T4 + T7 + T11 + T16 + T17 → T23`, and `T17 + T18 + T23 → T24`.
 
 ## Parallel work
 

@@ -29,16 +29,18 @@
         <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_missing_person') }}">Report</a>
       </nav>
       <div class="header-actions">
-        <span class="country-pill">● Cameroon</span>
+        <span class="country-pill">● {{ current_user.country if is_authenticated else "CEMAC" }}</span>
         <!-- Notification-menu trigger and unread count. -->
-        <button class="icon-link notification-menu-trigger" type="button" data-popover-trigger="notification-menu" data-mark-notifications="{{ 'true' if is_authenticated else 'false' }}" aria-label="Open notifications" aria-expanded="false" aria-controls="notification-menu">{{ icons.icon('bell') }}{% if is_authenticated and notification_count %}<span class="notification-badge" data-unread-count>{{ notification_count }}</span>{% endif %}</button>
+        <button class="icon-link notification-menu-trigger" type="button" data-popover-trigger="notification-menu" aria-label="Open notifications" aria-expanded="false" aria-controls="notification-menu">{{ icons.icon('bell') }}{% if is_authenticated and notification_count %}<span class="notification-badge">{{ notification_count }}</span>{% endif %}</button>
         <div id="notification-menu" class="notification-menu" data-popover hidden>
           {% if is_authenticated %}
             <!-- Alerts shown here match the user's country, followed regions, and enabled categories. -->
-            <div class="notification-menu-heading"><div><strong><span data-unread-count>{{ notification_count }}</span> new alerts</strong><small>Centre &amp; Cameroon · based on your preferences</small></div><span class="notification-count" data-unread-count>{{ notification_count }}</span></div>
+            <div class="notification-menu-heading"><div><strong>{{ notification_count }} unread notification{{ '' if notification_count == 1 else 's' }}</strong><small>{{ current_user.primary_region or 'All regions' }} · {{ current_user.country }} · based on your preferences</small></div><span class="notification-count">{{ notification_count }}</span></div>
             <div class="notification-preview-list">
               {% for item in notification_items %}
-                <a class="notification-preview" href="{{ url_for('main.alert_detail', alert_id=item.id) }}"><span class="notification-type-dot {{ item.type|lower|replace(' ', '-') }}"></span><span><strong>{{ item.title }}</strong><small>{{ item.type }} · {{ item.location }} · {{ item.time }}</small></span></a>
+                <a class="notification-preview {{ 'is-read' if item.is_read else 'is-unread' }}" href="{{ item.open_url }}">{% if item.photo_url %}<img class="notification-preview-image" src="{{ item.photo_url }}" alt="" loading="lazy">{% else %}<span class="notification-type-dot {{ item.type_value }}"></span>{% endif %}<span><strong>{{ item.title }}</strong><small>{{ item.body }} · {{ item.location }} · {{ item.created_label }}</small></span></a>
+              {% else %}
+                <p class="notification-empty">No notifications yet. New eligible alerts and report updates will appear here.</p>
               {% endfor %}
             </div>
             <a class="all-notifications-link" href="{{ url_for('main.notifications') }}">All notifications {{ icons.icon('arrow') }}</a>

@@ -7,11 +7,18 @@
   <!-- Full notification centre reached from the header popover. -->
   <section class="notifications-page">
     <!-- Page heading explains the country and preference-based filtering context. -->
-    <div class="notifications-heading"><div><p class="eyebrow">Centre &amp; Cameroon</p><h1>All notifications</h1><p class="lead">Alerts selected from your country, followed regions, and enabled categories.</p></div><span class="notification-count large">{{ notifications|length }}</span></div>
-    <!-- Notification list; each item opens the matching alert detail page. -->
+    <div class="notifications-heading"><div><p class="eyebrow">{{ current_user.primary_region or 'All regions' }} &amp; {{ current_user.country }}</p><h1>Notifications</h1><p class="lead">Updates selected from your country, followed regions, and enabled categories.</p></div><span class="notification-count large">{{ unread_count }}</span></div>
+    <!-- Notification filters and the explicit control to mark all existing items as read. -->
+    <div class="notification-toolbar">
+      <nav class="notification-filters" aria-label="Notification filters"><a class="{{ 'active' if selected_filter == 'all' else '' }}" href="{{ url_for('main.notifications', filter='all') }}">All</a><a class="{{ 'active' if selected_filter == 'unread' else '' }}" href="{{ url_for('main.notifications', filter='unread') }}">Unread</a><a class="{{ 'active' if selected_filter == 'read' else '' }}" href="{{ url_for('main.notifications', filter='read') }}">Read</a></nav>
+      {% if unread_count %}<form action="{{ url_for('main.mark_notifications_seen') }}" method="post"><button class="button button-secondary button-compact" type="submit">Mark all as read</button></form>{% endif %}
+    </div>
+    <!-- Each notification can be opened only by its intended recipient. -->
     <div class="notifications-list">
       {% for item in notifications %}
-        <a class="notification-row" href="{{ url_for('main.alert_detail', alert_id=item.id) }}"><span class="notification-type-dot {{ item.type|lower|replace(' ', '-') }}"></span><span class="notification-row-copy"><strong>{{ item.title }}</strong><span>{{ item.type }} · {{ item.location }}</span><small>{{ item.time }}</small></span>{{ icons.icon('arrow') }}</a>
+        <a class="notification-row {{ 'is-unread' if not item.is_read else '' }}" href="{{ item.open_url }}">{% if item.photo_url %}<img class="notification-row-image" src="{{ item.photo_url }}" alt="" loading="lazy">{% else %}<span class="notification-type-dot {{ item.type_value }}"></span>{% endif %}<span class="notification-row-copy"><strong>{{ item.title }}</strong><span>{{ item.body }}</span><small>{{ item.location }} · {{ item.created_label }}{% if item.email_delivery_status == 'simulated_sent' %} · Demo e-mail sent{% endif %}</small></span>{% if not item.is_read %}<span class="unread-label">Unread</span>{% endif %}{{ icons.icon('arrow') }}</a>
+      {% else %}
+        <p class="notification-empty notification-empty-page">No {{ selected_filter if selected_filter != 'all' else '' }} notifications to show.</p>
       {% endfor %}
     </div>
   </section>

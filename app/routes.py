@@ -10,8 +10,9 @@ from .extensions import db
 from .ai_service import review_missing_person_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, private_media_path, store_missing_person_photo
+from .notification_service import queue_closure_notifications, queue_review_outcome_notifications
 from .publication import apply_publication_decision, decide_publication
-from .targeting import user_receives_alert
+from .targeting import eligible_recipients, user_receives_alert
 from .models import (
     AIReview,
     Alert,
@@ -20,6 +21,7 @@ from .models import (
     AlertType,
     MissingPersonDetails,
     MissingPersonSex,
+    Notification,
     ReportAction,
     User,
 )
@@ -37,12 +39,6 @@ CEMAC_PHONE_NUMBER_LENGTHS = {
     "241": 8,  # Gabon
     "242": 9,  # Republic of the Congo
 }
-
-DEMO_NOTIFICATIONS = [
-    {"id": "missing-jean-bakary", "type": "Missing person", "title": "Jean Bakary, 8", "location": "Yaoundé area · Centre", "time": "2 hours ago", "description": "Jean was last seen near a primary school in Yaoundé. He was wearing a blue school uniform and a red backpack."},
-    {"id": "road-douala-a1", "type": "Road accident", "title": "Serious incident on the A1", "location": "Douala · Littoral", "time": "5 hours ago", "description": "A serious road accident was reported near Douala. Nearby people are asked to avoid the area and follow emergency-service instructions."},
-    {"id": "patient-yaounde-central", "type": "Unknown patient", "title": "Identification request", "location": "Yaoundé · Cameroon", "time": "Yesterday", "description": "A verified hospital has requested help identifying an unknown patient. Public information is limited to safe identifying details."},
-]
 
 INFORMATION_PAGES = {
     "about": ("About SAVE-US", "CEMAC Emergency Network", "A high-trust civic platform dedicated to humanitarian protection and rapid emergency coordination across Central Africa.", [("Our mission", "SAVE-US helps communities structure, review, and responsibly share critical alerts when every second matters."), ("Our role", "We support first-line information gathering and responsible community distribution. We do not replace emergency services or investigative authorities.")]),
@@ -100,15 +96,22 @@ def load_current_user() -> None:
 
 @bp.app_context_processor
 def inject_shared_template_data() -> dict:
-    """Expose notification data and real session state to every template."""
-    seen_notification_ids = set(session.get("seen_notification_ids", []))
-    unread_notification_count = sum(
-        item["id"] not in seen_notification_ids for item in DEMO_NOTIFICATIONS
+    """Expose only the signed-in user's persisted notification previews."""
+    notification_items = notification_views_for_user(g.current_user, limit=4) if g.current_user else []
+    unread_notification_count = (
+        db.session.scalar(
+            db.select(db.func.count(Notification.id)).where(
+                Notification.recipient_id == g.current_user.id,
+                Notification.is_read.is_(False),
+            )
+        )
+        if g.current_user
+        else 0
     )
     return {
         "current_user": g.current_user,
         "is_authenticated": g.current_user is not None,
-        "notification_items": DEMO_NOTIFICATIONS,
+        "notification_items": notification_items,
         "notification_count": unread_notification_count,
     }
 
@@ -257,17 +260,7 @@ def alert_detail(alert_id: str):
             app_shell=True,
         )
 
-    # Keep the pre-T19 static notification examples available during the demo.
-    alert = next((item for item in DEMO_NOTIFICATIONS if item["id"] == alert_id), None)
-    if alert is None:
-        abort(404)
-    return render_template(
-        "alert_detail.html",
-        alert=alert,
-        back_url=url_for("main.notifications"),
-        active_page="alerts",
-        app_shell=True,
-    )
+    abort(404)
 
 
 @bp.get("/alerts/<alert_id>/photo")
@@ -334,6 +327,51 @@ def public_alert_view(alert: Alert) -> dict:
             else None
         ),
     }
+
+
+def notification_views_for_user(user: User, *, limit: int | None = None, filter_name: str = "all") -> list[dict]:
+    """Build private, public-safe notification display data for one recipient."""
+    statement = db.select(Notification).where(Notification.recipient_id == user.id)
+    if filter_name == "unread":
+        statement = statement.where(Notification.is_read.is_(False))
+    elif filter_name == "read":
+        statement = statement.where(Notification.is_read.is_(True))
+    statement = statement.order_by(Notification.created_at.desc())
+    if limit is not None:
+        statement = statement.limit(limit)
+    return [notification_view(notification) for notification in db.session.scalars(statement).all()]
+
+
+def notification_view(notification: Notification) -> dict:
+    """Return a notification without private contact data or inaccessible media."""
+    alert = notification.alert
+    photo_available = (
+        alert is not None
+        and notification.kind in {"alert_published", "report_published", "report_needs_moderation"}
+        and alert.missing_person_details is not None
+        and bool(alert.missing_person_details.photo_path)
+    )
+    return {
+        "id": notification.id,
+        "kind": notification.kind,
+        "title": notification.title,
+        "body": notification.body,
+        "location": notification.public_location or "SAVE-US",
+        "created_label": notification.created_at.strftime("%d %b %Y · %H:%M UTC"),
+        "is_read": notification.is_read,
+        "email_delivery_status": notification.email_delivery_status,
+        "type_value": alert.alert_type.value if alert else "report_update",
+        "photo_url": url_for("main.alert_photo", alert_id=alert.id) if photo_available else None,
+        "open_url": url_for("main.open_notification", notification_id=notification.id),
+    }
+
+
+def owned_notification(notification_id: str) -> Notification:
+    """Load one persisted notification only for its intended recipient."""
+    notification = db.session.get(Notification, notification_id)
+    if notification is None or notification.recipient_id != g.current_user.id:
+        abort(404)
+    return notification
 
 
 def owned_missing_person_draft(draft_id: str | None) -> Alert | None:
@@ -505,6 +543,7 @@ def report_missing_person():
                 if not errors:
                     review = persist_ai_review(draft, review_missing_person_alert(draft))
                     apply_publication_decision(draft, review)
+                    queue_review_outcome_notifications(draft)
                     db.session.commit()
                     return redirect(url_for("main.report_reviewing", alert_id=draft.id))
             elif not errors:
@@ -634,8 +673,13 @@ def close_report(alert_id: str):
     if alert.status in {AlertStatus.REPORTED_FOUND, AlertStatus.WITHDRAWN, AlertStatus.EXPIRED}:
         return redirect(url_for("main.my_reports", action_error="This report has already been closed."))
 
+    former_recipients = []
+    if alert.status == AlertStatus.PUBLISHED:
+        users = db.session.scalars(db.select(User).where(User.is_phone_verified.is_(True))).all()
+        former_recipients = eligible_recipients(alert, users)
     alert.status = AlertStatus.REPORTED_FOUND if action == "reported_found" else AlertStatus.WITHDRAWN
     db.session.add(ReportAction(alert=alert, actor_id=g.current_user.id, action=action, reason=reason))
+    queue_closure_notifications(alert, former_recipients, action=action)
     db.session.commit()
     return redirect(url_for("main.my_reports"))
 
@@ -786,15 +830,62 @@ def onboarding_preferences():
 @bp.get("/notifications")
 @login_required
 def notifications():
-    return render_template("notifications.html", active_page=None, app_shell=True, notifications=DEMO_NOTIFICATIONS)
+    selected_filter = request.args.get("filter", "all").strip()
+    if selected_filter not in {"all", "unread", "read"}:
+        selected_filter = "all"
+    unread_count = db.session.scalar(
+        db.select(db.func.count(Notification.id)).where(
+            Notification.recipient_id == g.current_user.id,
+            Notification.is_read.is_(False),
+        )
+    )
+    return render_template(
+        "notifications.html",
+        active_page=None,
+        app_shell=True,
+        notifications=notification_views_for_user(g.current_user, filter_name=selected_filter),
+        selected_filter=selected_filter,
+        unread_count=unread_count,
+    )
 
 
 @bp.post("/notifications/mark-seen")
 @login_required
 def mark_notifications_seen():
-    """Mark the current demo notification set as read in this user session."""
-    session["seen_notification_ids"] = [item["id"] for item in DEMO_NOTIFICATIONS]
+    """Explicitly mark every unread persisted notification as read for this recipient."""
+    unread_notifications = db.session.scalars(
+        db.select(Notification).where(
+            Notification.recipient_id == g.current_user.id,
+            Notification.is_read.is_(False),
+        )
+    ).all()
+    for notification in unread_notifications:
+        notification.is_read = True
+        notification.read_at = datetime.now(timezone.utc)
+    db.session.commit()
     return jsonify({"unread_count": 0})
+
+
+@bp.get("/notifications/<notification_id>/open")
+@login_required
+def open_notification(notification_id: str):
+    """Mark one item read, then open its alert, review, or safe status update."""
+    notification = owned_notification(notification_id)
+    if not notification.is_read:
+        notification.is_read = True
+        notification.read_at = datetime.now(timezone.utc)
+        db.session.commit()
+    alert = notification.alert
+    if notification.kind == "alert_published" and alert and user_receives_alert(g.current_user, alert):
+        return redirect(url_for("main.alert_detail", alert_id=alert.id))
+    if notification.kind in {"report_published", "report_needs_moderation"} and alert and alert.reporter_id == g.current_user.id:
+        return redirect(url_for("main.ai_review", alert_id=alert.id))
+    return render_template(
+        "notification_detail.html",
+        active_page=None,
+        app_shell=True,
+        notification=notification_view(notification),
+    )
 
 
 @bp.get("/account")

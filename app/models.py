@@ -97,6 +97,12 @@ class User(db.Model):
         back_populates="reporter",
         foreign_keys="Alert.reporter_id",
     )
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="recipient",
+        cascade="all, delete-orphan",
+        foreign_keys="Notification.recipient_id",
+        order_by="Notification.created_at.desc()",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.id} {self.phone_number}>"
@@ -185,6 +191,10 @@ class Alert(db.Model):
         back_populates="alert",
         cascade="all, delete-orphan",
         order_by="ReportAction.created_at.desc()",
+    )
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:
@@ -331,6 +341,35 @@ class ReportAction(db.Model):
         return f"<ReportAction alert_id={self.alert_id} action={self.action}>"
 
 
+class Notification(db.Model):
+    """A private in-app notification with optional simulated e-mail delivery state."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        Index("ix_notifications_recipient_created", "recipient_id", "created_at"),
+        Index("ix_notifications_recipient_read", "recipient_id", "is_read"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    alert_id: Mapped[str | None] = mapped_column(ForeignKey("alerts.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(48), nullable=False)
+    title: Mapped[str] = mapped_column(String(180), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    public_location: Mapped[str | None] = mapped_column(String(180))
+    channel: Mapped[str] = mapped_column(String(24), nullable=False, default="in_app")
+    email_delivery_status: Mapped[str] = mapped_column(String(32), nullable=False, default="not_requested")
+    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    recipient: Mapped[User] = relationship(back_populates="notifications", foreign_keys=[recipient_id])
+    alert: Mapped[Alert | None] = relationship(back_populates="notifications")
+
+    def __repr__(self) -> str:
+        return f"<Notification {self.id} recipient={self.recipient_id} kind={self.kind}>"
+
+
 __all__ = [
     "Alert",
     "AlertPreference",
@@ -339,6 +378,7 @@ __all__ = [
     "AIReview",
     "MissingPersonDetails",
     "MissingPersonSex",
+    "Notification",
     "ReportAction",
     "User",
     "UserRole",
