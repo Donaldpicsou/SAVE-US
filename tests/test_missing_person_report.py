@@ -194,8 +194,12 @@ class MissingPersonReportTestCase(unittest.TestCase):
         self.assertIn("/reviewing", response.headers["Location"])
 
         review = db.session.scalar(db.select(AIReview))
+        alert = db.session.get(Alert, review.alert_id)
         self.assertEqual(review.decision, "publish_candidate")
         self.assertEqual(review.source, "deterministic_demo_fallback")
+        self.assertEqual(alert.status, AlertStatus.PUBLISHED)
+        self.assertEqual(alert.public_summary, review.public_summary)
+        self.assertIsNotNone(alert.published_at)
         screen = self.client.get(response.headers["Location"])
         self.assertEqual(screen.status_code, 200)
         self.assertIn(b"We are checking your report", screen.data)
@@ -205,6 +209,7 @@ class MissingPersonReportTestCase(unittest.TestCase):
         self.assertIn(b"Public summary", review_screen.data)
         self.assertIn(b"Confidence score", review_screen.data)
         self.assertIn(b"Possible duplicates", review_screen.data)
+        self.assertIn(b"Alert published", review_screen.data)
 
 
 if __name__ == "__main__":

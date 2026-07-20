@@ -10,6 +10,7 @@ from .extensions import db
 from .ai_service import review_missing_person_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, private_media_path, store_missing_person_photo
+from .publication import apply_publication_decision, decide_publication
 from .models import (
     AIReview,
     Alert,
@@ -375,7 +376,8 @@ def report_missing_person():
                 if new_photo_path:
                     delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
                 if not errors:
-                    persist_ai_review(draft, review_missing_person_alert(draft))
+                    review = persist_ai_review(draft, review_missing_person_alert(draft))
+                    apply_publication_decision(draft, review)
                     db.session.commit()
                     return redirect(url_for("main.report_reviewing", alert_id=draft.id))
             elif not errors:
@@ -432,6 +434,7 @@ def ai_review(alert_id: str):
         app_shell=True,
         alert=alert,
         review=review,
+        publication=decide_publication(review),
     )
 
 
