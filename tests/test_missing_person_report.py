@@ -7,7 +7,7 @@ from pathlib import Path
 
 from app import create_app
 from app.extensions import db
-from app.models import Alert, AlertStatus, AlertType, MissingPersonDetails, User
+from app.models import AIReview, Alert, AlertStatus, AlertType, MissingPersonDetails, User
 
 
 class MissingPersonReportTestCase(unittest.TestCase):
@@ -171,6 +171,36 @@ class MissingPersonReportTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"must be 5 MB or smaller", response.data)
         self.assertEqual(list(Path(self.upload_directory.name).rglob("*")), [])
+
+    def test_complete_report_creates_a_persisted_ai_review_screen(self) -> None:
+        response = self.client.post(
+            "/report/missing-person",
+            data={
+                "action": "review",
+                "name": "Jean Bakary",
+                "age": "8",
+                "sex": "male",
+                "photo": (io.BytesIO(self.valid_png()), "jean.png", "image/png"),
+                "last_seen_at": "2026-07-19T16:30",
+                "approximate_zone": "Mfoundi district, Yaoundé",
+                "last_seen_location": "Near the primary school",
+                "clothing_description": "Blue school uniform",
+                "private_family_contact": "+237 612 345 678",
+                "circumstances": "Did not return home after school.",
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/ai-review", response.headers["Location"])
+
+        review = db.session.scalar(db.select(AIReview))
+        self.assertEqual(review.decision, "publish_candidate")
+        self.assertEqual(review.source, "deterministic_demo_fallback")
+        screen = self.client.get(response.headers["Location"])
+        self.assertEqual(screen.status_code, 200)
+        self.assertIn(b"Public summary", screen.data)
+        self.assertIn(b"Confidence score", screen.data)
+        self.assertIn(b"Possible duplicates", screen.data)
 
 
 if __name__ == "__main__":

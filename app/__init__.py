@@ -22,6 +22,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         SESSION_COOKIE_SAMESITE="Lax",
         UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads"),
         MAX_PHOTO_UPLOAD_BYTES=5 * 1024 * 1024,
+        OPENAI_API_KEY=os.environ.get("OPENAI_API_KEY"),
+        OPENAI_MODEL=os.environ.get("OPENAI_MODEL", "gpt-5.6"),
+        OPENAI_TIMEOUT_SECONDS=20,
     )
 
     if test_config is None:

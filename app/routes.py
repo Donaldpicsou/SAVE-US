@@ -7,9 +7,11 @@ from functools import wraps
 from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .extensions import db
+from .ai_service import review_missing_person_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, private_media_path, store_missing_person_photo
 from .models import (
+    AIReview,
     Alert,
     AlertPreference,
     AlertStatus,
@@ -221,6 +223,38 @@ def owned_missing_person_draft(draft_id: str | None) -> Alert | None:
     return alert
 
 
+def owned_missing_person_alert(alert_id: str) -> Alert:
+    """Load a missing-person alert only when it belongs to the signed-in reporter."""
+    alert = db.session.get(Alert, alert_id)
+    if (
+        alert is None
+        or alert.reporter_id != g.current_user.id
+        or alert.alert_type != AlertType.MISSING_PERSON
+    ):
+        abort(404)
+    return alert
+
+
+def persist_ai_review(alert: Alert, execution) -> AIReview:
+    """Store the validated live or fallback review so the screen can be revisited."""
+    review = alert.ai_review
+    if review is None:
+        review = AIReview(alert=alert)
+        db.session.add(review)
+    output = execution.output
+    review.public_summary = output["public_summary"]
+    review.extracted_data = output["extracted_data"]
+    review.missing_fields = output["missing_fields"]
+    review.duplicate_candidates = output["duplicate_candidates"]
+    review.confidence_score = output["confidence_score"]
+    review.fraud_risk_score = output["fraud_risk_score"]
+    review.decision = output["decision"]
+    review.reasons = output["reasons"]
+    review.source = execution.source
+    review.fallback_reason = execution.fallback_reason
+    return review
+
+
 def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str]]:
     """Parse draft-safe fields and return only format errors from the report form."""
     data: dict[str, object | None] = {
@@ -340,6 +374,10 @@ def report_missing_person():
                 db.session.commit()
                 if new_photo_path:
                     delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
+                if not errors:
+                    persist_ai_review(draft, review_missing_person_alert(draft))
+                    db.session.commit()
+                    return redirect(url_for("main.ai_review", alert_id=draft.id))
             elif not errors:
                 db.session.commit()
                 if new_photo_path:
@@ -362,6 +400,23 @@ def report_missing_person():
         values=values,
         errors=errors,
         saved=saved,
+    )
+
+
+@bp.get("/reports/<alert_id>/ai-review")
+@login_required
+def ai_review(alert_id: str):
+    """Show a reporter the structured, persisted AI review for their alert."""
+    alert = owned_missing_person_alert(alert_id)
+    review = alert.ai_review
+    if review is None:
+        return redirect(url_for("main.report_missing_person", draft=alert.id))
+    return render_template(
+        "ai_review.html",
+        active_page="reports",
+        app_shell=True,
+        alert=alert,
+        review=review,
     )
 
 

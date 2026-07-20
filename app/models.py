@@ -176,6 +176,11 @@ class Alert(db.Model):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    ai_review: Mapped["AIReview | None"] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
     def __repr__(self) -> str:
         return f"<Alert {self.id} {self.alert_type.value} {self.status.value}>"
@@ -262,11 +267,47 @@ class MissingPersonDetails(db.Model):
         return f"<MissingPersonDetails alert_id={self.alert_id}>"
 
 
+class AIReview(db.Model):
+    """A persisted, contract-validated AI review for one emergency alert."""
+
+    __tablename__ = "ai_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    public_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    extracted_data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    missing_fields: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    duplicate_candidates: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    confidence_score: Mapped[int] = mapped_column(nullable=False)
+    fraud_risk_score: Mapped[int] = mapped_column(nullable=False)
+    decision: Mapped[str] = mapped_column(String(40), nullable=False)
+    reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    fallback_reason: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    alert: Mapped[Alert] = relationship(back_populates="ai_review")
+
+    def __repr__(self) -> str:
+        return f"<AIReview alert_id={self.alert_id} decision={self.decision}>"
+
+
 __all__ = [
     "Alert",
     "AlertPreference",
     "AlertStatus",
     "AlertType",
+    "AIReview",
     "MissingPersonDetails",
     "MissingPersonSex",
     "User",

@@ -31,7 +31,7 @@ AI_REVIEW_INPUT_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
     "required": ["schema_version", "report", "duplicate_search_scope"],
     "properties": {
-        "schema_version": {"const": AI_REVIEW_SCHEMA_VERSION},
+        "schema_version": {"enum": [AI_REVIEW_SCHEMA_VERSION]},
         "report": {
             "type": "object",
             "additionalProperties": False,
@@ -41,7 +41,7 @@ AI_REVIEW_INPUT_SCHEMA: dict[str, Any] = {
             ],
             "properties": {
                 "alert_id": {"type": "string"},
-                "alert_type": {"const": AlertType.MISSING_PERSON.value},
+                "alert_type": {"enum": [AlertType.MISSING_PERSON.value]},
                 "country": {"type": "string"},
                 "region": {"type": ["string", "null"]},
                 "approximate_zone": {"type": ["string", "null"]},
@@ -56,7 +56,7 @@ AI_REVIEW_INPUT_SCHEMA: dict[str, Any] = {
             "required": ["country", "alert_type", "active_statuses"],
             "properties": {
                 "country": {"type": "string"},
-                "alert_type": {"const": AlertType.MISSING_PERSON.value},
+                "alert_type": {"enum": [AlertType.MISSING_PERSON.value]},
                 "active_statuses": {"type": "array", "items": {"type": "string"}},
             },
         },
@@ -71,7 +71,7 @@ AI_REVIEW_OUTPUT_SCHEMA: dict[str, Any] = {
         "duplicate_candidates", "confidence_score", "fraud_risk_score", "decision", "reasons",
     ],
     "properties": {
-        "schema_version": {"const": AI_REVIEW_SCHEMA_VERSION},
+        "schema_version": {"enum": [AI_REVIEW_SCHEMA_VERSION]},
         "public_summary": {"type": "string", "minLength": 1, "maxLength": 1000},
         "extracted_data": {"type": "object"},
         "missing_fields": {"type": "array", "items": {"type": "string"}},
