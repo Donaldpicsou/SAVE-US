@@ -24,7 +24,8 @@
     <section class="alert-feed-list" aria-live="polite">
       {% for alert in alerts %}
         <article class="feed-alert-card {{ alert.type_value }}">
-          <div class="feed-alert-avatar" aria-hidden="true">{{ alert.initials }}</div>
+          <!-- A published, eligible photo is served through a protected route; initials remain the safe fallback. -->
+          <div class="feed-alert-avatar">{% if alert.photo_url %}<img src="{{ alert.photo_url }}" alt="Photo of {{ alert.title }}">{% else %}<span aria-hidden="true">{{ alert.initials }}</span>{% endif %}</div>
           <div class="feed-alert-content">
             <div class="feed-alert-top"><p class="critical-label">{{ alert.type }}</p><span class="status-chip">Published</span></div>
             <h2>{{ alert.title }}</h2>

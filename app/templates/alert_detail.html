@@ -11,6 +11,8 @@
       <div class="alert-detail-top"><span class="status-chip">Published</span><span class="critical-label">{{ alert.type }}</span></div>
       <h1>{{ alert.title }}</h1>
       <p class="alert-detail-location">⌖ {{ alert.location }} · {{ alert.published_label if alert.published_label is defined else alert.time }}</p>
+      <!-- The report photo is visible only when the protected alert-photo URL is available. -->
+      {% if alert.photo_url %}<img class="alert-detail-photo" src="{{ alert.photo_url }}" alt="Photo of {{ alert.title }}">{% endif %}
       <p class="lead">{{ alert.summary if alert.summary is defined else alert.description }}</p>
       <!-- Safe actions: no direct family phone number or precise GPS coordinates. -->
       <div class="button-row"><button class="button emergency" type="button">Contact family on WhatsApp</button><button class="button secondary" type="button">Share alert</button></div>

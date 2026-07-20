@@ -266,6 +266,25 @@ def alert_detail(alert_id: str):
     )
 
 
+@bp.get("/alerts/<alert_id>/photo")
+@login_required
+def alert_photo(alert_id: str):
+    """Serve a validated report photo only to an eligible recipient of a published alert."""
+    alert = db.session.get(Alert, alert_id)
+    if alert is None or not user_receives_alert(g.current_user, alert):
+        abort(404)
+    details = alert.missing_person_details
+    if details is None or not details.photo_path:
+        abort(404)
+    photo_path = private_media_path(current_app.config["UPLOAD_FOLDER"], details.photo_path)
+    if photo_path is None:
+        abort(404)
+    response = send_file(photo_path, conditional=True, max_age=0)
+    # The original remains private: browsers must not cache or share a public URL.
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 def targeted_alert_feed(user: User, *, selected_type: str = "", search: str = "") -> list[dict]:
     """Build a sorted, public-safe feed from published alerts eligible for one user."""
     stored_alerts = db.session.scalars(
@@ -302,6 +321,12 @@ def public_alert_view(alert: Alert) -> dict:
         "location": location or alert.country,
         "published_label": published_at.strftime("%d %b %Y · %H:%M UTC"),
         "initials": initials,
+        # T12 validates the stored file; T17 publication and the photo route apply the release guard.
+        "photo_url": (
+            url_for("main.alert_photo", alert_id=alert.id)
+            if alert.missing_person_details and alert.missing_person_details.photo_path
+            else None
+        ),
     }
 
 

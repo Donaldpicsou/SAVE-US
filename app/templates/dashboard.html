@@ -16,7 +16,8 @@
       <div class="dashboard-alert-list">
         {% for alert in recent_alerts %}
           <article class="dashboard-alert-card {{ alert.type_value }}">
-            <div class="dashboard-alert-avatar" aria-hidden="true">{{ alert.initials }}</div>
+            <!-- Dashboard preview follows the exact same protected-photo rule as the full feed. -->
+            <div class="dashboard-alert-avatar">{% if alert.photo_url %}<img src="{{ alert.photo_url }}" alt="Photo of {{ alert.title }}">{% else %}<span aria-hidden="true">{{ alert.initials }}</span>{% endif %}</div>
             <div><div class="dashboard-alert-top"><p class="critical-label">{{ alert.type }}</p><span class="status-chip">Published</span></div><h3>{{ alert.title }}</h3><p>{{ alert.summary }}</p><p class="alert-meta">◷ {{ alert.published_label }} · ⌖ {{ alert.location }}</p><a href="{{ url_for('main.alert_detail', alert_id=alert.id) }}">View alert →</a></div>
           </article>
         {% else %}

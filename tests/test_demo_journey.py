@@ -99,10 +99,33 @@ class CameroonCentreDemoJourneyTestCase(unittest.TestCase):
         self.assertEqual(feed.status_code, 200)
         self.assertIn(b"Amadou Njoya", feed.data)
         self.assertIn(f"/alerts/{alert.id}".encode(), feed.data)
+        self.assertIn(f"/alerts/{alert.id}/photo".encode(), feed.data)
         detail = self.client.get(f"/alerts/{alert.id}")
         self.assertEqual(detail.status_code, 200)
         self.assertIn(b"Mfoundi district, Yaound", detail.data)
+        self.assertIn(f"/alerts/{alert.id}/photo".encode(), detail.data)
         self.assertNotIn(b"+237 699 000 000", detail.data)
+        photo = self.client.get(f"/alerts/{alert.id}/photo")
+        self.assertEqual(photo.status_code, 200)
+        self.assertEqual(photo.data, self.valid_png())
+        self.assertIn("private, no-store", photo.headers["Cache-Control"])
+        photo.close()
+
+        # A subscriber outside the alert country cannot fetch the same private source file.
+        outsider = User(
+            phone_number="+24174001122",
+            country="Gabon",
+            primary_region="Estuaire",
+            is_phone_verified=True,
+        )
+        db.session.add_all([
+            outsider,
+            AlertPreference(user=outsider, enabled_categories=["missing_person"]),
+        ])
+        db.session.commit()
+        with self.client.session_transaction() as browser_session:
+            browser_session["user_id"] = outsider.id
+        self.assertEqual(self.client.get(f"/alerts/{alert.id}/photo").status_code, 404)
 
 
 if __name__ == "__main__":
