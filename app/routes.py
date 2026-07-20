@@ -7,7 +7,7 @@ from functools import wraps
 from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .extensions import db
-from .ai_service import review_missing_person_alert
+from .ai_service import review_missing_person_alert, review_suspected_abduction_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
 from .notification_service import queue_closure_notifications, queue_review_outcome_notifications
@@ -25,6 +25,7 @@ from .models import (
     ReportAction,
     SuspectedAbductionDetails,
     User,
+    UserRole,
 )
 
 
@@ -150,6 +151,18 @@ def login_required(view):
             return redirect(url_for("main.sign_in"))
         return view(*args, **kwargs)
 
+    return wrapped_view
+
+
+def moderator_required(view):
+    """Limit the internal moderation queue to designated moderation roles."""
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if g.current_user is None:
+            return redirect(url_for("main.sign_in", next=request.path))
+        if g.current_user.role not in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}:
+            abort(403)
+        return view(*args, **kwargs)
     return wrapped_view
 
 
@@ -296,7 +309,7 @@ def alert_photo(alert_id: str):
         alert.reporter_id != g.current_user.id and not user_receives_alert(g.current_user, alert)
     ):
         abort(404)
-    details = alert.missing_person_details
+    details = alert.missing_person_details or alert.suspected_abduction_details
     if details is None or not details.photo_path:
         abort(404)
     photo_path = private_media_path(current_app.config["UPLOAD_FOLDER"], details.photo_path)
@@ -344,10 +357,11 @@ def public_alert_view(alert: Alert) -> dict:
         "location": location or alert.country,
         "published_label": published_at.strftime("%d %b %Y · %H:%M UTC"),
         "initials": initials,
-        # T12 validates the stored file; T17 publication and the photo route apply the release guard.
+        # Uploaded photos stay protected; published abduction and missing-person alerts may expose them to eligible users.
         "photo_url": (
             url_for("main.alert_photo", alert_id=alert.id)
-            if alert.missing_person_details and alert.missing_person_details.photo_path
+            if (alert.missing_person_details and alert.missing_person_details.photo_path)
+            or (alert.suspected_abduction_details and alert.suspected_abduction_details.photo_path)
             else None
         ),
     }
@@ -372,8 +386,10 @@ def notification_view(notification: Notification) -> dict:
     photo_available = (
         alert is not None
         and notification.kind in {"alert_published", "report_published", "report_needs_moderation"}
-        and alert.missing_person_details is not None
-        and bool(alert.missing_person_details.photo_path)
+        and (
+            (alert.missing_person_details is not None and bool(alert.missing_person_details.photo_path))
+            or (alert.suspected_abduction_details is not None and bool(alert.suspected_abduction_details.photo_path))
+        )
     )
     return {
         "id": notification.id,
@@ -714,7 +730,6 @@ def report_suspected_abduction():
                 if not form_data["title"]:
                     errors["title"] = "A short report title is required."
                 errors = {**details.validation_errors(), **errors}
-                # T28 will replace this queue state with a category-specific AI review.
                 if not errors:
                     draft.status = AlertStatus.AI_REVIEW
 
@@ -724,6 +739,10 @@ def report_suspected_abduction():
                 if new_photo_path:
                     delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
                 if not errors:
+                    review = persist_ai_review(draft, review_suspected_abduction_alert(draft))
+                    apply_publication_decision(draft, review)
+                    queue_review_outcome_notifications(draft)
+                    db.session.commit()
                     return redirect(url_for("main.abduction_report_submitted", alert_id=draft.id))
             elif not errors:
                 db.session.commit()
@@ -763,7 +782,7 @@ def report_suspected_abduction():
 @bp.get("/reports/<alert_id>/submitted")
 @login_required
 def abduction_report_submitted(alert_id: str):
-    """Confirm submission without disclosing the internal AI workflow to the reporter."""
+    """Confirm the review outcome without exposing internal implementation details."""
     alert = owned_suspected_abduction_alert(alert_id)
     if alert.status == AlertStatus.DRAFT:
         return redirect(url_for("main.report_suspected_abduction", draft=alert.id))
@@ -941,6 +960,25 @@ def ai_review(alert_id: str):
     )
 
 
+@bp.get("/reports/suspected-abduction/<alert_id>/ai-review")
+@login_required
+def suspected_abduction_ai_review(alert_id: str):
+    """Show the reporting owner the persisted suspected-abduction review."""
+    alert = owned_suspected_abduction_alert(alert_id)
+    review = alert.ai_review
+    if review is None:
+        return redirect(url_for("main.report_suspected_abduction", draft=alert.id))
+    return render_template(
+        "ai_review.html",
+        active_page="reports",
+        app_shell=True,
+        alert=alert,
+        review=review,
+        publication=decide_publication(review),
+        report_form_url=url_for("main.report_suspected_abduction", draft=alert.id),
+    )
+
+
 @bp.get("/report/missing-person/<alert_id>/photo")
 @login_required
 def missing_person_photo_preview(alert_id: str):
@@ -1022,9 +1060,23 @@ def close_report(alert_id: str):
 
 
 @bp.get("/moderator")
-@login_required
+@moderator_required
 def moderator_queue():
-    return render_template("simple_page.html", title="Moderator queue", eyebrow="Verified moderator access", description="Review reports flagged for possible duplicates, unsafe media, or high fraud risk.", active_page="moderator", app_shell=True, primary_action="View review queue")
+    """Show moderation candidates plus published abductions for post-publication review."""
+    alerts = db.session.scalars(
+        db.select(Alert)
+        .where(
+            (Alert.status == AlertStatus.NEEDS_MODERATION)
+            | ((Alert.alert_type == AlertType.SUSPECTED_ABDUCTION) & (Alert.status == AlertStatus.PUBLISHED))
+        )
+        .order_by(Alert.updated_at.desc())
+    ).all()
+    return render_template(
+        "moderator_queue.html",
+        active_page="moderator",
+        app_shell=True,
+        alerts=alerts,
+    )
 
 
 def preference_country_data(user: User) -> tuple[str, dict]:

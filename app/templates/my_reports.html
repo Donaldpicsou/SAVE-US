@@ -24,7 +24,7 @@
     <section class="my-reports-list">
       {% for report in reports %}
         <article class="my-report-card">
-          <div class="my-report-avatar">{% if report.missing_person_details and report.missing_person_details.photo_path %}<img src="{{ url_for('main.alert_photo', alert_id=report.id) }}" alt="Photo uploaded for {{ report.title }}">{% else %}<span aria-hidden="true">{{ report.title[:2]|upper }}</span>{% endif %}</div>
+          <div class="my-report-avatar">{% if (report.missing_person_details and report.missing_person_details.photo_path) or (report.suspected_abduction_details and report.suspected_abduction_details.photo_path) %}<img src="{{ url_for('main.alert_photo', alert_id=report.id) }}" alt="Photo uploaded for {{ report.title }}">{% else %}<span aria-hidden="true">{{ report.title[:2]|upper }}</span>{% endif %}</div>
           <div class="my-report-content">
             <div class="my-report-top"><p class="critical-label">{{ report.alert_type.value|replace('_', ' ')|title }}</p><span class="report-status {{ report.status.value|replace('_', '-') }}">{{ report.status.value|replace('_', ' ')|title }}</span></div>
             <h2>{{ report.title }}</h2>
@@ -36,7 +36,7 @@
             <div class="my-report-actions">
               {% if report.status.value == 'draft' and report.alert_type.value == 'missing_person' %}<a class="button secondary" href="{{ url_for('main.report_missing_person', draft=report.id) }}">Resume draft</a>{% elif report.status.value == 'draft' and report.alert_type.value == 'suspected_abduction' %}<a class="button secondary" href="{{ url_for('main.report_suspected_abduction', draft=report.id) }}">Resume draft</a>{% endif %}
               {% if report.status.value == 'ai_review' and report.alert_type.value == 'suspected_abduction' %}<a class="button secondary" href="{{ url_for('main.abduction_report_submitted', alert_id=report.id) }}">View submission status</a>{% endif %}
-              {% if report.ai_review %}<a class="button secondary" href="{{ url_for('main.ai_review', alert_id=report.id) }}">View review</a>{% endif %}
+              {% if report.ai_review and report.alert_type.value == 'missing_person' %}<a class="button secondary" href="{{ url_for('main.ai_review', alert_id=report.id) }}">View review</a>{% elif report.ai_review and report.alert_type.value == 'suspected_abduction' %}<a class="button secondary" href="{{ url_for('main.suspected_abduction_ai_review', alert_id=report.id) }}">View review</a>{% endif %}
               {% if report.status.value == 'published' %}<a class="button emergency" href="{{ url_for('main.alert_detail', alert_id=report.id) }}">View published alert</a>{% endif %}
             </div>
 

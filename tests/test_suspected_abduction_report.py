@@ -3,10 +3,12 @@
 import io
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from app import create_app
+from app.ai_service import ReviewExecution
 from app.extensions import db
-from app.models import Alert, AlertStatus, AlertType, SuspectedAbductionDetails, User
+from app.models import Alert, AlertPreference, AlertStatus, AlertType, SuspectedAbductionDetails, User, UserRole
 
 
 class SuspectedAbductionReportTestCase(unittest.TestCase):
@@ -107,7 +109,12 @@ class SuspectedAbductionReportTestCase(unittest.TestCase):
         self.assertIn(b"not a supported image", response.data)
         self.assertIsNone(db.session.scalar(db.select(Alert)))
 
-    def test_submit_uses_plain_language_and_queues_the_category_for_later_review(self) -> None:
+    def test_submit_publishes_a_complete_report_country_wide(self) -> None:
+        subscriber = User(
+            phone_number="+237655000000", country="Cameroon", primary_region="Littoral", is_phone_verified=True,
+        )
+        db.session.add_all([subscriber, AlertPreference(user=subscriber, enabled_categories=["suspected_abduction"])])
+        db.session.commit()
         response = self.client.post(
             "/report/suspected-abduction",
             data={"action": "submit", **self.form_data()},
@@ -115,9 +122,57 @@ class SuspectedAbductionReportTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/submitted", response.headers["Location"])
         alert = db.session.scalar(db.select(Alert))
-        self.assertEqual(alert.status, AlertStatus.AI_REVIEW)
+        self.assertEqual(alert.status, AlertStatus.PUBLISHED)
+        self.assertIsNotNone(alert.published_at)
+        self.assertIsNotNone(alert.ai_review)
+        self.assertGreaterEqual(alert.ai_review.confidence_score, 80)
+        self.assertLess(alert.ai_review.fraud_risk_score, 80)
+        self.assertEqual(len(subscriber.notifications), 1)
         self.assertEqual(self.client.get(response.headers["Location"]).status_code, 200)
         self.assertIn(b"Your report has been received", self.client.get(response.headers["Location"]).data)
+        review_screen = self.client.get(f"/reports/suspected-abduction/{alert.id}/ai-review")
+        self.assertEqual(review_screen.status_code, 200)
+        self.assertIn(b"View published alert", review_screen.data)
+        self.assertNotIn(b">Edit report<", review_screen.data)
+        self.assertEqual(self.client.get(f"/alerts/{alert.id}").status_code, 200)
+
+    def test_incomplete_report_enters_moderation_and_published_abduction_is_visible_to_moderator(self) -> None:
+        moderator = User(
+            phone_number="+237644000000", country="Cameroon", primary_region="Centre",
+            is_phone_verified=True, role=UserRole.MODERATOR,
+        )
+        published = Alert(
+            reporter=self.user, alert_type=AlertType.SUSPECTED_ABDUCTION, status=AlertStatus.PUBLISHED,
+            title="Published abduction retained for review", country="Cameroon", region="Centre",
+        )
+        db.session.add_all([moderator, published, SuspectedAbductionDetails(alert=published)])
+        db.session.commit()
+
+        moderation_output = {
+            "schema_version": "save-us.abduction-review.v1",
+            "public_summary": "A suspected abduction was reported near Mfoundi district.",
+            "extracted_data": {"country": "Cameroon"},
+            "missing_fields": [],
+            "duplicate_candidates": [],
+            "confidence_score": 79,
+            "fraud_risk_score": 10,
+            "decision": "needs_moderation",
+            "reasons": ["The report needs moderator confirmation before publication."],
+        }
+        with patch("app.routes.review_suspected_abduction_alert", return_value=ReviewExecution(moderation_output, "test")):
+            response = self.client.post("/report/suspected-abduction", data={"action": "submit", **self.form_data()})
+        self.assertEqual(response.status_code, 302)
+        moderation_alert = db.session.scalars(
+            db.select(Alert).where(Alert.status == AlertStatus.NEEDS_MODERATION)
+        ).one()
+        self.assertEqual(moderation_alert.ai_review.decision, "needs_moderation")
+
+        with self.client.session_transaction() as browser_session:
+            browser_session["user_id"] = moderator.id
+        queue = self.client.get("/moderator")
+        self.assertEqual(queue.status_code, 200)
+        self.assertIn(b"Published abduction retained for review", queue.data)
+        self.assertIn(moderation_alert.title.encode(), queue.data)
 
     def test_missing_person_form_cannot_resume_an_abduction_draft(self) -> None:
         draft = Alert(

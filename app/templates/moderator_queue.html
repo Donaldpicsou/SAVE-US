@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Moderator queue · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Internal queue: published abductions remain reviewable after country-wide release. -->
+  <section class="my-reports-page">
+    <header class="my-reports-heading"><div><p class="eyebrow">Moderator access</p><h1>Moderator queue</h1><p>Review reports that require intervention and published suspected-abduction alerts retained for post-publication safety review.</p></div></header>
+    <section class="my-reports-list">
+      {% for alert in alerts %}
+        <article class="my-report-card">
+          <div class="my-report-avatar"><span aria-hidden="true">{{ alert.title[:2]|upper }}</span></div>
+          <div class="my-report-content">
+            <div class="my-report-top"><p class="critical-label">{{ alert.alert_type.value|replace('_', ' ')|title }}</p><span class="report-status {{ alert.status.value|replace('_', '-') }}">{{ 'Post-publication review' if alert.alert_type.value == 'suspected_abduction' and alert.status.value == 'published' else alert.status.value|replace('_', ' ')|title }}</span></div>
+            <h2>{{ alert.title }}</h2>
+            <p class="my-report-location">{{ alert.approximate_zone or alert.region or alert.country }} · {{ alert.country }}</p>
+            {% if alert.ai_review %}<p class="my-report-history">Confidence {{ alert.ai_review.confidence_score }}/100 · Fraud risk {{ alert.ai_review.fraud_risk_score }}/100</p><p class="my-report-history">{{ alert.ai_review.reasons|join(' ') }}</p>{% endif %}
+          </div>
+        </article>
+      {% else %}
+        <article class="my-reports-empty"><span>✓</span><h2>No reports need review</h2><p>Reports routed to moderation and published suspected-abduction alerts will appear here.</p></article>
+      {% endfor %}
+    </section>
+  </section>
+{% endblock %}

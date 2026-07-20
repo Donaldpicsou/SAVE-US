@@ -10,6 +10,11 @@ from .ai_contract import (
     MISSING_PERSON_FIELD_NAMES,
     validate_ai_review_output,
 )
+from .abduction_ai_contract import (
+    ABDUCTION_AI_REVIEW_SCHEMA_VERSION,
+    ABDUCTION_MISSING_FIELD_NAMES,
+    validate_suspected_abduction_review_output,
+)
 
 
 FALLBACK_REVIEW_SOURCE = "deterministic_demo_fallback"
@@ -85,6 +90,58 @@ def deterministic_ai_review(review_input: Mapping[str, Any]) -> dict[str, Any]:
     return validate_ai_review_output(output)
 
 
+def deterministic_abduction_ai_review(review_input: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a stable, public-safe suspected-abduction review for the demo."""
+    report = _required_mapping(review_input, "report")
+    details = _required_mapping(report, "details")
+    checks = (
+        ("title", _text(report.get("title"))),
+        ("abduction_at", _text(details.get("abduction_at"))),
+        ("approximate_zone", _text(report.get("approximate_zone"))),
+        ("description", _text(details.get("description"))),
+        ("circumstances", _text(details.get("circumstances"))),
+        ("private_contact", bool(report.get("private_contact_available"))),
+    )
+    missing_fields = [name for name, available in checks if not available and name in ABDUCTION_MISSING_FIELD_NAMES]
+    # A photo can strengthen a report but stays optional under the T26 field rules.
+    if missing_fields:
+        confidence_score, fraud_risk_score, decision = 65, 20, "needs_information"
+        reasons = [
+            "The report is incomplete and needs the listed information before it can be shared.",
+            "SAVE-US does not publish an incomplete suspected-abduction report.",
+        ]
+    else:
+        confidence_score, fraud_risk_score, decision = 88, 12, "publish_candidate"
+        reasons = [
+            "The required suspected-abduction report details are present.",
+            "No possible duplicate was returned by the deterministic demo check.",
+        ]
+
+    area = _text(report.get("approximate_zone")) or _text(report.get("region")) or _text(report.get("country")) or "the reported area"
+    output = {
+        "schema_version": ABDUCTION_AI_REVIEW_SCHEMA_VERSION,
+        "public_summary": f"A suspected abduction was reported near {area}. Please stay alert and share information responsibly.",
+        "extracted_data": {
+            "title": report.get("title"),
+            "country": report.get("country"),
+            "region": report.get("region"),
+            "approximate_zone": report.get("approximate_zone"),
+            "abduction_at": details.get("abduction_at"),
+            "description": details.get("description"),
+            "circumstances": details.get("circumstances"),
+            "photo_available": bool(report.get("photo_available")),
+            "private_contact_available": bool(report.get("private_contact_available")),
+        },
+        "missing_fields": missing_fields,
+        "duplicate_candidates": [],
+        "confidence_score": confidence_score,
+        "fraud_risk_score": fraud_risk_score,
+        "decision": decision,
+        "reasons": reasons,
+    }
+    return validate_suspected_abduction_review_output(output)
+
+
 def _missing_fields(report: Mapping[str, Any], details: Mapping[str, Any]) -> list[str]:
     """Return required fields in a stable order, using availability flags for private data."""
     field_checks = (
@@ -127,4 +184,4 @@ def _text(value: Any) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
-__all__ = ["FALLBACK_REVIEW_SOURCE", "deterministic_ai_review"]
+__all__ = ["FALLBACK_REVIEW_SOURCE", "deterministic_abduction_ai_review", "deterministic_ai_review"]
