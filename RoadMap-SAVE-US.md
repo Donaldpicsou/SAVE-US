@@ -70,6 +70,30 @@ flowchart LR
   T11 --> T37
   T18 --> T37
   T5 --> T38["T38 Action d’urgence persistante"]
+  T40["T40 Workflow de modération humaine"] --> T41["T41 Modèle d’administration"]
+  T4 --> T41
+  T41 --> T42["T42 Accès administrateur"]
+  T41 --> T43["T43 Vérification des hôpitaux"]
+  T41 --> T44["T44 Gestion des modérateurs"]
+  T41 --> T45["T45 Règles de sûreté"]
+  T42 --> T43
+  T42 --> T44
+  T42 --> T45
+  T43 --> T46["T46 Journal d’audit d’administration"]
+  T44 --> T46
+  T45 --> T46
+  T46 --> T47["T47 Tableau de bord administrateur"]
+  T47 --> T48["T48 Tests E2E d’administration"]
+  T35 --> T49["T49 Contrat de fiche d’alerte"]
+  T29 --> T49
+  T33 --> T49
+  T49 --> T50["T50 Fiche HTML imprimable"]
+  T49 --> T51["T51 PDF côté serveur"]
+  T49 --> T52["T52 Lien de partage sécurisé"]
+  T50 --> T53["T53 Actions de partage"]
+  T51 --> T53
+  T52 --> T53
+  T53 --> T54["T54 Tests E2E fiche et partage"]
 ```
 
 ## Tâches unitaires
@@ -121,6 +145,20 @@ flowchart LR
 | T38 | Garder l’action d’urgence persistante | La barre latérale desktop utilise une colonne compacte de hauteur fixe : seule la liste de navigation défile, tandis que le lien Settings et l’action Emergency report restent visibles en bas, avec des zones cliquables d’au moins 44 px. | T5 | Terminé |
 | T39 | Corriger les destinations de notification | La route partagée d’ouverture des notifications résout le type et le statut de l’alerte. Les signalements publiés ouvrent leur alerte publique, tandis que les mises à jour de modération ouvrent l’écran de statut ou de revue approprié. | T24, T29, T33 | Terminé |
 | T40 | Mettre en œuvre le workflow de modération humaine | Les modérateurs et administrateurs peuvent consulter en privé les signalements en file, examiner les médias protégés, puis publier, demander des informations, rejeter ou retirer un enlèvement publié avec motif obligatoire, trace d’audit et notification au déclarant. | T24, T29, T33, T35 | Terminé |
+| T41 | Définir le modèle d’administration | Les entités et validations prennent en charge demandes de vérification hospitalière, règles configurables sûres et métadonnées d’audit immuables enrichies : auteur, action, motif, ancienne valeur et nouvelle valeur. | T4, T40 | Planifié |
+| T42 | Construire l’accès et la navigation administrateur | L’espace `/admin` et sa navigation sont réservés aux administrateurs ; les modérateurs conservent uniquement l’espace de modération. | T41 | Planifié |
+| T43 | Construire la vérification des hôpitaux | Les administrateurs examinent les demandes de vérification privées, les approuvent ou refusent avec motif obligatoire et n’accordent le rôle hospital representative qu’après approbation. | T41, T42 | Planifié |
+| T44 | Construire la gestion des modérateurs | Les administrateurs recherchent des utilisateurs et attribuent ou retirent le rôle modérateur avec motif d’audit ; des protections empêchent la perte accidentelle du dernier administrateur ou l’auto-blocage. | T41, T42 | Planifié |
+| T45 | Construire la gestion des règles de sûreté | Les administrateurs modifient des seuils bornés de confiance, risque de fraude et expiration par catégorie ; les changements sont audités et ne concernent que les décisions futures. | T41, T42 | Planifié |
+| T46 | Construire le journal d’audit d’administration | Une vue d’audit restreinte et recherchable filtre les actions d’administrateurs et modérateurs par auteur, action, signalement/utilisateur et date, sans divulguer les données privées hors écrans autorisés. | T43, T44, T45 | Planifié |
+| T47 | Construire le tableau de bord administrateur | Un tableau opérationnel sûr présente volumes et délais de modération, alertes actives/en attente/expirées, vérifications hospitalières en attente et activité des modérateurs. | T46 | Planifié |
+| T48 | Tester le workflow d’administration | Les autorisations, changements de rôle, vérifications hospitalières, limites des règles, entrées d’audit et le parcours démo administrateur sont couverts par des tests de bout en bout automatisés. | T43–T47 | Planifié |
+| T49 | Définir le contrat de fiche d’alerte et les règles de sûreté | Une représentation publique anglaise et sûre est définie pour chaque type : titre, catégorie, résumé IA sûr, zone approximative, date, statut, consignes de sûreté, expiration le cas échéant et `Source: SAVE-US`. Elle exclut explicitement contact privé, adresse/GPS précis, circonstances privées et média original. | T17, T29, T33, T35 | Planifié |
+| T50 | Construire la fiche d’alerte HTML imprimable | Les alertes publiées disposent d’une fiche anglaise autorisée, adaptée au format A4, avec charte SAVE-US, styles d’impression, date de génération et action Print fonctionnelle. | T49 | Planifié |
+| T51 | Générer la fiche d’alerte PDF côté serveur | La même fiche publique sûre et autorisée est téléchargeable en PDF, avec nom de fichier anglais cohérent et en-têtes de réponse privés/non mis en cache. | T49 | Planifié |
+| T52 | Construire les liens de partage sécurisés | Des liens opaques, révocables et expirables n’exposent que le contenu public autorisé et cessent de fonctionner lorsqu’une alerte est retirée, rejetée ou expirée. Les médias partagés sont absents sauf autorisation explicite de publication. | T49 | Planifié |
+| T53 | Construire les actions de partage | Le détail d’alerte propose copie de lien, partage mobile Web Share avec repli et partage WhatsApp prérempli contenant `Source: SAVE-US` et l’URL sécurisée. | T50, T51, T52 | Planifié |
+| T54 | Tester la sûreté des fiches et du partage | Des tests E2E automatisés couvrent HTML imprimable, PDF, contenu anglais, attribution, charge utile WhatsApp, révocation de lien et absence de données privées ou médias non autorisés. | T50–T53 | Planifié |
 
 ## Chemin critique
 
@@ -134,8 +172,13 @@ Correction de ciblage : `T6 + T11 + T18 → T37`.
 
 Correction ergonomique de sûreté : `T5 → T38`.
 
+Workflow d’administration : `T4 + T40 → T41 → T42 → (T43 + T44 + T45) → T46 → T47 → T48`.
+
+Workflow fiche d’alerte et partage : `T17 + T29 + T33 + T35 → T49 → (T50 + T51 + T52) → T53 → T54`.
+
 ## Travail parallélisable
 
+- Après T49, la fiche HTML imprimable (T50), le PDF côté serveur (T51) et les liens de partage sécurisés (T52) peuvent être réalisés en parallèle.
 - Dès que T1 est terminé : T5 peut avancer en parallèle de T2.
 - Dès que T4 est terminé : T6 et T10 peuvent avancer en parallèle.
 - Dès que T10 est terminé : T11 et T13 peuvent avancer en parallèle.

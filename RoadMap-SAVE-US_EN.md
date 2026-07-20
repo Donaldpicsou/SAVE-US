@@ -70,6 +70,30 @@ flowchart LR
   T11 --> T37
   T18 --> T37
   T5 --> T38["T38 Persistent emergency action"]
+  T40["T40 Human moderation workflow"] --> T41["T41 Administration model"]
+  T4 --> T41
+  T41 --> T42["T42 Administrator access"]
+  T41 --> T43["T43 Hospital verification"]
+  T41 --> T44["T44 Moderator management"]
+  T41 --> T45["T45 Safety rules"]
+  T42 --> T43
+  T42 --> T44
+  T42 --> T45
+  T43 --> T46["T46 Administration audit log"]
+  T44 --> T46
+  T45 --> T46
+  T46 --> T47["T47 Administrator dashboard"]
+  T47 --> T48["T48 Administration E2E tests"]
+  T35 --> T49["T49 Alert-sheet contract"]
+  T29 --> T49
+  T33 --> T49
+  T49 --> T50["T50 Printable HTML sheet"]
+  T49 --> T51["T51 Server-side PDF"]
+  T49 --> T52["T52 Secure share link"]
+  T50 --> T53["T53 Sharing actions"]
+  T51 --> T53
+  T52 --> T53
+  T53 --> T54["T54 Sheet and sharing E2E tests"]
 ```
 
 ## Atomic tasks
@@ -121,6 +145,20 @@ flowchart LR
 | T38 | Keep the emergency action persistent | The desktop sidebar uses a compact, fixed-height column: only the navigation list may scroll, while the settings link and Emergency report action remain visible at the bottom with 44px minimum touch targets. | T5 | Completed |
 | T39 | Correct notification destinations | The shared notification opening route resolves alert type and lifecycle state. Published reports open their public alert, while category-specific moderation updates open the appropriate status or review screen. | T24, T29, T33 | Completed |
 | T40 | Deliver the human moderation workflow | Moderators and administrators can privately review queued reports, inspect protected media, then publish, request information, reject, or withdraw a published abduction with a mandatory reason, audit entry, and reporter notification. | T24, T29, T33, T35 | Completed |
+| T41 | Define the administration model | Entities and validation rules support hospital-verification requests, safe configurable rules, and richer immutable audit metadata: actor, action, reason, prior value, and new value. | T4, T40 | Planned |
+| T42 | Build administrator access and navigation | The `/admin` area and its navigation are restricted to administrators; moderators retain only the moderation workspace. | T41 | Planned |
+| T43 | Build hospital verification | Administrators can review private verification requests, approve or reject them with a mandatory reason, and grant the hospital-representative role only after approval. | T41, T42 | Planned |
+| T44 | Build moderator management | Administrators can search users and grant or revoke the moderator role with an audit reason; safeguards prevent accidental loss of the last administrator or self-lockout. | T41, T42 | Planned |
+| T45 | Build safety-rule management | Administrators can edit bounded confidence, fraud-risk, and category-expiry settings; changes are audited and affect only future decisions. | T41, T42 | Planned |
+| T46 | Build the administration audit log | A restricted, searchable audit view filters administrator and moderator actions by actor, action, report/user, and date, without exposing private data outside authorised screens. | T43, T44, T45 | Planned |
+| T47 | Build the administrator dashboard | A safe operational dashboard presents moderation volumes and delay, active/pending/expired alerts, pending hospital verification, and moderator activity. | T46 | Planned |
+| T48 | Test the administration workflow | Authorisation, role changes, hospital verification, rule boundaries, audit entries, and the administrator demo journey are covered by automated end-to-end tests. | T43–T47 | Planned |
+| T49 | Define the alert-sheet contract and safety rules | A single English public-safe representation is defined for each alert type: title, category, safe AI summary, approximate coverage, date, status, safety guidance, expiry where applicable, and `Source: SAVE-US`. It explicitly excludes private contact, precise address/GPS, private circumstances, and original media. | T17, T29, T33, T35 | Planned |
+| T50 | Build the printable HTML alert sheet | Published alerts have an authorised A4-friendly English sheet with SAVE-US branding, print styles, generation date, and a working Print action. | T49 | Planned |
+| T51 | Generate the server-side PDF alert sheet | The same authorised public-safe sheet can be downloaded as a PDF with a consistent English filename and private, non-cacheable response headers. | T49 | Planned |
+| T52 | Build secure share links | Opaque, revocable and expiring share links expose only approved public-safe content and stop working when their alert is withdrawn, rejected, or expired. Shared media is absent unless explicitly approved for public sharing. | T49 | Planned |
+| T53 | Build sharing actions | Alert detail provides copy-link, mobile Web Share fallback, and a prefilled WhatsApp share containing `Source: SAVE-US` and the secure URL. | T50, T51, T52 | Planned |
+| T54 | Test alert-sheet and sharing safety | Automated end-to-end tests cover printable HTML, PDF, English content, attribution, WhatsApp payload, link revocation, and the absence of private data or unauthorised media. | T50–T53 | Planned |
 
 ## Critical path
 
@@ -134,6 +172,10 @@ Targeting correction: `T6 + T11 + T18 → T37`.
 
 Safety ergonomics correction: `T5 → T38`.
 
+Administration workflow: `T4 + T40 → T41 → T42 → (T43 + T44 + T45) → T46 → T47 → T48`.
+
+Alert-sheet and sharing workflow: `T17 + T29 + T33 + T35 → T49 → (T50 + T51 + T52) → T53 → T54`.
+
 ## Parallel work
 
 - After T1: T5 can proceed in parallel with T2.
@@ -142,3 +184,5 @@ Safety ergonomics correction: `T5 → T38`.
 - T14/T15 can be developed while T11/T12 are being built.
 - After T25, the abduction branch (T26–T29) and road-accident branch (T30–T33) can proceed in parallel.
 - T32 can proceed in parallel with T31; T34 begins only once the publication rules for both new categories are ready.
+- After T42, hospital verification (T43), moderator management (T44), and safety-rule management (T45) can proceed in parallel.
+- After T49, printable HTML (T50), server-side PDF (T51), and secure share links (T52) can proceed in parallel.
