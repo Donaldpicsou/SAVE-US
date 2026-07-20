@@ -12,6 +12,7 @@ from app.models import (
     AlertType,
     MissingPersonDetails,
     MissingPersonSex,
+    SuspectedAbductionDetails,
     User,
     UserRole,
     utc_now,
@@ -113,6 +114,68 @@ class CoreModelTestCase(unittest.TestCase):
             details.validation_errors()["last_seen_at"],
             "Last-seen date and time cannot be in the future.",
         )
+
+    def test_abduction_details_are_isolated_and_validate_required_evidence(self) -> None:
+        user = User(
+            phone_number="+237688888888",
+            country="Cameroon",
+            primary_region="Centre",
+            is_phone_verified=True,
+        )
+        alert = Alert(
+            reporter=user,
+            alert_type=AlertType.SUSPECTED_ABDUCTION,
+            title="Possible abduction near Mfoundi",
+            country="Cameroon",
+            region="Centre",
+        )
+        details = SuspectedAbductionDetails(alert=alert)
+        db.session.add_all([user, alert, details])
+        db.session.commit()
+
+        self.assertEqual(
+            set(details.validation_errors()),
+            {"photo", "abduction_at", "approximate_zone", "description", "circumstances", "private_contact"},
+        )
+        self.assertFalse(details.is_submission_ready)
+
+        alert.approximate_zone = "Mfoundi district, Yaoundé"
+        details.photo_path = "uploads/abduction-evidence.jpg"
+        details.abduction_at = utc_now() - timedelta(hours=1)
+        details.description = "A child was reportedly taken from the market area."
+        details.circumstances = "Witnesses reported a vehicle leaving the area immediately afterwards."
+        details.private_contact = "+237 688 888 888"
+        db.session.commit()
+
+        self.assertEqual(details.validation_errors(), {})
+        self.assertTrue(details.is_submission_ready)
+        self.assertIs(db.session.get(Alert, alert.id).suspected_abduction_details, details)
+
+    def test_abduction_details_reject_future_event_time_and_wrong_alert_type(self) -> None:
+        missing_alert = Alert(
+            reporter=User(
+                phone_number="+237677777777",
+                country="Cameroon",
+                primary_region="Centre",
+                is_phone_verified=True,
+            ),
+            alert_type=AlertType.MISSING_PERSON,
+            title="Wrong category",
+            country="Cameroon",
+            region="Centre",
+            approximate_zone="Mfoundi",
+        )
+        details = SuspectedAbductionDetails(
+            alert=missing_alert,
+            photo_path="uploads/photo.jpg",
+            abduction_at=utc_now() + timedelta(minutes=1),
+            description="Description",
+            circumstances="Circumstances",
+            private_contact="+237 677 777 777",
+        )
+        errors = details.validation_errors()
+        self.assertEqual(errors["alert_type"], "Abduction details require a suspected-abduction alert.")
+        self.assertEqual(errors["abduction_at"], "Abduction date and time cannot be in the future.")
 
 
 if __name__ == "__main__":

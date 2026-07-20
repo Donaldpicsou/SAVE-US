@@ -182,6 +182,11 @@ class Alert(db.Model):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    suspected_abduction_details: Mapped["SuspectedAbductionDetails | None"] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
     ai_review: Mapped["AIReview | None"] = relationship(
         back_populates="alert",
         cascade="all, delete-orphan",
@@ -282,6 +287,75 @@ class MissingPersonDetails(db.Model):
         return f"<MissingPersonDetails alert_id={self.alert_id}>"
 
 
+class SuspectedAbductionDetails(db.Model):
+    """Private evidence and contact data for one suspected-abduction report.
+
+    Every field stays nullable for a draft.  The category-specific form in T27
+    will call ``validation_errors`` before handing a report to the abduction AI
+    review in T28, ensuring this data never mixes with missing-person details.
+    """
+
+    __tablename__ = "suspected_abduction_details"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    photo_path: Mapped[str | None] = mapped_column(String(500))
+    abduction_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    description: Mapped[str | None] = mapped_column(Text)
+    circumstances: Mapped[str | None] = mapped_column(Text)
+    private_contact: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    alert: Mapped[Alert] = relationship(back_populates="suspected_abduction_details")
+
+    def validation_errors(self, *, now: datetime | None = None) -> dict[str, str]:
+        """Return required-field and timing errors before an abduction review."""
+        errors: dict[str, str] = {}
+        reference_time = now or utc_now()
+
+        if self.alert.alert_type != AlertType.SUSPECTED_ABDUCTION:
+            errors["alert_type"] = "Abduction details require a suspected-abduction alert."
+        if not self.photo_path:
+            errors["photo"] = "A photo is required."
+        if self.abduction_at is None:
+            errors["abduction_at"] = "Abduction date and time are required."
+        else:
+            abduction_at = self.abduction_at
+            if abduction_at.tzinfo is None:
+                abduction_at = abduction_at.replace(tzinfo=timezone.utc)
+            if reference_time.tzinfo is None:
+                reference_time = reference_time.replace(tzinfo=timezone.utc)
+            if abduction_at > reference_time:
+                errors["abduction_at"] = "Abduction date and time cannot be in the future."
+        if not self.alert.approximate_zone or not self.alert.approximate_zone.strip():
+            errors["approximate_zone"] = "An approximate public area is required."
+        if not self.description or not self.description.strip():
+            errors["description"] = "A description is required."
+        if not self.circumstances or not self.circumstances.strip():
+            errors["circumstances"] = "Circumstances are required."
+        if not self.private_contact or not self.private_contact.strip():
+            errors["private_contact"] = "A private contact is required."
+        return errors
+
+    @property
+    def is_submission_ready(self) -> bool:
+        """Whether the suspected-abduction report is ready for its future AI review."""
+        return not self.validation_errors()
+
+    def __repr__(self) -> str:
+        return f"<SuspectedAbductionDetails alert_id={self.alert_id}>"
+
+
 class AIReview(db.Model):
     """A persisted, contract-validated AI review for one emergency alert."""
 
@@ -380,6 +454,7 @@ __all__ = [
     "MissingPersonSex",
     "Notification",
     "ReportAction",
+    "SuspectedAbductionDetails",
     "User",
     "UserRole",
     "db",
