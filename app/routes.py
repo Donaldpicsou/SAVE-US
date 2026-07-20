@@ -1583,8 +1583,19 @@ def open_notification(notification_id: str):
     alert = notification.alert
     if notification.kind == "alert_published" and alert and user_receives_alert(g.current_user, alert):
         return redirect(url_for("main.alert_detail", alert_id=alert.id))
-    if notification.kind in {"report_published", "report_needs_moderation"} and alert and alert.reporter_id == g.current_user.id:
-        return redirect(url_for("main.ai_review", alert_id=alert.id))
+    if notification.kind == "report_published" and alert and alert.reporter_id == g.current_user.id:
+        # Published reports use their public-safe alert page regardless of the incident category.
+        return redirect(url_for("main.alert_detail", alert_id=alert.id))
+    if notification.kind == "report_needs_moderation" and alert and alert.reporter_id == g.current_user.id:
+        if alert.alert_type == AlertType.MISSING_PERSON and alert.ai_review:
+            return redirect(url_for("main.ai_review", alert_id=alert.id))
+        if alert.alert_type == AlertType.SUSPECTED_ABDUCTION and alert.ai_review:
+            return redirect(url_for("main.suspected_abduction_ai_review", alert_id=alert.id))
+        if alert.alert_type == AlertType.ROAD_ACCIDENT:
+            return redirect(url_for("main.road_accident_report_submitted", alert_id=alert.id))
+        return redirect(url_for("main.my_reports"))
+    if notification.kind in {"reported_found", "withdrawn"} and alert and alert.reporter_id == g.current_user.id:
+        return redirect(url_for("main.my_reports"))
     return render_template(
         "notification_detail.html",
         active_page=None,

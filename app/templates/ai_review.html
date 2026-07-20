@@ -5,7 +5,14 @@
 {% block content %}
   <!-- Persisted report-review screen: public summary, checks, scores, and decision. -->
   <section class="ai-review-page">
-    <a class="back-link" href="{{ report_form_url or url_for('main.report_missing_person', draft=alert.id) }}">← Back to report</a>
+    <!-- A reviewed alert is no longer always editable through the draft-only form. -->
+    {% if alert.status.value == 'draft' %}
+      <a class="back-link" href="{{ report_form_url or url_for('main.report_missing_person', draft=alert.id) }}">← Back to report</a>
+    {% elif alert.status.value == 'published' %}
+      <a class="back-link" href="{{ url_for('main.alert_detail', alert_id=alert.id) }}">← View published alert</a>
+    {% else %}
+      <a class="back-link" href="{{ url_for('main.my_reports') }}">← Back to my reports</a>
+    {% endif %}
     <header class="ai-review-heading">
       <div><p class="eyebrow">Report review</p><h1>Review for {{ alert.title }}</h1><p>Review results help SAVE-US decide what happens next. They do not verify facts or replace emergency services.</p></div>
       <span class="review-decision {{ review.decision|replace('_', '-') }}">{{ review.decision|replace('_', ' ')|title }}</span>

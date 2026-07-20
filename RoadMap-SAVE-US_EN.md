@@ -119,6 +119,7 @@ flowchart LR
 | T36 | Test the multi-event demonstration journey | The Cameroon/Centre end-to-end test covers one country-wide suspected abduction and one regional road accident, including targeting, notifications, expiry or closure, and unauthorised-media protection. | T27, T29, T31–T35 | Planned |
 | T37 | Separate incident location from reporter location | Missing-person reports prefill but do not lock the affected country and region. The server validates the selected CEMAC country/region pair, persists it on the alert, and existing targeting uses that event location. | T6, T11, T18 | Completed |
 | T38 | Keep the emergency action persistent | The desktop sidebar uses a compact, fixed-height column: only the navigation list may scroll, while the settings link and Emergency report action remain visible at the bottom with 44px minimum touch targets. | T5 | Completed |
+| T39 | Correct notification destinations | The shared notification opening route resolves alert type and lifecycle state. Published reports open their public alert, while category-specific moderation updates open the appropriate status or review screen. | T24, T29, T33 | Completed |
 
 ## Critical path
 

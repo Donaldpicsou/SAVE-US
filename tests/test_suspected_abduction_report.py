@@ -133,6 +133,7 @@ class SuspectedAbductionReportTestCase(unittest.TestCase):
         review_screen = self.client.get(f"/reports/suspected-abduction/{alert.id}/ai-review")
         self.assertEqual(review_screen.status_code, 200)
         self.assertIn(b"View published alert", review_screen.data)
+        self.assertIn(f'href="/alerts/{alert.id}"'.encode(), review_screen.data)
         self.assertNotIn(b">Edit report<", review_screen.data)
         self.assertEqual(self.client.get(f"/alerts/{alert.id}").status_code, 200)
 

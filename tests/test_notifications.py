@@ -121,6 +121,32 @@ class NotificationTestCase(unittest.TestCase):
         self.assertFalse(db.session.get(Notification, second.id).is_read)
         self.assertIn(b"notification-badge", self.client.get("/dashboard").data)
 
+    def test_reporter_notification_for_a_published_abduction_routes_to_its_alert(self) -> None:
+        abduction = Alert(
+            reporter=self.reporter,
+            alert_type=AlertType.SUSPECTED_ABDUCTION,
+            status=AlertStatus.PUBLISHED,
+            title="Published abduction report",
+            public_summary="A suspected abduction was reported in Cameroon.",
+            country="Cameroon",
+            region="Centre",
+        )
+        notification = Notification(
+            recipient=self.reporter,
+            alert=abduction,
+            kind="report_published",
+            title="Your report was published",
+            body="Your report now appears in the eligible community alert feed.",
+        )
+        db.session.add_all([abduction, notification])
+        db.session.commit()
+        self.sign_in_as(self.reporter)
+
+        response = self.client.get(f"/notifications/{notification.id}/open")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"/alerts/{abduction.id}", response.headers["Location"])
+        self.assertTrue(db.session.get(Notification, notification.id).is_read)
+
     def test_mark_all_and_closure_updates_are_persisted(self) -> None:
         queue_review_outcome_notifications(self.alert)
         db.session.commit()
