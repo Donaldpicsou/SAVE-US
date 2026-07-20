@@ -12,6 +12,11 @@ from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
 from .notification_service import queue_closure_notifications, queue_review_outcome_notifications
 from .publication import apply_publication_decision, decide_publication
+from .road_media_moderation import (
+    MEDIA_STATUS_BLOCKED,
+    MEDIA_STATUS_NEEDS_MODERATION,
+    review_road_accident_media,
+)
 from .targeting import eligible_recipients, user_receives_alert
 from .models import (
     AIReview,
@@ -24,6 +29,7 @@ from .models import (
     Notification,
     ReportAction,
     RoadAccidentDetails,
+    RoadAccidentMediaReview,
     SuspectedAbductionDetails,
     User,
     UserRole,
@@ -523,6 +529,26 @@ def persist_ai_review(alert: Alert, execution) -> AIReview:
     return review
 
 
+def persist_road_accident_media_review(alert: Alert, result) -> RoadAccidentMediaReview:
+    """Store the private media-safety outcome and apply its safe lifecycle state."""
+    review = alert.road_accident_media_review
+    if review is None:
+        review = RoadAccidentMediaReview(alert=alert)
+        db.session.add(review)
+    review.media_reference = result.media_reference
+    review.status = result.status
+    review.reason = result.reason
+    review.source = result.source
+    if result.status == MEDIA_STATUS_BLOCKED:
+        alert.status = AlertStatus.REJECTED
+    elif result.status == MEDIA_STATUS_NEEDS_MODERATION:
+        alert.status = AlertStatus.NEEDS_MODERATION
+    else:
+        # T33 remains responsible for the later publication decision and expiry.
+        alert.status = AlertStatus.AI_REVIEW
+    return review
+
+
 def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str]]:
     """Parse draft-safe fields and return only format errors from the report form."""
     _countries, regions_by_country = incident_location_reference()
@@ -968,6 +994,18 @@ def report_road_accident():
                     draft.status = AlertStatus.AI_REVIEW
 
             if action == "submit":
+                if not errors:
+                    persist_road_accident_media_review(
+                        draft,
+                        review_road_accident_media(
+                            draft,
+                            upload_root=current_app.config["UPLOAD_FOLDER"],
+                            max_bytes=current_app.config["MAX_PHOTO_UPLOAD_BYTES"],
+                            api_key=current_app.config.get("OPENAI_API_KEY"),
+                            model=current_app.config["OPENAI_MEDIA_MODEL"],
+                            timeout=current_app.config["OPENAI_TIMEOUT_SECONDS"],
+                        ),
+                    )
                 db.session.commit()
                 if new_photo_path:
                     for old_path in replaced_media_references:

@@ -6,7 +6,8 @@ import unittest
 
 from app import create_app
 from app.extensions import db
-from app.models import Alert, AlertStatus, AlertType, User
+from app.models import Alert, AlertStatus, AlertType, RoadAccidentDetails, User
+from app.road_media_moderation import MEDIA_STATUS_BLOCKED, review_road_accident_media
 
 
 class RoadAccidentReportTestCase(unittest.TestCase):
@@ -91,6 +92,37 @@ class RoadAccidentReportTestCase(unittest.TestCase):
         alert = db.session.scalar(db.select(Alert).where(Alert.alert_type == AlertType.ROAD_ACCIDENT))
         self.assertEqual(alert.status, AlertStatus.AI_REVIEW)
         self.assertEqual(self.client.get(response.headers["Location"]).status_code, 200)
+
+    def test_submitted_photo_enters_moderation_when_live_visual_review_is_unavailable(self) -> None:
+        response = self.client.post(
+            "/report/road-accident",
+            data={
+                "action": "submit", **self.form_data(),
+                "photo": (io.BytesIO(self.valid_png()), "collision.png", "image/png"),
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 302)
+        alert = db.session.scalar(db.select(Alert).where(Alert.alert_type == AlertType.ROAD_ACCIDENT))
+        self.assertEqual(alert.status, AlertStatus.NEEDS_MODERATION)
+        self.assertEqual(alert.road_accident_media_review.status, "needs_moderation")
+        submitted = self.client.get(response.headers["Location"])
+        self.assertIn(b"needs a safety check", submitted.data)
+
+    def test_server_blocks_a_missing_or_tampered_stored_media_reference(self) -> None:
+        alert = Alert(
+            reporter=self.user, alert_type=AlertType.ROAD_ACCIDENT, status=AlertStatus.AI_REVIEW,
+            title="Tampered photo", country="Cameroon", region="Littoral",
+        )
+        details = RoadAccidentDetails(alert=alert, media_references=["road_accident/missing/photo.jpg"])
+        db.session.add_all([alert, details])
+        db.session.commit()
+        result = review_road_accident_media(
+            alert, upload_root=self.upload_directory.name, max_bytes=5 * 1024 * 1024,
+            api_key=None, model="gpt-5.6", timeout=1,
+        )
+        self.assertEqual(result.status, MEDIA_STATUS_BLOCKED)
+        self.assertIn("could not pass", result.reason)
 
 
 if __name__ == "__main__":

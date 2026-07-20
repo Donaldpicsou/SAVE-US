@@ -192,6 +192,11 @@ class Alert(db.Model):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    road_accident_media_review: Mapped["RoadAccidentMediaReview | None"] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
     ai_review: Mapped["AIReview | None"] = relationship(
         back_populates="alert",
         cascade="all, delete-orphan",
@@ -451,6 +456,35 @@ class RoadAccidentDetails(db.Model):
         return f"<RoadAccidentDetails alert_id={self.alert_id}>"
 
 
+class RoadAccidentMediaReview(db.Model):
+    """Auditable safety outcome for optional road-accident media.
+
+    The review is private: it records only the stored media reference, a safe
+    status, and a reporter-friendly explanation.  It never exposes the image
+    or model reasoning in public alert content.
+    """
+
+    __tablename__ = "road_accident_media_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    media_reference: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    alert: Mapped[Alert] = relationship(back_populates="road_accident_media_review")
+
+    def __repr__(self) -> str:
+        return f"<RoadAccidentMediaReview alert_id={self.alert_id} status={self.status}>"
+
+
 class AIReview(db.Model):
     """A persisted, contract-validated AI review for one emergency alert."""
 
@@ -550,6 +584,7 @@ __all__ = [
     "Notification",
     "ReportAction",
     "RoadAccidentDetails",
+    "RoadAccidentMediaReview",
     "SuspectedAbductionDetails",
     "User",
     "UserRole",
