@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+
+{% block title %}Report an incident · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Unified verified-user entry point; each category owns a separate future workflow. -->
+  <section class="incident-selector-page">
+    <p class="emergency-notice blue">ⓘ SAVE-US does not replace emergency services. If there is immediate danger to life, contact local emergency services before continuing.</p>
+    <header class="incident-selector-heading"><p class="eyebrow">Verified community reporting</p><h1>Report an incident</h1><p class="lead">Choose the event type. Each report has its own questions, validation rules, and private draft.</p></header>
+    <section class="incident-selector-grid" aria-label="Choose an incident type">
+      {% for option in reporting_options %}
+        <article class="incident-selector-card {{ option.type.value }} {{ 'is-selected' if selected_type == option.type.value else '' }}">
+          <div class="incident-selector-icon">{{ icons.icon(option.icon) }}</div>
+          <p class="critical-label">{{ 'Available now' if option.availability == 'available' else 'Coming next' }}</p>
+          <h2>{{ option.title }}</h2><p>{{ option.description }}</p>
+          {% if option.type.value == 'missing_person' %}
+            <a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Start missing-person report</a>
+          {% else %}
+            <a class="button secondary" href="{{ url_for('main.incident_report_unavailable', incident_type=option.type.value) }}">Choose {{ option.title|lower }}</a>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </section>
+    <p class="incident-selector-note">SAVE-US keeps drafts and validation rules separate for every incident type. Selecting a category never changes an existing draft.</p>
+  </section>
+{% endblock %}

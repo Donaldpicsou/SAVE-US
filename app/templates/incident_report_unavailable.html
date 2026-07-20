@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}{{ incident_title }} reporting · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Transparent transition page: no draft is created before the category-specific form exists. -->
+  <section class="incident-unavailable-page">
+    <p class="eyebrow">{{ incident_title }}</p>
+    <h1>This reporting flow is being prepared.</h1>
+    <p class="lead">The {{ incident_title|lower }} form will have its own required fields, review rules, and private drafts. No report has been created from this selection.</p>
+    <div class="button-row"><a class="button emergency" href="{{ url_for('main.report_incident') }}">Choose another incident</a><a class="button secondary" href="{{ url_for('main.alerts') }}">Browse active alerts</a></div>
+  </section>
+{% endblock %}

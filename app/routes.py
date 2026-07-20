@@ -85,6 +85,29 @@ ALERT_FEED_FILTERS = (
 
 REPORT_STATUS_FILTERS = tuple((status.value, status.value.replace("_", " ").title()) for status in AlertStatus)
 REPORT_TYPE_FILTERS = tuple((alert_type.value, alert_type.value.replace("_", " ").title()) for alert_type in AlertType)
+REPORTING_OPTIONS = (
+    {
+        "type": AlertType.MISSING_PERSON,
+        "title": "Missing person",
+        "description": "Mobilise your region to help locate someone who has disappeared.",
+        "icon": "person-search",
+        "availability": "available",
+    },
+    {
+        "type": AlertType.SUSPECTED_ABDUCTION,
+        "title": "Suspected abduction",
+        "description": "Prepare an urgent country-wide report for a suspected kidnapping or abduction.",
+        "icon": "warning",
+        "availability": "coming_soon",
+    },
+    {
+        "type": AlertType.ROAD_ACCIDENT,
+        "title": "Road accident",
+        "description": "Prepare a rapid local report for a serious collision or road emergency.",
+        "icon": "car",
+        "availability": "coming_soon",
+    },
+)
 
 
 @bp.before_app_request
@@ -481,6 +504,43 @@ def report_form_values(details: MissingPersonDetails | None = None) -> dict[str,
     }
 
 
+@bp.get("/report")
+@login_required
+def report_incident():
+    """Offer one verified-user entry point without creating cross-type drafts."""
+    selected_type = request.args.get("type", "").strip()
+    valid_types = {option["type"].value for option in REPORTING_OPTIONS}
+    if selected_type not in valid_types:
+        selected_type = ""
+    return render_template(
+        "report_incident.html",
+        active_page="report",
+        app_shell=True,
+        reporting_options=REPORTING_OPTIONS,
+        selected_type=selected_type,
+    )
+
+
+@bp.get("/report/<incident_type>")
+@login_required
+def incident_report_unavailable(incident_type: str):
+    """Keep future category routes separate until their dedicated forms exist."""
+    unavailable_types = {
+        AlertType.SUSPECTED_ABDUCTION.value: "Suspected abduction",
+        AlertType.ROAD_ACCIDENT.value: "Road accident",
+    }
+    title = unavailable_types.get(incident_type)
+    if title is None:
+        abort(404)
+    return render_template(
+        "incident_report_unavailable.html",
+        active_page="report",
+        app_shell=True,
+        incident_title=title,
+        incident_type=incident_type,
+    )
+
+
 @bp.route("/report/missing-person", methods=("GET", "POST"))
 @login_required
 def report_missing_person():
@@ -863,7 +923,10 @@ def mark_notifications_seen():
         notification.is_read = True
         notification.read_at = datetime.now(timezone.utc)
     db.session.commit()
-    return jsonify({"unread_count": 0})
+    selected_filter = request.form.get("filter", "all").strip()
+    if selected_filter not in {"all", "unread", "read"}:
+        selected_filter = "all"
+    return redirect(url_for("main.notifications", filter=selected_filter))
 
 
 @bp.get("/notifications/<notification_id>/open")

@@ -11,7 +11,7 @@
     <!-- Notification filters and the explicit control to mark all existing items as read. -->
     <div class="notification-toolbar">
       <nav class="notification-filters" aria-label="Notification filters"><a class="{{ 'active' if selected_filter == 'all' else '' }}" href="{{ url_for('main.notifications', filter='all') }}">All</a><a class="{{ 'active' if selected_filter == 'unread' else '' }}" href="{{ url_for('main.notifications', filter='unread') }}">Unread</a><a class="{{ 'active' if selected_filter == 'read' else '' }}" href="{{ url_for('main.notifications', filter='read') }}">Read</a></nav>
-      {% if unread_count %}<form action="{{ url_for('main.mark_notifications_seen') }}" method="post"><button class="button button-secondary button-compact" type="submit">Mark all as read</button></form>{% endif %}
+      {% if unread_count %}<form action="{{ url_for('main.mark_notifications_seen') }}" method="post"><input type="hidden" name="filter" value="{{ selected_filter }}"><button class="button button-secondary button-compact" type="submit">Mark all as read</button></form>{% endif %}
     </div>
     <!-- Each notification can be opened only by its intended recipient. -->
     <div class="notifications-list">

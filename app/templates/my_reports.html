@@ -7,7 +7,7 @@
   <section class="my-reports-page">
     <header class="my-reports-heading">
       <div><p class="eyebrow">Reporter workspace</p><h1>My reports</h1><p>Resume drafts, follow review outcomes, and close a report responsibly when the person is found or the alert must be withdrawn.</p></div>
-      <a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Report missing person</a>
+      <a class="button emergency" href="{{ url_for('main.report_incident') }}">Report an incident</a>
     </header>
 
     {% if action_error %}<p class="form-error" role="alert">{{ action_error }}</p>{% endif %}
@@ -47,7 +47,7 @@
         </article>
       {% else %}
         <!-- Empty state also covers filters that do not match any owned report. -->
-        <article class="my-reports-empty"><span>⌁</span><h2>No reports found</h2><p>Create a missing-person report or adjust the filters to view your saved reports.</p><a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Report missing person</a></article>
+        <article class="my-reports-empty"><span>⌁</span><h2>No reports found</h2><p>Create an incident report or adjust the filters to view your saved reports.</p><a class="button emergency" href="{{ url_for('main.report_incident') }}">Report an incident</a></article>
       {% endfor %}
     </section>
   </section>

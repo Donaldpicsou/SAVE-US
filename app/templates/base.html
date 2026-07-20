@@ -26,7 +26,7 @@
       <nav class="top-nav" aria-label="Primary navigation">
         <a class="{{ 'active' if active_page == 'home' else '' }}" href="{{ url_for('main.dashboard') }}">Home</a>
         <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">Alerts</a>
-        <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_missing_person') }}">Report</a>
+        <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">Report</a>
       </nav>
       <div class="header-actions">
         <span class="country-pill">● {{ current_user.country if is_authenticated else "CEMAC" }}</span>
@@ -78,12 +78,12 @@
           <nav>
             <a class="{{ 'active' if active_page == 'home' else '' }}" href="{{ url_for('main.dashboard') }}">{{ icons.icon('home') }} <span>Home</span></a>
             <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">{{ icons.icon('alert') }} <span>Alerts</span></a>
-            <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_missing_person') }}">{{ icons.icon('report') }} <span>Report</span></a>
+            <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} <span>Report</span></a>
             <a class="{{ 'active' if active_page == 'reports' else '' }}" href="{{ url_for('main.my_reports') }}">{{ icons.icon('folder') }} <span>My reports</span></a>
             <a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span></a>
           </nav>
           <a class="sidebar-settings {{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }} <span>Settings</span></a>
-          <a class="emergency-button" href="{{ url_for('main.report_missing_person') }}">{{ icons.icon('report') }} Emergency report</a>
+          <a class="emergency-button" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} Emergency report</a>
         </aside>
       {% endif %}
 
@@ -96,7 +96,7 @@
       <nav class="mobile-nav" aria-label="Mobile navigation">
         <a class="{{ 'active' if active_page == 'home' else '' }}" href="{{ url_for('main.dashboard') }}">{{ icons.icon('home') }}<span>Home</span></a>
         <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">{{ icons.icon('alert') }}<span>Alerts</span></a>
-        <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_missing_person') }}">{{ icons.icon('report') }}<span>Report</span></a>
+        <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }}<span>Report</span></a>
         <a class="{{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }}<span>Profile</span></a>
       </nav>
     {% endif %}

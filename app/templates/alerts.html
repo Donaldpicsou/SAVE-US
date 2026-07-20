@@ -7,7 +7,7 @@
   <section class="alert-feed-page">
     <header class="alert-feed-heading">
       <div><p class="eyebrow">{{ current_user.country }} · {{ current_user.primary_region }}</p><h1>Alerts for you</h1><p>Published alerts selected from your country, regions, and alert preferences.</p></div>
-      <a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Report missing person</a>
+      <a class="button emergency" href="{{ url_for('main.report_incident') }}">Report an incident</a>
     </header>
 
     <!-- Server-side search and category controls keep the feed URL shareable. -->

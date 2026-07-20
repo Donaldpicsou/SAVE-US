@@ -125,7 +125,9 @@ class NotificationTestCase(unittest.TestCase):
         queue_review_outcome_notifications(self.alert)
         db.session.commit()
         self.sign_in_as(self.recipient)
-        self.assertEqual(self.client.post("/notifications/mark-seen").get_json(), {"unread_count": 0})
+        response = self.client.post("/notifications/mark-seen", data={"filter": "unread"})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/notifications?filter=unread", response.headers["Location"])
         self.assertTrue(
             all(
                 db.session.scalars(

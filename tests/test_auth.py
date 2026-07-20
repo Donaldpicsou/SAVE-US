@@ -94,7 +94,8 @@ class AuthenticationTestCase(unittest.TestCase):
         self.client.post("/verify-otp", data={"otp_code": "123456"})
         self.assertIn(b"notification-badge", self.client.get("/dashboard").data)
         response = self.client.post("/notifications/mark-seen")
-        self.assertEqual(response.get_json(), {"unread_count": 0})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/notifications?filter=all", response.headers["Location"])
         self.assertNotIn(b"notification-badge", self.client.get("/dashboard").data)
 
 
