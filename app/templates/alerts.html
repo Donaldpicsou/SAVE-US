@@ -30,7 +30,8 @@
             <div class="feed-alert-top"><p class="critical-label">{{ alert.type }}</p><span class="status-chip">Published</span></div>
             <h2>{{ alert.title }}</h2>
             <p>{{ alert.summary }}</p>
-            <p class="alert-meta">◷ {{ alert.published_label }} · ⌖ {{ alert.location }}</p>
+            <p class="alert-meta">{{ alert.coverage_label }}</p>
+            {% if alert.expires_label %}<p class="alert-meta alert-expiry">◷ {{ alert.expires_label }} · ⌖ {{ alert.location }}</p>{% else %}<p class="alert-meta">◷ {{ alert.published_label }} · ⌖ {{ alert.location }}</p>{% endif %}
             <a class="feed-alert-link" href="{{ url_for('main.alert_detail', alert_id=alert.id) }}">View alert <span>→</span></a>
           </div>
         </article>

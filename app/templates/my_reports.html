@@ -30,6 +30,8 @@
             <h2>{{ report.title }}</h2>
             <p class="my-report-location">{{ report.approximate_zone or report.region or report.country }} · {{ report.country }}</p>
             <p class="my-report-date">Last updated {{ report.updated_at.strftime('%d %b %Y · %H:%M UTC') }}</p>
+            <!-- Category-specific status context stays private to the reporting owner. -->
+            {% if report.alert_type.value == 'suspected_abduction' %}<p class="my-report-history">Distribution: <strong>Country-wide</strong> for eligible subscribers in {{ report.country }}.</p>{% elif report.alert_type.value == 'road_accident' %}{% if report.expires_at %}<p class="my-report-history">Visibility: <strong>Regional</strong> · expires {{ report.expires_at.strftime('%d %b %Y · %H:%M UTC') }}.</p>{% endif %}{% if report.road_accident_media_review %}<p class="my-report-history">Media safety: <strong>{{ report.road_accident_media_review.status|replace('_', ' ')|title }}</strong> · {{ report.road_accident_media_review.reason }}</p>{% endif %}{% endif %}
             {% if report.report_actions %}<p class="my-report-history">Latest action: <strong>{{ report.report_actions[0].action|replace('_', ' ')|title }}</strong> · {{ report.report_actions[0].reason }}</p>{% endif %}
 
             <!-- Draft, review, and public-alert links are selected from the actual lifecycle status. -->

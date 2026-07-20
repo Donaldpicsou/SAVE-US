@@ -367,6 +367,29 @@ def public_alert_view(alert: Alert) -> dict:
         part for part in (alert.approximate_zone, alert.region, alert.country) if part
     )
     initials = "".join(word[0] for word in alert.title.split()[:2]).upper() or "SU"
+    category_presentation = {
+        AlertType.MISSING_PERSON: {
+            "coverage_label": f"Regional community search · {alert.region or alert.country}",
+            "safety_label": "Share verified information only",
+            "safety_note": "Do not publish private family contact details or precise locations.",
+            "primary_action_label": "Contact family on WhatsApp",
+        },
+        AlertType.SUSPECTED_ABDUCTION: {
+            "coverage_label": f"Country-wide urgent alert · {alert.country}",
+            "safety_label": "Do not confront anyone involved",
+            "safety_note": "Share verified facts only. Do not attempt an intervention or publish private contact details.",
+            "primary_action_label": "Share urgent alert",
+        },
+        AlertType.ROAD_ACCIDENT: {
+            "coverage_label": f"Regional road-safety alert · {alert.region or alert.country}",
+            "safety_label": "Avoid the affected area and drive carefully",
+            "safety_note": "The location shown is approximate. Precise coordinates and uploaded media remain protected.",
+            "primary_action_label": "Share road alert",
+        },
+    }.get(alert.alert_type, {})
+    expires_label = None
+    if alert.alert_type == AlertType.ROAD_ACCIDENT and alert.expires_at:
+        expires_label = alert.expires_at.strftime("Expires %d %b %Y · %H:%M UTC")
     return {
         "id": alert.id,
         "title": alert.title,
@@ -376,6 +399,11 @@ def public_alert_view(alert: Alert) -> dict:
         "location": location or alert.country,
         "published_label": published_at.strftime("%d %b %Y · %H:%M UTC"),
         "initials": initials,
+        "coverage_label": category_presentation.get("coverage_label", "Targeted SAVE-US alert"),
+        "safety_label": category_presentation.get("safety_label", "Share responsibly"),
+        "safety_note": category_presentation.get("safety_note", "SAVE-US does not display private contact details or precise locations publicly."),
+        "primary_action_label": category_presentation.get("primary_action_label", "Share alert"),
+        "expires_label": expires_label,
         # Uploaded photos stay protected; published abduction and missing-person alerts may expose them to eligible users.
         "photo_url": (
             url_for("main.alert_photo", alert_id=alert.id)

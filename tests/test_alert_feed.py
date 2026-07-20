@@ -1,10 +1,11 @@
 """Integration tests for the preference-targeted published-alert feed."""
 
 import unittest
+from datetime import timedelta
 
 from app import create_app
 from app.extensions import db
-from app.models import Alert, AlertPreference, AlertStatus, AlertType, User
+from app.models import Alert, AlertPreference, AlertStatus, AlertType, User, utc_now
 
 
 class AlertFeedTestCase(unittest.TestCase):
@@ -82,6 +83,7 @@ class AlertFeedTestCase(unittest.TestCase):
         self.assertNotIn(f"/alerts/{foreign.id}".encode(), response.data)
         self.assertIn(f"/alerts/{centre_missing.id}".encode(), response.data)
         self.assertIn(f"/alerts/{followed_region_missing.id}".encode(), response.data)
+        self.assertIn(b"Country-wide urgent alert", response.data)
 
     def test_feed_category_search_and_detail_access_use_the_same_targeting_rule(self) -> None:
         visible = self.add_alert("Nadia Mbarga", AlertType.MISSING_PERSON)
@@ -104,6 +106,25 @@ class AlertFeedTestCase(unittest.TestCase):
         self.assertIn(f"/alerts/{visible.id}".encode(), dashboard.data)
         self.assertNotIn(f"/alerts/{hidden.id}".encode(), dashboard.data)
         self.assertIn(b"View all alerts", dashboard.data)
+
+    def test_road_alert_cards_and_detail_show_regional_safety_and_expiry_context(self) -> None:
+        self.user.alert_preference.enabled_categories = ["missing_person", "suspected_abduction", "road_accident"]
+        road_alert = self.add_alert("Collision near Dibamba", AlertType.ROAD_ACCIDENT, region="Centre")
+        road_alert.expires_at = utc_now() + timedelta(hours=23)
+        db.session.commit()
+
+        alerts = self.client.get("/alerts?type=road_accident")
+        self.assertEqual(alerts.status_code, 200)
+        self.assertIn(b"Regional road-safety alert", alerts.data)
+        self.assertIn(b"Expires", alerts.data)
+        dashboard = self.client.get("/dashboard")
+        self.assertIn(b"Regional road-safety alert", dashboard.data)
+
+        detail = self.client.get(f"/alerts/{road_alert.id}")
+        self.assertEqual(detail.status_code, 200)
+        self.assertIn(b"Avoid the affected area and drive carefully", detail.data)
+        self.assertIn(b"Share road alert", detail.data)
+        self.assertNotIn(b"Contact family on WhatsApp", detail.data)
 
 
 if __name__ == "__main__":
