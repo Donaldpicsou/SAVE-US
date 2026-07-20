@@ -11,7 +11,12 @@ from .ai_service import review_missing_person_alert, review_suspected_abduction_
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
 from .notification_service import queue_closure_notifications, queue_review_outcome_notifications
-from .publication import apply_publication_decision, decide_publication
+from .publication import (
+    apply_road_accident_publication,
+    apply_publication_decision,
+    decide_publication,
+    expire_due_road_accidents,
+)
 from .road_media_moderation import (
     MEDIA_STATUS_BLOCKED,
     MEDIA_STATUS_NEEDS_MODERATION,
@@ -122,6 +127,8 @@ REPORTING_OPTIONS = (
 @bp.before_app_request
 def load_current_user() -> None:
     """Load the signed-in user once per request from the Flask session."""
+    # T33 expiry is enforced before building any feed, notification, or report view.
+    expire_due_road_accidents()
     user_id = session.get("user_id")
     g.current_user = db.session.get(User, user_id) if user_id else None
 
@@ -505,6 +512,14 @@ def owned_road_accident_alert(alert_id: str) -> Alert:
         or alert.reporter_id != g.current_user.id
         or alert.alert_type != AlertType.ROAD_ACCIDENT
     ):
+        abort(404)
+    return alert
+
+
+def owned_report_alert(alert_id: str) -> Alert:
+    """Load any report only when it belongs to the signed-in reporting user."""
+    alert = db.session.get(Alert, alert_id)
+    if alert is None or alert.reporter_id != g.current_user.id:
         abort(404)
     return alert
 
@@ -1006,6 +1021,9 @@ def report_road_accident():
                             timeout=current_app.config["OPENAI_TIMEOUT_SECONDS"],
                         ),
                     )
+                    apply_road_accident_publication(draft)
+                    if draft.status == AlertStatus.PUBLISHED:
+                        queue_review_outcome_notifications(draft)
                 db.session.commit()
                 if new_photo_path:
                     for old_path in replaced_media_references:
@@ -1323,10 +1341,16 @@ def my_reports():
 @login_required
 def close_report(alert_id: str):
     """Mark one owned report as found or withdrawn and preserve a reasoned audit record."""
-    alert = owned_missing_person_alert(alert_id)
+    alert = owned_report_alert(alert_id)
     action = request.form.get("action", "").strip()
     reason = request.form.get("reason", "").strip()
-    if action not in {"reported_found", "withdrawn"}:
+    if alert.alert_type == AlertType.ROAD_ACCIDENT:
+        allowed_actions = {"closed"}
+    elif alert.alert_type == AlertType.MISSING_PERSON:
+        allowed_actions = {"reported_found", "withdrawn"}
+    else:
+        abort(400)
+    if action not in allowed_actions:
         abort(400)
     if not reason:
         return redirect(url_for("main.my_reports", action_error="Provide a reason before closing a report."))
@@ -1339,7 +1363,11 @@ def close_report(alert_id: str):
         former_recipients = eligible_recipients(alert, users)
     alert.status = AlertStatus.REPORTED_FOUND if action == "reported_found" else AlertStatus.WITHDRAWN
     db.session.add(ReportAction(alert=alert, actor_id=g.current_user.id, action=action, reason=reason))
-    queue_closure_notifications(alert, former_recipients, action=action)
+    if alert.alert_type == AlertType.ROAD_ACCIDENT:
+        # The audit action is "closed" while recipients use the existing safe withdrawal message.
+        queue_closure_notifications(alert, former_recipients, action="withdrawn")
+    else:
+        queue_closure_notifications(alert, former_recipients, action=action)
     db.session.commit()
     return redirect(url_for("main.my_reports"))
 

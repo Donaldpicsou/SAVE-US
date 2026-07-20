@@ -3,10 +3,11 @@
 import io
 import tempfile
 import unittest
+from datetime import timedelta
 
 from app import create_app
 from app.extensions import db
-from app.models import Alert, AlertStatus, AlertType, RoadAccidentDetails, User
+from app.models import Alert, AlertPreference, AlertStatus, AlertType, ReportAction, RoadAccidentDetails, User, utc_now
 from app.road_media_moderation import MEDIA_STATUS_BLOCKED, review_road_accident_media
 
 
@@ -90,8 +91,38 @@ class RoadAccidentReportTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/submitted", response.headers["Location"])
         alert = db.session.scalar(db.select(Alert).where(Alert.alert_type == AlertType.ROAD_ACCIDENT))
-        self.assertEqual(alert.status, AlertStatus.AI_REVIEW)
+        self.assertEqual(alert.status, AlertStatus.PUBLISHED)
+        self.assertIsNotNone(alert.published_at)
+        self.assertIsNotNone(alert.expires_at)
+        self.assertEqual(alert.expires_at - alert.published_at, timedelta(hours=24))
         self.assertEqual(self.client.get(response.headers["Location"]).status_code, 200)
+
+    def test_published_accident_targets_the_affected_region_then_expires(self) -> None:
+        subscriber = User(phone_number="+237635000000", country="Cameroon", primary_region="Littoral", is_phone_verified=True)
+        db.session.add_all([subscriber, AlertPreference(user=subscriber, enabled_categories=["road_accident"])])
+        db.session.commit()
+        response = self.client.post("/report/road-accident", data={"action": "submit", **self.form_data()})
+        alert = db.session.scalar(db.select(Alert).where(Alert.alert_type == AlertType.ROAD_ACCIDENT))
+        self.assertEqual(alert.status, AlertStatus.PUBLISHED)
+        self.assertEqual(len(subscriber.notifications), 1)
+        self.assertIn(b"shared with eligible people", self.client.get(response.headers["Location"]).data)
+
+        alert.expires_at = utc_now() - timedelta(seconds=1)
+        db.session.commit()
+        self.client.get("/dashboard")
+        self.assertEqual(db.session.get(Alert, alert.id).status, AlertStatus.EXPIRED)
+
+    def test_reporter_can_close_a_published_accident_with_a_reasoned_audit_record(self) -> None:
+        self.client.post("/report/road-accident", data={"action": "submit", **self.form_data()})
+        alert = db.session.scalar(db.select(Alert).where(Alert.alert_type == AlertType.ROAD_ACCIDENT))
+        response = self.client.post(
+            f"/reports/{alert.id}/close",
+            data={"action": "closed", "reason": "Emergency services cleared the road."},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(db.session.get(Alert, alert.id).status, AlertStatus.WITHDRAWN)
+        action = db.session.scalar(db.select(ReportAction).where(ReportAction.alert_id == alert.id))
+        self.assertEqual((action.action, action.reason), ("closed", "Emergency services cleared the road."))
 
     def test_submitted_photo_enters_moderation_when_live_visual_review_is_unavailable(self) -> None:
         response = self.client.post(

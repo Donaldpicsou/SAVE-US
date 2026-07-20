@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 
-from .models import AIReview, Alert, AlertStatus, utc_now
+from .extensions import db
+from .models import AIReview, Alert, AlertStatus, AlertType, utc_now
+from .road_media_moderation import MEDIA_STATUS_BLOCKED, MEDIA_STATUS_CLEAR, MEDIA_STATUS_NEEDS_MODERATION
 
 
 MINIMUM_PUBLICATION_CONFIDENCE = 80
 MAXIMUM_PUBLICATION_FRAUD_RISK = 80
+ROAD_ACCIDENT_EXPIRY_HOURS = 24
 
 
 @dataclass(frozen=True)
@@ -69,10 +73,63 @@ def apply_publication_decision(alert: Alert, review: AIReview) -> PublicationDec
     return decision
 
 
+def apply_road_accident_publication(alert: Alert) -> PublicationDecision:
+    """Publish a complete, media-safe road accident to its affected region for 24 hours."""
+    if alert.alert_type != AlertType.ROAD_ACCIDENT:
+        raise ValueError("Road-accident publication only accepts road-accident alerts.")
+    media_review = alert.road_accident_media_review
+    if media_review is None:
+        alert.status = AlertStatus.NEEDS_MODERATION
+        return PublicationDecision(AlertStatus.NEEDS_MODERATION, "Publication is paused until the optional media safety check is complete.")
+    if media_review.status == MEDIA_STATUS_BLOCKED:
+        alert.status = AlertStatus.REJECTED
+        return PublicationDecision(AlertStatus.REJECTED, media_review.reason)
+    if media_review.status == MEDIA_STATUS_NEEDS_MODERATION:
+        alert.status = AlertStatus.NEEDS_MODERATION
+        return PublicationDecision(AlertStatus.NEEDS_MODERATION, media_review.reason)
+    details = alert.road_accident_details
+    if details is None or details.validation_errors():
+        alert.status = AlertStatus.NEEDS_MODERATION
+        return PublicationDecision(AlertStatus.NEEDS_MODERATION, "Publication is paused until a moderator resolves the report information.")
+    if media_review.status != MEDIA_STATUS_CLEAR:
+        alert.status = AlertStatus.NEEDS_MODERATION
+        return PublicationDecision(AlertStatus.NEEDS_MODERATION, "Publication is paused for a media safety review.")
+
+    published_at = utc_now()
+    alert.status = AlertStatus.PUBLISHED
+    alert.published_at = published_at
+    alert.expires_at = published_at + timedelta(hours=ROAD_ACCIDENT_EXPIRY_HOURS)
+    # The private manual location and optional coordinates never become public summary content.
+    location = alert.approximate_zone or alert.region or alert.country
+    alert.public_summary = f"A serious road accident was reported near {location}. Please use caution and contact emergency services if needed."
+    return PublicationDecision(AlertStatus.PUBLISHED, "This road accident was published to eligible users in the affected region for 24 hours.")
+
+
+def expire_due_road_accidents() -> list[Alert]:
+    """End public regional visibility after the 24-hour accident-alert window."""
+    now = utc_now()
+    alerts = db.session.scalars(
+        db.select(Alert).where(
+            Alert.alert_type == AlertType.ROAD_ACCIDENT,
+            Alert.status == AlertStatus.PUBLISHED,
+            Alert.expires_at.is_not(None),
+            Alert.expires_at <= now,
+        )
+    ).all()
+    for alert in alerts:
+        alert.status = AlertStatus.EXPIRED
+    if alerts:
+        db.session.commit()
+    return alerts
+
+
 __all__ = [
     "MAXIMUM_PUBLICATION_FRAUD_RISK",
     "MINIMUM_PUBLICATION_CONFIDENCE",
+    "ROAD_ACCIDENT_EXPIRY_HOURS",
     "PublicationDecision",
+    "apply_road_accident_publication",
     "apply_publication_decision",
     "decide_publication",
+    "expire_due_road_accidents",
 ]

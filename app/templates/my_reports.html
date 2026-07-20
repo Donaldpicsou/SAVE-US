@@ -42,8 +42,13 @@
             </div>
 
             <!-- Closure actions require a reason and create a non-public audit record. -->
-            {% if report.status.value not in ['reported_found', 'withdrawn', 'expired'] and report.alert_type.value != 'road_accident' %}
-              <details class="close-report-panel"><summary>Close this report</summary><p>Use this only when the person is found or the alert must be withdrawn. The reason is retained privately for accountability.</p><form action="{{ url_for('main.close_report', alert_id=report.id) }}" method="post"><label>Reason<textarea name="reason" rows="3" required placeholder="Explain why this report is being closed."></textarea></label><div><button class="text-button found" type="submit" name="action" value="reported_found">Mark as found</button><button class="text-button" type="submit" name="action" value="withdrawn">Withdraw report</button></div></form></details>
+            {% if report.status.value not in ['reported_found', 'withdrawn', 'expired'] and report.alert_type.value in ['missing_person', 'road_accident'] %}
+              {% if report.alert_type.value == 'road_accident' %}
+                <!-- Road alerts can be closed manually before their automatic 24-hour expiry. -->
+                <details class="close-report-panel"><summary>Close this road-accident alert</summary><p>Close this alert when the road is safe again or the report should no longer be shared. The reason is retained privately for accountability.</p><form action="{{ url_for('main.close_report', alert_id=report.id) }}" method="post"><label>Reason<textarea name="reason" rows="3" required placeholder="Explain why this road-accident alert is being closed."></textarea></label><div><button class="text-button" type="submit" name="action" value="closed">Close alert</button></div></form></details>
+              {% else %}
+                <details class="close-report-panel"><summary>Close this report</summary><p>Use this only when the person is found or the alert must be withdrawn. The reason is retained privately for accountability.</p><form action="{{ url_for('main.close_report', alert_id=report.id) }}" method="post"><label>Reason<textarea name="reason" rows="3" required placeholder="Explain why this report is being closed."></textarea></label><div><button class="text-button found" type="submit" name="action" value="reported_found">Mark as found</button><button class="text-button" type="submit" name="action" value="withdrawn">Withdraw report</button></div></form></details>
+              {% endif %}
             {% endif %}
           </div>
         </article>
