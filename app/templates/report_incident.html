@@ -18,6 +18,8 @@
             <a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Start missing-person report</a>
           {% elif option.type.value == 'suspected_abduction' %}
             <a class="button emergency" href="{{ url_for('main.report_suspected_abduction') }}">Start abduction report</a>
+          {% elif option.type.value == 'road_accident' %}
+            <a class="button emergency" href="{{ url_for('main.report_road_accident') }}">Start road-accident report</a>
           {% else %}
             <a class="button secondary" href="{{ url_for('main.incident_report_unavailable', incident_type=option.type.value) }}">Choose {{ option.title|lower }}</a>
           {% endif %}

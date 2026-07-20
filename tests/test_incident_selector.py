@@ -47,12 +47,12 @@ class IncidentSelectorTestCase(unittest.TestCase):
         self.assertIn(b"/report/suspected_abduction", response.data)
         self.assertIn(b"/report/road_accident", response.data)
 
-    def test_road_accident_route_is_still_separate_and_does_not_create_a_draft(self) -> None:
+    def test_road_accident_route_is_ready_and_does_not_create_a_draft_on_get(self) -> None:
         self.sign_in()
         before = db.session.scalar(db.select(db.func.count(Alert.id)))
         response = self.client.get("/report/road_accident")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"No report has been created", response.data)
+        self.assertIn(b"Report road accident", response.data)
         self.assertEqual(db.session.scalar(db.select(db.func.count(Alert.id))), before)
 
     def test_missing_person_route_cannot_open_a_road_accident_draft(self) -> None:

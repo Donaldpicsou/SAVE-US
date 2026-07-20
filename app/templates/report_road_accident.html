@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Report road accident · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Rapid road-accident workflow: manual location remains available when device location is unavailable. -->
+  <section class="report-page" data-report-wizard data-step-count="3" data-report-step-labels='["Accident overview", "Location and time", "Impact and needs"]' data-has-stored-photo="{{ 'true' if draft and draft.road_accident_details and draft.road_accident_details.media_references else 'false' }}" data-photo-required="false">
+    <p class="emergency-notice">ⓘ If there is immediate danger or injury, contact local emergency services before continuing. SAVE-US does not replace emergency services.</p>
+    <div class="report-heading"><div><p class="eyebrow" data-report-step-label>Step 1 of 3 · Accident overview</p><h1>Report road accident</h1></div><div class="progress" aria-label="Report progress"><span data-report-progress></span><small data-report-progress-text>1 / 3</small></div></div>
+    <div class="report-layout">
+      <form class="report-form" method="post" enctype="multipart/form-data" novalidate>
+        {% if draft %}<input type="hidden" name="draft_id" value="{{ draft.id }}">{% endif %}
+        {% if saved %}<p class="form-success" role="status">Draft saved. You can return and continue this report at any time.</p>{% endif %}
+        {% if errors %}<p class="form-error" role="alert">Please correct the highlighted fields before submitting.</p>{% endif %}
+
+        <!-- Step 1: optional photo evidence is validated and retained outside public static files. -->
+        <section data-report-step="1">
+          <h2>Accident overview</h2>
+          <label>Short report title <input name="title" value="{{ values.title }}" placeholder="e.g. Collision on the N3 near Dibamba" required>{% if errors.title %}<small class="field-error">{{ errors.title }}</small>{% endif %}</label>
+          <h2 class="section-subheading">Photo evidence <small>Optional</small></h2>
+          <label class="upload-zone" for="road-accident-photo"><strong>⇧</strong><span>Click to upload or drag and drop</span><small>PNG, JPG or GIF · max. 5 MB · optional</small><input id="road-accident-photo" data-report-photo name="photo" type="file" accept="image/png,image/jpeg,image/gif"></label>{% if errors.photo %}<small class="field-error">{{ errors.photo }}</small>{% endif %}
+          <div class="photo-selection" data-photo-selection {{ "" if draft and draft.road_accident_details and draft.road_accident_details.media_references else "hidden" }} aria-live="polite"><img data-photo-preview src="{{ url_for('main.road_accident_photo_preview', alert_id=draft.id) if draft and draft.road_accident_details and draft.road_accident_details.media_references else '' }}" alt="Selected accident photo preview" {{ "" if draft and draft.road_accident_details and draft.road_accident_details.media_references else "hidden" }}><span><strong data-photo-status>{{ "Photo saved securely" if draft and draft.road_accident_details and draft.road_accident_details.media_references else "Photo added" }}</strong><small data-photo-name>{{ "Replace the photo by selecting another image." if draft and draft.road_accident_details and draft.road_accident_details.media_references else "A photo can help, but is not required." }}</small></span></div>
+        </section>
+
+        <!-- Step 2: browser geolocation is optional; the manual location is the always-available fallback. -->
+        <section data-report-step="2" hidden>
+          <h2>Location and time</h2>
+          <p class="field-help">Use your device location if available, then describe the location manually so the report remains useful without GPS.</p>
+          <div class="form-grid"><label>Country where it happened <select name="country" data-incident-country required><option value="">Select country</option>{% for country in incident_countries %}<option value="{{ country }}" {{ "selected" if values.country == country else "" }}>{{ country }}</option>{% endfor %}</select>{% if errors.country %}<small class="field-error">{{ errors.country }}</small>{% endif %}</label><label>Affected region <select name="region" data-incident-region required><option value="">Select region</option>{% for region in regions_by_country.get(values.country, []) %}<option value="{{ region }}" {{ "selected" if values.region == region else "" }}>{{ region }}</option>{% endfor %}</select>{% if errors.region or errors.affected_region %}<small class="field-error">{{ errors.region or errors.affected_region }}</small>{% endif %}</label></div>
+          <script id="incident-regions-data" type="application/json">{{ regions_by_country|tojson }}</script>
+          <div class="form-grid"><label>Date and time <input name="occurred_at" type="datetime-local" value="{{ values.occurred_at }}" required>{% if errors.occurred_at %}<small class="field-error">{{ errors.occurred_at }}</small>{% endif %}</label><label>Approximate public area <input name="approximate_zone" value="{{ values.approximate_zone }}" placeholder="e.g. N3, Dibamba area" required><small>Do not enter an exact home address.</small>{% if errors.approximate_zone %}<small class="field-error">{{ errors.approximate_zone }}</small>{% endif %}</label></div>
+          <label class="full-field">Manual accident location <input name="manual_location" value="{{ values.manual_location }}" placeholder="Road name, kilometre marker, landmark, or nearest town" required><small>Used privately to help coordinate the report when GPS is unavailable.</small>{% if errors.manual_location %}<small class="field-error">{{ errors.manual_location }}</small>{% endif %}</label>
+          <div class="location-action"><button class="button secondary" type="button" data-geolocate>Use device location</button><span data-geolocation-status aria-live="polite">Location sharing is optional.</span></div>
+          <input name="latitude" type="hidden" value="{{ values.latitude }}" data-latitude><input name="longitude" type="hidden" value="{{ values.longitude }}" data-longitude>{% if errors.coordinates or errors.latitude or errors.longitude %}<small class="field-error">{{ errors.coordinates or errors.latitude or errors.longitude }}</small>{% endif %}
+        </section>
+
+        <!-- Step 3: immediate needs help future routing without requiring them for a draft. -->
+        <section data-report-step="3" hidden>
+          <h2>Impact and immediate needs</h2>
+          <div class="form-grid"><label>Victim count <small>Optional</small><input name="victim_count" type="number" min="0" step="1" value="{{ values.victim_count }}" placeholder="e.g. 2">{% if errors.victim_count %}<small class="field-error">{{ errors.victim_count }}</small>{% endif %}</label><label>Immediate needs <small>Optional</small><input name="immediate_needs" value="{{ values.immediate_needs }}" placeholder="e.g. Ambulance, traffic support"></label></div>
+          <label class="full-field">What happened? <textarea name="description" rows="5" placeholder="Describe the collision, road condition, immediate risks, and any safe facts that could help responders." required>{{ values.description }}</textarea>{% if errors.description %}<small class="field-error">{{ errors.description }}</small>{% endif %}</label>
+          <p class="report-ready-note" data-report-ready hidden aria-live="polite"></p>
+        </section>
+
+        <!-- Submit queues the report for the later T32/T33 safety and publication steps. -->
+        <div class="form-actions" data-report-actions><button class="button secondary" type="submit" name="action" value="save_draft" formnovalidate data-report-cancel>Save draft</button><button class="button secondary" type="button" data-report-back disabled>Back</button><button class="button emergency" type="button" data-report-next>Continue</button><button class="button emergency" type="submit" name="action" value="submit" data-report-finish hidden>Submit report</button></div>
+      </form>
+      <aside class="report-help"><span>✦</span><h2>Stay safe</h2><p>Only report facts you can safely share. Never put yourself in danger to take a photo or use device location.</p><ul><li>Call emergency services first if people are injured.</li><li>Manual location works when device location is unavailable.</li><li>Precise coordinates and uploaded media remain protected.</li></ul></aside>
+    </div>
+  </section>
+{% endblock %}

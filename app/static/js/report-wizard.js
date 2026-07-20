@@ -19,6 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const incidentCountry = wizard.querySelector("[data-incident-country]");
   const incidentRegion = wizard.querySelector("[data-incident-region]");
   const regionsData = document.getElementById("incident-regions-data");
+  const geolocateButton = wizard.querySelector("[data-geolocate]");
+  const geolocationStatus = wizard.querySelector("[data-geolocation-status]");
+  const latitudeInput = wizard.querySelector("[data-latitude]");
+  const longitudeInput = wizard.querySelector("[data-longitude]");
   const labels = JSON.parse(wizard.dataset.reportStepLabels || '["Identifying information", "Last-seen information", "Contact and circumstances"]');
   const totalSteps = Number(wizard.dataset.stepCount) || steps.length;
   const photoRequired = wizard.dataset.photoRequired !== "false";
@@ -101,5 +105,30 @@ document.addEventListener("DOMContentLoaded", () => {
     photoPreview.hidden = false;
     photoSelection.hidden = false;
   });
+
+  // Geolocation is opt-in. The mandatory manual location field keeps the form functional without it.
+  if (geolocateButton && geolocationStatus && latitudeInput && longitudeInput) {
+    geolocateButton.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        geolocationStatus.textContent = "Device location is unavailable. Please use the manual location field.";
+        return;
+      }
+      geolocateButton.disabled = true;
+      geolocationStatus.textContent = "Requesting device location…";
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          latitudeInput.value = coords.latitude.toFixed(6);
+          longitudeInput.value = coords.longitude.toFixed(6);
+          geolocationStatus.textContent = "Device location added privately. You can still update the manual location.";
+          geolocateButton.disabled = false;
+        },
+        () => {
+          geolocationStatus.textContent = "Device location was not shared. Please use the manual location field.";
+          geolocateButton.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      );
+    });
+  }
 
 });

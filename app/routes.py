@@ -23,6 +23,7 @@ from .models import (
     MissingPersonSex,
     Notification,
     ReportAction,
+    RoadAccidentDetails,
     SuspectedAbductionDetails,
     User,
     UserRole,
@@ -107,7 +108,7 @@ REPORTING_OPTIONS = (
         "title": "Road accident",
         "description": "Prepare a rapid local report for a serious collision or road emergency.",
         "icon": "car",
-        "availability": "coming_soon",
+        "availability": "available",
     },
 )
 
@@ -310,12 +311,17 @@ def alert_photo(alert_id: str):
     ):
         abort(404)
     details = alert.missing_person_details or alert.suspected_abduction_details
-    if details is None or not details.photo_path:
+    photo_path = details.photo_path if details is not None else (
+        alert.road_accident_details.media_references[0]
+        if alert.road_accident_details and alert.road_accident_details.media_references
+        else None
+    )
+    if not photo_path:
         abort(404)
-    photo_path = private_media_path(current_app.config["UPLOAD_FOLDER"], details.photo_path)
-    if photo_path is None:
+    resolved_photo_path = private_media_path(current_app.config["UPLOAD_FOLDER"], photo_path)
+    if resolved_photo_path is None:
         abort(404)
-    response = send_file(photo_path, conditional=True, max_age=0)
+    response = send_file(resolved_photo_path, conditional=True, max_age=0)
     # The original remains private: browsers must not cache or share a public URL.
     response.headers["Cache-Control"] = "private, no-store"
     return response
@@ -362,6 +368,7 @@ def public_alert_view(alert: Alert) -> dict:
             url_for("main.alert_photo", alert_id=alert.id)
             if (alert.missing_person_details and alert.missing_person_details.photo_path)
             or (alert.suspected_abduction_details and alert.suspected_abduction_details.photo_path)
+            or (alert.road_accident_details and alert.road_accident_details.media_references)
             else None
         ),
     }
@@ -389,6 +396,7 @@ def notification_view(notification: Notification) -> dict:
         and (
             (alert.missing_person_details is not None and bool(alert.missing_person_details.photo_path))
             or (alert.suspected_abduction_details is not None and bool(alert.suspected_abduction_details.photo_path))
+            or (alert.road_accident_details is not None and bool(alert.road_accident_details.media_references))
         )
     )
     return {
@@ -463,6 +471,33 @@ def owned_suspected_abduction_alert(alert_id: str) -> Alert:
         alert is None
         or alert.reporter_id != g.current_user.id
         or alert.alert_type != AlertType.SUSPECTED_ABDUCTION
+    ):
+        abort(404)
+    return alert
+
+
+def owned_road_accident_draft(draft_id: str | None) -> Alert | None:
+    """Load a road-accident draft only for the reporter who owns it."""
+    if not draft_id:
+        return None
+    alert = db.session.get(Alert, draft_id)
+    if (
+        alert is None
+        or alert.reporter_id != g.current_user.id
+        or alert.alert_type != AlertType.ROAD_ACCIDENT
+        or alert.status != AlertStatus.DRAFT
+    ):
+        abort(404)
+    return alert
+
+
+def owned_road_accident_alert(alert_id: str) -> Alert:
+    """Load one reporter-owned road-accident alert without crossing incident types."""
+    alert = db.session.get(Alert, alert_id)
+    if (
+        alert is None
+        or alert.reporter_id != g.current_user.id
+        or alert.alert_type != AlertType.ROAD_ACCIDENT
     ):
         abort(404)
     return alert
@@ -572,6 +607,59 @@ def parse_suspected_abduction_form() -> tuple[dict[str, object | None], dict[str
     return data, errors
 
 
+def parse_road_accident_form() -> tuple[dict[str, object | None], dict[str, str]]:
+    """Parse road-accident draft data, retaining a manual location fallback for GPS."""
+    _countries, regions_by_country = incident_location_reference()
+    selected_country = request.form.get("country", "").strip() or g.current_user.country
+    selected_region = request.form.get("region", "").strip() or g.current_user.primary_region
+    data: dict[str, object | None] = {
+        "title": request.form.get("title", "").strip() or None,
+        "country": selected_country,
+        "region": selected_region,
+        "approximate_zone": request.form.get("approximate_zone", "").strip() or None,
+        "manual_location": request.form.get("manual_location", "").strip() or None,
+        "affected_region": selected_region,
+        "immediate_needs": request.form.get("immediate_needs", "").strip() or None,
+        "description": request.form.get("description", "").strip() or None,
+        "occurred_at": None,
+        "latitude": None,
+        "longitude": None,
+        "victim_count": None,
+    }
+    errors: dict[str, str] = {}
+    if selected_country not in regions_by_country:
+        errors["country"] = "Choose a supported CEMAC country."
+    elif selected_region not in regions_by_country[selected_country]:
+        errors["region"] = "Choose a region from the selected country."
+
+    raw_occurred_at = request.form.get("occurred_at", "").strip()
+    if raw_occurred_at:
+        try:
+            parsed_occurred_at = datetime.fromisoformat(raw_occurred_at)
+            data["occurred_at"] = parsed_occurred_at.replace(tzinfo=timezone.utc) if parsed_occurred_at.tzinfo is None else parsed_occurred_at
+        except ValueError:
+            errors["occurred_at"] = "Enter a valid accident date and time."
+
+    raw_victim_count = request.form.get("victim_count", "").strip()
+    if raw_victim_count:
+        try:
+            data["victim_count"] = int(raw_victim_count)
+        except ValueError:
+            errors["victim_count"] = "Victim count must be a whole number."
+
+    raw_latitude = request.form.get("latitude", "").strip()
+    raw_longitude = request.form.get("longitude", "").strip()
+    if bool(raw_latitude) != bool(raw_longitude):
+        errors["coordinates"] = "Latitude and longitude must be provided together."
+    elif raw_latitude and raw_longitude:
+        try:
+            data["latitude"] = float(raw_latitude)
+            data["longitude"] = float(raw_longitude)
+        except ValueError:
+            errors["coordinates"] = "Enter valid latitude and longitude values."
+    return data, errors
+
+
 def incident_location_reference() -> tuple[list[str], dict[str, list[str]]]:
     """Return public CEMAC countries and their selectable subdivisions by display name."""
     dataset = load_cemac_data()
@@ -639,6 +727,34 @@ def abduction_form_values(
         "description": details.description or "",
         "circumstances": details.circumstances or "",
         "private_contact": details.private_contact or "",
+    }
+
+
+def road_accident_form_values(
+    details: RoadAccidentDetails | None = None,
+    *,
+    default_country: str = "",
+    default_region: str = "",
+) -> dict[str, str]:
+    """Return safe values for a new or resumed road-accident draft."""
+    if details is None:
+        return {
+            "title": "", "country": default_country, "region": default_region,
+            "approximate_zone": "", "manual_location": "", "occurred_at": "",
+            "latitude": "", "longitude": "", "victim_count": "", "immediate_needs": "", "description": "",
+        }
+    return {
+        "title": details.alert.title or "",
+        "country": details.alert.country or default_country,
+        "region": details.alert.region or default_region,
+        "approximate_zone": details.alert.approximate_zone or "",
+        "manual_location": details.manual_location or "",
+        "occurred_at": details.occurred_at.strftime("%Y-%m-%dT%H:%M") if details.occurred_at else "",
+        "latitude": str(details.latitude) if details.latitude is not None else "",
+        "longitude": str(details.longitude) if details.longitude is not None else "",
+        "victim_count": str(details.victim_count) if details.victim_count is not None else "",
+        "immediate_needs": details.immediate_needs or "",
+        "description": details.description or "",
     }
 
 
@@ -779,6 +895,114 @@ def report_suspected_abduction():
     )
 
 
+@bp.route("/report/road-accident", methods=("GET", "POST"))
+@bp.route("/report/road_accident", methods=("GET", "POST"))
+@login_required
+def report_road_accident():
+    """Create and resume a rapid road-accident draft with optional private media."""
+    draft = owned_road_accident_draft(request.values.get("draft_id") or request.args.get("draft"))
+    details = draft.road_accident_details if draft else None
+    errors: dict[str, str] = {}
+    saved = request.args.get("saved") == "1"
+
+    if request.method == "POST":
+        form_data, errors = parse_road_accident_form()
+        if not errors:
+            created_draft = False
+            if draft is None:
+                created_draft = True
+                draft = Alert(
+                    reporter=g.current_user,
+                    alert_type=AlertType.ROAD_ACCIDENT,
+                    status=AlertStatus.DRAFT,
+                    title=form_data["title"] or "Road-accident report draft",
+                    country=form_data["country"],
+                    region=form_data["region"],
+                    approximate_zone=form_data["approximate_zone"],
+                )
+                details = RoadAccidentDetails(alert=draft, media_references=[])
+                db.session.add(draft)
+            else:
+                draft.title = form_data["title"] or "Road-accident report draft"
+                draft.country = form_data["country"]
+                draft.region = form_data["region"]
+                draft.approximate_zone = form_data["approximate_zone"]
+
+            for field, value in form_data.items():
+                if field not in {"title", "country", "region", "approximate_zone"}:
+                    setattr(details, field, value)
+
+            action = request.form.get("action", "save_draft")
+            selected_photo = request.files.get("photo")
+            replaced_media_references = list(details.media_references or [])
+            new_photo_path = None
+            if selected_photo and selected_photo.filename:
+                try:
+                    image_metadata(selected_photo, max_bytes=current_app.config["MAX_PHOTO_UPLOAD_BYTES"])
+                    if draft.id is None:
+                        db.session.flush()
+                    new_photo_path = store_alert_photo(
+                        selected_photo,
+                        upload_root=current_app.config["UPLOAD_FOLDER"],
+                        alert_id=draft.id,
+                        category="road_accident",
+                        max_bytes=current_app.config["MAX_PHOTO_UPLOAD_BYTES"],
+                    )
+                    # T31 intentionally supports one optional image; later media work can extend this list safely.
+                    details.media_references = [new_photo_path]
+                except PhotoUploadError as error:
+                    errors["photo"] = str(error)
+                    if created_draft:
+                        db.session.rollback()
+                        draft = None
+                        details = None
+
+            if action == "submit" and details is not None:
+                if not form_data["title"]:
+                    errors["title"] = "A short report title is required."
+                if not form_data["approximate_zone"]:
+                    errors["approximate_zone"] = "An approximate public area is required."
+                errors = {**details.validation_errors(), **errors}
+                if not errors:
+                    # T32/T33 perform media moderation and publication. T31 only queues the complete report.
+                    draft.status = AlertStatus.AI_REVIEW
+
+            if action == "submit":
+                db.session.commit()
+                if new_photo_path:
+                    for old_path in replaced_media_references:
+                        delete_private_media(current_app.config["UPLOAD_FOLDER"], old_path)
+                if not errors:
+                    return redirect(url_for("main.road_accident_report_submitted", alert_id=draft.id))
+            elif not errors:
+                db.session.commit()
+                if new_photo_path:
+                    for old_path in replaced_media_references:
+                        delete_private_media(current_app.config["UPLOAD_FOLDER"], old_path)
+                return redirect(url_for("main.report_road_accident", draft=draft.id, saved=1))
+
+    if details is not None:
+        values = road_accident_form_values(details, default_country=g.current_user.country, default_region=g.current_user.primary_region)
+    elif request.method == "POST":
+        values = {key: str(value or "") for key, value in form_data.items()}
+        values["occurred_at"] = request.form.get("occurred_at", "")
+    else:
+        values = road_accident_form_values(default_country=g.current_user.country, default_region=g.current_user.primary_region)
+
+    incident_countries, regions_by_country = incident_location_reference()
+    return render_template(
+        "report_road_accident.html",
+        active_page="report",
+        app_shell=True,
+        draft=draft,
+        values=values,
+        errors=errors,
+        saved=saved,
+        incident_countries=incident_countries,
+        regions_by_country=regions_by_country,
+    )
+
+
 @bp.get("/reports/<alert_id>/submitted")
 @login_required
 def abduction_report_submitted(alert_id: str):
@@ -786,6 +1010,16 @@ def abduction_report_submitted(alert_id: str):
     alert = owned_suspected_abduction_alert(alert_id)
     if alert.status == AlertStatus.DRAFT:
         return redirect(url_for("main.report_suspected_abduction", draft=alert.id))
+    return render_template("report_submitted.html", active_page="reports", app_shell=True, alert=alert)
+
+
+@bp.get("/reports/road-accident/<alert_id>/submitted")
+@login_required
+def road_accident_report_submitted(alert_id: str):
+    """Show the plain-language confirmation for a queued road-accident report."""
+    alert = owned_road_accident_alert(alert_id)
+    if alert.status == AlertStatus.DRAFT:
+        return redirect(url_for("main.report_road_accident", draft=alert.id))
     return render_template("report_submitted.html", active_page="reports", app_shell=True, alert=alert)
 
 
@@ -805,13 +1039,26 @@ def suspected_abduction_photo_preview(alert_id: str):
     return response
 
 
+@bp.get("/report/road-accident/<alert_id>/photo")
+@login_required
+def road_accident_photo_preview(alert_id: str):
+    """Serve one stored road-accident draft image only to its reporting owner."""
+    draft = owned_road_accident_draft(alert_id)
+    details = draft.road_accident_details
+    photo_path = details.media_references[0] if details and details.media_references else None
+    resolved_path = private_media_path(current_app.config["UPLOAD_FOLDER"], photo_path) if photo_path else None
+    if resolved_path is None:
+        abort(404)
+    response = send_file(resolved_path, conditional=True, max_age=0)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @bp.get("/report/<incident_type>")
 @login_required
 def incident_report_unavailable(incident_type: str):
     """Keep future category routes separate until their dedicated forms exist."""
-    unavailable_types = {
-        AlertType.ROAD_ACCIDENT.value: "Road accident",
-    }
+    unavailable_types = {}
     title = unavailable_types.get(incident_type)
     if title is None:
         abort(404)

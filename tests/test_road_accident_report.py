@@ -1,0 +1,97 @@
+"""Tests for the mobile-friendly road-accident report workflow (T31)."""
+
+import io
+import tempfile
+import unittest
+
+from app import create_app
+from app.extensions import db
+from app.models import Alert, AlertStatus, AlertType, User
+
+
+class RoadAccidentReportTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.upload_directory = tempfile.TemporaryDirectory()
+        self.app = create_app({
+            "TESTING": True,
+            "SECRET_KEY": "test-secret",
+            "SQLALCHEMY_DATABASE_URI": "sqlite://",
+            "UPLOAD_FOLDER": self.upload_directory.name,
+        })
+        self.context = self.app.app_context()
+        self.context.push()
+        db.create_all()
+        self.user = User(phone_number="+237633000000", country="Cameroon", primary_region="Littoral", is_phone_verified=True)
+        self.other_user = User(phone_number="+237634000000", country="Cameroon", primary_region="Centre", is_phone_verified=True)
+        db.session.add_all([self.user, self.other_user])
+        db.session.commit()
+        self.client = self.app.test_client()
+        with self.client.session_transaction() as browser_session:
+            browser_session["user_id"] = self.user.id
+
+    def tearDown(self) -> None:
+        db.session.remove()
+        db.drop_all()
+        self.context.pop()
+        self.upload_directory.cleanup()
+
+    @staticmethod
+    def valid_png() -> bytes:
+        return b"\x89PNG\r\n\x1a\n" + b"save-us-road-accident-image"
+
+    def form_data(self) -> dict[str, str]:
+        return {
+            "title": "Collision on the N3 near Dibamba",
+            "country": "Cameroon",
+            "region": "Littoral",
+            "approximate_zone": "N3, Dibamba area",
+            "manual_location": "N3 near the Dibamba toll station",
+            "occurred_at": "2026-07-19T16:30",
+            "latitude": "4.200100",
+            "longitude": "9.775300",
+            "victim_count": "2",
+            "immediate_needs": "Ambulance and traffic support",
+            "description": "Two vehicles collided and one lane is blocked.",
+        }
+
+    def test_save_resume_and_keep_optional_photo_private(self) -> None:
+        response = self.client.post(
+            "/report/road-accident",
+            data={
+                "action": "save_draft", **self.form_data(),
+                "photo": (io.BytesIO(self.valid_png()), "collision.png", "image/png"),
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 302)
+        alert = db.session.scalar(db.select(Alert))
+        self.assertEqual((alert.alert_type, alert.status), (AlertType.ROAD_ACCIDENT, AlertStatus.DRAFT))
+        self.assertEqual(alert.road_accident_details.victim_count, 2)
+        self.assertEqual(len(alert.road_accident_details.media_references), 1)
+        self.assertIn(b"Collision on the N3 near Dibamba", self.client.get(response.headers["Location"]).data)
+
+        preview = self.client.get(f"/report/road-accident/{alert.id}/photo")
+        self.assertEqual(preview.status_code, 200)
+        self.assertIn("private, no-store", preview.headers["Cache-Control"])
+        preview.close()
+        with self.client.session_transaction() as browser_session:
+            browser_session["user_id"] = self.other_user.id
+        self.assertEqual(self.client.get(f"/report/road-accident/{alert.id}/photo").status_code, 404)
+
+    def test_submit_queues_complete_report_and_validates_coordinate_pairs(self) -> None:
+        invalid = self.form_data()
+        invalid.pop("longitude")
+        response = self.client.post("/report/road-accident", data={"action": "submit", **invalid})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Latitude and longitude must be provided together", response.data)
+
+        response = self.client.post("/report/road-accident", data={"action": "submit", **self.form_data()})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/submitted", response.headers["Location"])
+        alert = db.session.scalar(db.select(Alert).where(Alert.alert_type == AlertType.ROAD_ACCIDENT))
+        self.assertEqual(alert.status, AlertStatus.AI_REVIEW)
+        self.assertEqual(self.client.get(response.headers["Location"]).status_code, 200)
+
+
+if __name__ == "__main__":
+    unittest.main()

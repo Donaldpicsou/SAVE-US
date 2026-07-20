@@ -24,7 +24,7 @@
     <section class="my-reports-list">
       {% for report in reports %}
         <article class="my-report-card">
-          <div class="my-report-avatar">{% if (report.missing_person_details and report.missing_person_details.photo_path) or (report.suspected_abduction_details and report.suspected_abduction_details.photo_path) %}<img src="{{ url_for('main.alert_photo', alert_id=report.id) }}" alt="Photo uploaded for {{ report.title }}">{% else %}<span aria-hidden="true">{{ report.title[:2]|upper }}</span>{% endif %}</div>
+          <div class="my-report-avatar">{% if (report.missing_person_details and report.missing_person_details.photo_path) or (report.suspected_abduction_details and report.suspected_abduction_details.photo_path) or (report.road_accident_details and report.road_accident_details.media_references) %}<img src="{{ url_for('main.alert_photo', alert_id=report.id) }}" alt="Photo uploaded for {{ report.title }}">{% else %}<span aria-hidden="true">{{ report.title[:2]|upper }}</span>{% endif %}</div>
           <div class="my-report-content">
             <div class="my-report-top"><p class="critical-label">{{ report.alert_type.value|replace('_', ' ')|title }}</p><span class="report-status {{ report.status.value|replace('_', '-') }}">{{ report.status.value|replace('_', ' ')|title }}</span></div>
             <h2>{{ report.title }}</h2>
@@ -34,14 +34,15 @@
 
             <!-- Draft, review, and public-alert links are selected from the actual lifecycle status. -->
             <div class="my-report-actions">
-              {% if report.status.value == 'draft' and report.alert_type.value == 'missing_person' %}<a class="button secondary" href="{{ url_for('main.report_missing_person', draft=report.id) }}">Resume draft</a>{% elif report.status.value == 'draft' and report.alert_type.value == 'suspected_abduction' %}<a class="button secondary" href="{{ url_for('main.report_suspected_abduction', draft=report.id) }}">Resume draft</a>{% endif %}
+              {% if report.status.value == 'draft' and report.alert_type.value == 'missing_person' %}<a class="button secondary" href="{{ url_for('main.report_missing_person', draft=report.id) }}">Resume draft</a>{% elif report.status.value == 'draft' and report.alert_type.value == 'suspected_abduction' %}<a class="button secondary" href="{{ url_for('main.report_suspected_abduction', draft=report.id) }}">Resume draft</a>{% elif report.status.value == 'draft' and report.alert_type.value == 'road_accident' %}<a class="button secondary" href="{{ url_for('main.report_road_accident', draft=report.id) }}">Resume draft</a>{% endif %}
               {% if report.status.value == 'ai_review' and report.alert_type.value == 'suspected_abduction' %}<a class="button secondary" href="{{ url_for('main.abduction_report_submitted', alert_id=report.id) }}">View submission status</a>{% endif %}
+              {% if report.status.value == 'ai_review' and report.alert_type.value == 'road_accident' %}<a class="button secondary" href="{{ url_for('main.road_accident_report_submitted', alert_id=report.id) }}">View submission status</a>{% endif %}
               {% if report.ai_review and report.alert_type.value == 'missing_person' %}<a class="button secondary" href="{{ url_for('main.ai_review', alert_id=report.id) }}">View review</a>{% elif report.ai_review and report.alert_type.value == 'suspected_abduction' %}<a class="button secondary" href="{{ url_for('main.suspected_abduction_ai_review', alert_id=report.id) }}">View review</a>{% endif %}
               {% if report.status.value == 'published' %}<a class="button emergency" href="{{ url_for('main.alert_detail', alert_id=report.id) }}">View published alert</a>{% endif %}
             </div>
 
             <!-- Closure actions require a reason and create a non-public audit record. -->
-            {% if report.status.value not in ['reported_found', 'withdrawn', 'expired'] %}
+            {% if report.status.value not in ['reported_found', 'withdrawn', 'expired'] and report.alert_type.value != 'road_accident' %}
               <details class="close-report-panel"><summary>Close this report</summary><p>Use this only when the person is found or the alert must be withdrawn. The reason is retained privately for accountability.</p><form action="{{ url_for('main.close_report', alert_id=report.id) }}" method="post"><label>Reason<textarea name="reason" rows="3" required placeholder="Explain why this report is being closed."></textarea></label><div><button class="text-button found" type="submit" name="action" value="reported_found">Mark as found</button><button class="text-button" type="submit" name="action" value="withdrawn">Withdraw report</button></div></form></details>
             {% endif %}
           </div>
