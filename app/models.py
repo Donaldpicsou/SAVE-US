@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, JSON, Boolean, DateTime, Enum as SqlEnum, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, Float, JSON, Boolean, DateTime, Enum as SqlEnum, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .extensions import db
@@ -187,6 +187,11 @@ class Alert(db.Model):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    road_accident_details: Mapped["RoadAccidentDetails | None"] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
     ai_review: Mapped["AIReview | None"] = relationship(
         back_populates="alert",
         cascade="all, delete-orphan",
@@ -356,6 +361,96 @@ class SuspectedAbductionDetails(db.Model):
         return f"<SuspectedAbductionDetails alert_id={self.alert_id}>"
 
 
+class RoadAccidentDetails(db.Model):
+    """Private operational facts for one road-accident alert.
+
+    The parent alert continues to own country/region targeting.  The affected
+    region is stored here too as the report-specific declaration and is checked
+    against the parent before submission, preventing a targeting mismatch.
+    All fields remain nullable while T31 is saving a draft.
+    """
+
+    __tablename__ = "road_accident_details"
+    __table_args__ = (
+        CheckConstraint("victim_count IS NULL OR victim_count >= 0", name="ck_road_accident_victim_count_nonnegative"),
+        CheckConstraint("latitude IS NULL OR (latitude >= -90 AND latitude <= 90)", name="ck_road_accident_latitude_range"),
+        CheckConstraint("longitude IS NULL OR (longitude >= -180 AND longitude <= 180)", name="ck_road_accident_longitude_range"),
+        CheckConstraint(
+            "(latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL)",
+            name="ck_road_accident_coordinate_pair",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    manual_location: Mapped[str | None] = mapped_column(String(255))
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
+    affected_region: Mapped[str | None] = mapped_column(String(120))
+    victim_count: Mapped[int | None] = mapped_column()
+    immediate_needs: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    media_references: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    alert: Mapped[Alert] = relationship(back_populates="road_accident_details")
+
+    def validation_errors(self, *, now: datetime | None = None) -> dict[str, str]:
+        """Return the rules T31 will use before a road-accident report is submitted."""
+        errors: dict[str, str] = {}
+        reference_time = now or utc_now()
+        if self.alert.alert_type != AlertType.ROAD_ACCIDENT:
+            errors["alert_type"] = "Road-accident details require a road-accident alert."
+        if self.occurred_at is None:
+            errors["occurred_at"] = "Accident date and time are required."
+        else:
+            occurred_at = self.occurred_at.replace(tzinfo=timezone.utc) if self.occurred_at.tzinfo is None else self.occurred_at
+            reference_time = reference_time.replace(tzinfo=timezone.utc) if reference_time.tzinfo is None else reference_time
+            if occurred_at > reference_time:
+                errors["occurred_at"] = "Accident date and time cannot be in the future."
+        if not self.manual_location or not self.manual_location.strip():
+            errors["manual_location"] = "A manual accident location is required."
+        if not self.affected_region or not self.affected_region.strip():
+            errors["affected_region"] = "The affected region is required."
+        elif self.alert.region and self.affected_region != self.alert.region:
+            errors["affected_region"] = "The affected region must match the alert region."
+        if (self.latitude is None) != (self.longitude is None):
+            errors["coordinates"] = "Latitude and longitude must be provided together."
+        elif self.latitude is not None and not -90 <= self.latitude <= 90:
+            errors["latitude"] = "Latitude must be between -90 and 90."
+        elif self.longitude is not None and not -180 <= self.longitude <= 180:
+            errors["longitude"] = "Longitude must be between -180 and 180."
+        if self.victim_count is not None and self.victim_count < 0:
+            errors["victim_count"] = "Victim count cannot be negative."
+        if not self.description or not self.description.strip():
+            errors["description"] = "An accident description is required."
+        if self.media_references is not None and (
+            not isinstance(self.media_references, list)
+            or not all(isinstance(item, str) and item.strip() for item in self.media_references)
+        ):
+            errors["media_references"] = "Media references must be a list of non-empty values."
+        return errors
+
+    @property
+    def is_submission_ready(self) -> bool:
+        """Whether the road-accident draft has the data required for T31 submission."""
+        return not self.validation_errors()
+
+    def __repr__(self) -> str:
+        return f"<RoadAccidentDetails alert_id={self.alert_id}>"
+
+
 class AIReview(db.Model):
     """A persisted, contract-validated AI review for one emergency alert."""
 
@@ -454,6 +549,7 @@ __all__ = [
     "MissingPersonSex",
     "Notification",
     "ReportAction",
+    "RoadAccidentDetails",
     "SuspectedAbductionDetails",
     "User",
     "UserRole",
