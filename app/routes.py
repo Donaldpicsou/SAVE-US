@@ -9,7 +9,7 @@ from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_te
 from .extensions import db
 from .ai_service import review_missing_person_alert
 from .cemac import load_cemac_data
-from .media import PhotoUploadError, delete_private_media, private_media_path, store_missing_person_photo
+from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
 from .notification_service import queue_closure_notifications, queue_review_outcome_notifications
 from .publication import apply_publication_decision, decide_publication
 from .targeting import eligible_recipients, user_receives_alert
@@ -23,6 +23,7 @@ from .models import (
     MissingPersonSex,
     Notification,
     ReportAction,
+    SuspectedAbductionDetails,
     User,
 )
 
@@ -98,7 +99,7 @@ REPORTING_OPTIONS = (
         "title": "Suspected abduction",
         "description": "Prepare an urgent country-wide report for a suspected kidnapping or abduction.",
         "icon": "warning",
-        "availability": "coming_soon",
+        "availability": "available",
     },
     {
         "type": AlertType.ROAD_ACCIDENT,
@@ -424,6 +425,33 @@ def owned_missing_person_alert(alert_id: str) -> Alert:
     return alert
 
 
+def owned_suspected_abduction_draft(draft_id: str | None) -> Alert | None:
+    """Load an abduction draft only for its reporter and never through another form."""
+    if not draft_id:
+        return None
+    alert = db.session.get(Alert, draft_id)
+    if (
+        alert is None
+        or alert.reporter_id != g.current_user.id
+        or alert.alert_type != AlertType.SUSPECTED_ABDUCTION
+        or alert.status != AlertStatus.DRAFT
+    ):
+        abort(404)
+    return alert
+
+
+def owned_suspected_abduction_alert(alert_id: str) -> Alert:
+    """Load one reporter-owned suspected-abduction alert."""
+    alert = db.session.get(Alert, alert_id)
+    if (
+        alert is None
+        or alert.reporter_id != g.current_user.id
+        or alert.alert_type != AlertType.SUSPECTED_ABDUCTION
+    ):
+        abort(404)
+    return alert
+
+
 def persist_ai_review(alert: Alert, execution) -> AIReview:
     """Store the validated live or fallback review so the screen can be revisited."""
     review = alert.ai_review
@@ -493,6 +521,41 @@ def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str
     return data, errors
 
 
+def parse_suspected_abduction_form() -> tuple[dict[str, object | None], dict[str, str]]:
+    """Parse abduction-only draft data and validate the selected incident location."""
+    _countries, regions_by_country = incident_location_reference()
+    selected_country = request.form.get("country", "").strip() or g.current_user.country
+    selected_region = request.form.get("region", "").strip() or g.current_user.primary_region
+    data: dict[str, object | None] = {
+        "title": request.form.get("title", "").strip() or None,
+        "country": selected_country,
+        "region": selected_region,
+        "approximate_zone": request.form.get("approximate_zone", "").strip() or None,
+        "description": request.form.get("description", "").strip() or None,
+        "circumstances": request.form.get("circumstances", "").strip() or None,
+        "private_contact": request.form.get("private_contact", "").strip() or None,
+        "abduction_at": None,
+    }
+    errors: dict[str, str] = {}
+    if selected_country not in regions_by_country:
+        errors["country"] = "Choose a supported CEMAC country."
+    elif selected_region not in regions_by_country[selected_country]:
+        errors["region"] = "Choose a region from the selected country."
+
+    raw_abduction_at = request.form.get("abduction_at", "").strip()
+    if raw_abduction_at:
+        try:
+            parsed_abduction_at = datetime.fromisoformat(raw_abduction_at)
+            data["abduction_at"] = (
+                parsed_abduction_at.replace(tzinfo=timezone.utc)
+                if parsed_abduction_at.tzinfo is None
+                else parsed_abduction_at
+            )
+        except ValueError:
+            errors["abduction_at"] = "Enter a valid incident date and time."
+    return data, errors
+
+
 def incident_location_reference() -> tuple[list[str], dict[str, list[str]]]:
     """Return public CEMAC countries and their selectable subdivisions by display name."""
     dataset = load_cemac_data()
@@ -533,6 +596,36 @@ def report_form_values(
     }
 
 
+def abduction_form_values(
+    details: SuspectedAbductionDetails | None = None,
+    *,
+    default_country: str = "",
+    default_region: str = "",
+) -> dict[str, str]:
+    """Return safe values for a new or resumed suspected-abduction draft."""
+    if details is None:
+        return {
+            "title": "",
+            "country": default_country,
+            "region": default_region,
+            "approximate_zone": "",
+            "abduction_at": "",
+            "description": "",
+            "circumstances": "",
+            "private_contact": "",
+        }
+    return {
+        "title": details.alert.title or "",
+        "country": details.alert.country or default_country,
+        "region": details.alert.region or default_region,
+        "approximate_zone": details.alert.approximate_zone or "",
+        "abduction_at": details.abduction_at.strftime("%Y-%m-%dT%H:%M") if details.abduction_at else "",
+        "description": details.description or "",
+        "circumstances": details.circumstances or "",
+        "private_contact": details.private_contact or "",
+    }
+
+
 @bp.get("/report")
 @login_required
 def report_incident():
@@ -550,12 +643,154 @@ def report_incident():
     )
 
 
+@bp.route("/report/suspected-abduction", methods=("GET", "POST"))
+@bp.route("/report/suspected_abduction", methods=("GET", "POST"))
+@login_required
+def report_suspected_abduction():
+    """Create, resume, and submit a category-isolated suspected-abduction draft."""
+    draft = owned_suspected_abduction_draft(request.values.get("draft_id") or request.args.get("draft"))
+    details = draft.suspected_abduction_details if draft else None
+    errors: dict[str, str] = {}
+    saved = request.args.get("saved") == "1"
+
+    if request.method == "POST":
+        form_data, errors = parse_suspected_abduction_form()
+        if not errors:
+            created_draft = False
+            if draft is None:
+                created_draft = True
+                draft = Alert(
+                    reporter=g.current_user,
+                    alert_type=AlertType.SUSPECTED_ABDUCTION,
+                    status=AlertStatus.DRAFT,
+                    title=form_data["title"] or "Suspected-abduction report draft",
+                    country=form_data["country"],
+                    region=form_data["region"],
+                    approximate_zone=form_data["approximate_zone"],
+                )
+                details = SuspectedAbductionDetails(alert=draft)
+                db.session.add(draft)
+            else:
+                draft.title = form_data["title"] or "Suspected-abduction report draft"
+                draft.country = form_data["country"]
+                draft.region = form_data["region"]
+                draft.approximate_zone = form_data["approximate_zone"]
+
+            for field, value in form_data.items():
+                if field not in {"title", "country", "region", "approximate_zone"}:
+                    setattr(details, field, value)
+
+            action = request.form.get("action", "save_draft")
+            selected_photo = request.files.get("photo")
+            replaced_photo_path = None
+            new_photo_path = None
+            if selected_photo and selected_photo.filename:
+                try:
+                    # Reject invalid evidence before this new draft is flushed to storage.
+                    image_metadata(
+                        selected_photo,
+                        max_bytes=current_app.config["MAX_PHOTO_UPLOAD_BYTES"],
+                    )
+                    if draft.id is None:
+                        db.session.flush()
+                    replaced_photo_path = details.photo_path
+                    new_photo_path = store_alert_photo(
+                        selected_photo,
+                        upload_root=current_app.config["UPLOAD_FOLDER"],
+                        alert_id=draft.id,
+                        category="suspected_abduction",
+                        max_bytes=current_app.config["MAX_PHOTO_UPLOAD_BYTES"],
+                    )
+                    details.photo_path = new_photo_path
+                except PhotoUploadError as error:
+                    errors["photo"] = str(error)
+                    if created_draft:
+                        # A failed optional upload must not leave a new draft behind.
+                        db.session.rollback()
+                        draft = None
+                        details = None
+
+            if action == "submit" and details is not None:
+                if not form_data["title"]:
+                    errors["title"] = "A short report title is required."
+                errors = {**details.validation_errors(), **errors}
+                # T28 will replace this queue state with a category-specific AI review.
+                if not errors:
+                    draft.status = AlertStatus.AI_REVIEW
+
+            if action == "submit":
+                # Keep valid draft data when a required field still needs correction.
+                db.session.commit()
+                if new_photo_path:
+                    delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
+                if not errors:
+                    return redirect(url_for("main.abduction_report_submitted", alert_id=draft.id))
+            elif not errors:
+                db.session.commit()
+                if new_photo_path:
+                    delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
+                return redirect(url_for("main.report_suspected_abduction", draft=draft.id, saved=1))
+
+    if details is not None:
+        values = abduction_form_values(
+            details,
+            default_country=g.current_user.country,
+            default_region=g.current_user.primary_region,
+        )
+    elif request.method == "POST":
+        values = {key: str(value or "") for key, value in form_data.items()}
+        values["abduction_at"] = request.form.get("abduction_at", "")
+    else:
+        values = abduction_form_values(
+            default_country=g.current_user.country,
+            default_region=g.current_user.primary_region,
+        )
+
+    incident_countries, regions_by_country = incident_location_reference()
+    return render_template(
+        "report_suspected_abduction.html",
+        active_page="report",
+        app_shell=True,
+        draft=draft,
+        values=values,
+        errors=errors,
+        saved=saved,
+        incident_countries=incident_countries,
+        regions_by_country=regions_by_country,
+    )
+
+
+@bp.get("/reports/<alert_id>/submitted")
+@login_required
+def abduction_report_submitted(alert_id: str):
+    """Confirm submission without disclosing the internal AI workflow to the reporter."""
+    alert = owned_suspected_abduction_alert(alert_id)
+    if alert.status == AlertStatus.DRAFT:
+        return redirect(url_for("main.report_suspected_abduction", draft=alert.id))
+    return render_template("report_submitted.html", active_page="reports", app_shell=True, alert=alert)
+
+
+@bp.get("/report/suspected-abduction/<alert_id>/photo")
+@login_required
+def suspected_abduction_photo_preview(alert_id: str):
+    """Serve an abduction-draft image only to its reporting owner."""
+    draft = owned_suspected_abduction_draft(alert_id)
+    details = draft.suspected_abduction_details
+    if details is None or not details.photo_path:
+        abort(404)
+    photo_path = private_media_path(current_app.config["UPLOAD_FOLDER"], details.photo_path)
+    if photo_path is None:
+        abort(404)
+    response = send_file(photo_path, conditional=True, max_age=0)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @bp.get("/report/<incident_type>")
 @login_required
 def incident_report_unavailable(incident_type: str):
     """Keep future category routes separate until their dedicated forms exist."""
     unavailable_types = {
-        AlertType.SUSPECTED_ABDUCTION.value: "Suspected abduction",
         AlertType.ROAD_ACCIDENT.value: "Road accident",
     }
     title = unavailable_types.get(incident_type)

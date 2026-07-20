@@ -80,7 +80,7 @@ One person can be both a citizen and a reporter. Viewing and receiving alerts re
 | Type | Who can create it | Minimum data | Default reach | Expiration |
 |---|---|---|---|---|
 | Missing person | Verified phone user | Name, age, photo, sex, date, last-seen location, family contact | Relevant region; other regions only when followed | 7 days |
-| Suspected abduction | Verified phone user | Photo, location, date/time, description | Entire country | 30 days |
+| Suspected abduction | Verified phone user | Location, date/time, description; photo is optional and validated when provided | Entire country | 30 days |
 | Unknown hospital patient | Verified hospital | Age range, sex, distinguishing mark, hospital, service contact; photo when possible | Entire country | 3 days; renewable by hospital |
 | Serious road accident | Verified phone user | GPS location; photo/video, victim count, and immediate need are optional | Accident region or geographic radius | 24 hours by default; manual closure allowed |
 

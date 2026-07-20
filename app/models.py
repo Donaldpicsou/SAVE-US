@@ -318,14 +318,14 @@ class SuspectedAbductionDetails(db.Model):
 
     alert: Mapped[Alert] = relationship(back_populates="suspected_abduction_details")
 
-    def validation_errors(self, *, now: datetime | None = None) -> dict[str, str]:
+    def validation_errors(self, *, now: datetime | None = None, require_photo: bool = False) -> dict[str, str]:
         """Return required-field and timing errors before an abduction review."""
         errors: dict[str, str] = {}
         reference_time = now or utc_now()
 
         if self.alert.alert_type != AlertType.SUSPECTED_ABDUCTION:
             errors["alert_type"] = "Abduction details require a suspected-abduction alert."
-        if not self.photo_path:
+        if require_photo and not self.photo_path:
             errors["photo"] = "A photo is required."
         if self.abduction_at is None:
             errors["abduction_at"] = "Abduction date and time are required."

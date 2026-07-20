@@ -66,9 +66,27 @@ def store_missing_person_photo(
     alert_id: str,
     max_bytes: int,
 ) -> str:
-    """Store a validated image outside ``static`` and return its relative private path."""
+    """Store a missing-person image through the shared private alert-media helper."""
+    return store_alert_photo(
+        upload,
+        upload_root=upload_root,
+        alert_id=alert_id,
+        category="missing_person",
+        max_bytes=max_bytes,
+    )
+
+
+def store_alert_photo(
+    upload: FileStorage,
+    *,
+    upload_root: str | Path,
+    alert_id: str,
+    category: str,
+    max_bytes: int,
+) -> str:
+    """Store one validated category-specific image outside ``static``."""
     extension, _ = image_metadata(upload, max_bytes=max_bytes)
-    relative_path = Path("missing_person") / alert_id / f"{uuid4().hex}.{extension}"
+    relative_path = Path(category) / alert_id / f"{uuid4().hex}.{extension}"
     target = Path(upload_root) / relative_path
     target.parent.mkdir(parents=True, exist_ok=True)
     upload.save(target)

@@ -1,4 +1,4 @@
-/* Client-side guidance for the three-step missing-person report. */
+/* Client-side guidance shared by three-step SAVE-US report forms. */
 document.addEventListener("DOMContentLoaded", () => {
   const wizard = document.querySelector("[data-report-wizard]");
   if (!wizard) return;
@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const stepLabel = wizard.querySelector("[data-report-step-label]");
   const progress = wizard.querySelector("[data-report-progress]");
   const progressText = wizard.querySelector("[data-report-progress-text]");
-  const fileInput = wizard.querySelector("#missing-person-photo");
+  const fileInput = wizard.querySelector("[data-report-photo]");
   const photoSelection = wizard.querySelector("[data-photo-selection]");
   const photoPreview = wizard.querySelector("[data-photo-preview]");
   const photoStatus = wizard.querySelector("[data-photo-status]");
@@ -19,8 +19,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const incidentCountry = wizard.querySelector("[data-incident-country]");
   const incidentRegion = wizard.querySelector("[data-incident-region]");
   const regionsData = document.getElementById("incident-regions-data");
-  const labels = ["Identifying information", "Last-seen information", "Contact and circumstances"];
+  const labels = JSON.parse(wizard.dataset.reportStepLabels || '["Identifying information", "Last-seen information", "Contact and circumstances"]');
   const totalSteps = Number(wizard.dataset.stepCount) || steps.length;
+  const photoRequired = wizard.dataset.photoRequired !== "false";
   let hasPhoto = wizard.dataset.hasStoredPhoto === "true";
   let currentStep = 1;
 
@@ -65,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
       invalidField.focus();
       return false;
     }
-    if (currentStep === 1 && !hasPhoto) {
+    if (currentStep === 1 && photoRequired && !hasPhoto) {
       photoStatus.textContent = "A recent photo is required";
       photoName.textContent = "Choose a PNG, JPG, or GIF image to continue.";
       photoSelection.classList.add("photo-selection-error");

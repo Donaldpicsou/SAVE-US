@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Report suspected abduction · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Dedicated abduction workflow: its draft and validation never reuse missing-person details. -->
+  <section class="report-page" data-report-wizard data-step-count="3" data-report-step-labels='["Report overview", "Location and time", "Contact and circumstances"]' data-has-stored-photo="{{ 'true' if draft and draft.suspected_abduction_details and draft.suspected_abduction_details.photo_path else 'false' }}" data-photo-required="false">
+    <p class="emergency-notice">ⓘ If someone faces immediate danger, contact local emergency services before continuing. SAVE-US does not replace emergency services.</p>
+    <div class="report-heading"><div><p class="eyebrow" data-report-step-label>Step 1 of 3 · Report overview</p><h1>Report suspected abduction</h1></div><div class="progress" aria-label="Report progress"><span data-report-progress></span><small data-report-progress-text>1 / 3</small></div></div>
+    <div class="report-layout">
+      <form class="report-form" method="post" enctype="multipart/form-data" novalidate>
+        {% if draft %}<input type="hidden" name="draft_id" value="{{ draft.id }}">{% endif %}
+        {% if saved %}<p class="form-success" role="status">Draft saved. You can return and continue this report at any time.</p>{% endif %}
+        {% if errors %}<p class="form-error" role="alert">Please correct the highlighted fields before submitting.</p>{% endif %}
+
+        <!-- Step 1: a concise label plus optional, securely validated photo evidence. -->
+        <section data-report-step="1">
+          <h2>Report overview</h2>
+          <label>Short report title <input name="title" value="{{ values.title }}" placeholder="e.g. Possible abduction near Mfoundi" required>{% if errors.title %}<small class="field-error">{{ errors.title }}</small>{% endif %}</label>
+          <h2 class="section-subheading">Photo evidence <small>Optional</small></h2>
+          <label class="upload-zone" for="abduction-photo"><strong>⇧</strong><span>Click to upload or drag and drop</span><small>PNG, JPG or GIF · max. 5 MB · optional</small><input id="abduction-photo" data-report-photo name="photo" type="file" accept="image/png,image/jpeg,image/gif"></label>{% if errors.photo %}<small class="field-error">{{ errors.photo }}</small>{% endif %}
+          <!-- Existing photos remain private and can be replaced without reselecting them. -->
+          <div class="photo-selection" data-photo-selection {{ "" if draft and draft.suspected_abduction_details and draft.suspected_abduction_details.photo_path else "hidden" }} aria-live="polite"><img data-photo-preview src="{{ url_for('main.suspected_abduction_photo_preview', alert_id=draft.id) if draft and draft.suspected_abduction_details and draft.suspected_abduction_details.photo_path else '' }}" alt="Selected photo preview" {{ "" if draft and draft.suspected_abduction_details and draft.suspected_abduction_details.photo_path else "hidden" }}><span><strong data-photo-status>{{ "Photo saved securely" if draft and draft.suspected_abduction_details and draft.suspected_abduction_details.photo_path else "Photo added" }}</strong><small data-photo-name>{{ "Replace the photo by selecting another image." if draft and draft.suspected_abduction_details and draft.suspected_abduction_details.photo_path else "A photo can help, but is not required." }}</small></span></div>
+        </section>
+
+        <!-- Step 2: the incident location determines country-wide distribution. -->
+        <section data-report-step="2" hidden>
+          <h2>Location and time</h2>
+          <p class="field-help">Choose where the suspected abduction occurred. The alert is sent only to eligible subscribers in that country.</p>
+          <div class="form-grid"><label>Country where it happened <select name="country" data-incident-country required><option value="">Select country</option>{% for country in incident_countries %}<option value="{{ country }}" {{ "selected" if values.country == country else "" }}>{{ country }}</option>{% endfor %}</select>{% if errors.country %}<small class="field-error">{{ errors.country }}</small>{% endif %}</label><label>Region where it happened <select name="region" data-incident-region required><option value="">Select region</option>{% for region in regions_by_country.get(values.country, []) %}<option value="{{ region }}" {{ "selected" if values.region == region else "" }}>{{ region }}</option>{% endfor %}</select>{% if errors.region %}<small class="field-error">{{ errors.region }}</small>{% endif %}</label></div>
+          <script id="incident-regions-data" type="application/json">{{ regions_by_country|tojson }}</script>
+          <div class="form-grid"><label>Date and time <input name="abduction_at" type="datetime-local" value="{{ values.abduction_at }}" required>{% if errors.abduction_at %}<small class="field-error">{{ errors.abduction_at }}</small>{% endif %}</label><label>Approximate public area <input name="approximate_zone" value="{{ values.approximate_zone }}" placeholder="e.g. Mfoundi district, Yaoundé" required>{% if errors.approximate_zone %}<small class="field-error">{{ errors.approximate_zone }}</small>{% endif %}</label></div>
+        </section>
+
+        <!-- Step 3: private reporter contact is never rendered in a public alert. -->
+        <section data-report-step="3" hidden>
+          <h2>Contact and circumstances</h2>
+          <label>Private contact <input name="private_contact" type="tel" value="{{ values.private_contact }}" placeholder="Phone number or WhatsApp contact" required><small>This contact is never displayed publicly.</small>{% if errors.private_contact %}<small class="field-error">{{ errors.private_contact }}</small>{% endif %}</label>
+          <label class="full-field">Description <textarea name="description" rows="4" placeholder="Describe the person, vehicle, people involved, or other facts that may help." required>{{ values.description }}</textarea>{% if errors.description %}<small class="field-error">{{ errors.description }}</small>{% endif %}</label>
+          <label class="full-field">What happened? <textarea name="circumstances" rows="5" placeholder="Explain the known circumstances without speculation." required>{{ values.circumstances }}</textarea>{% if errors.circumstances %}<small class="field-error">{{ errors.circumstances }}</small>{% endif %}</label>
+          <p class="report-ready-note" data-report-ready hidden aria-live="polite"></p>
+        </section>
+
+        <!-- Navigation exposes a plain final action; the internal review workflow is not named here. -->
+        <div class="form-actions" data-report-actions><button class="button secondary" type="submit" name="action" value="save_draft" formnovalidate data-report-cancel>Save draft</button><button class="button secondary" type="button" data-report-back disabled>Back</button><button class="button emergency" type="button" data-report-next>Continue</button><button class="button emergency" type="submit" name="action" value="submit" data-report-finish hidden>Submit report</button></div>
+      </form>
+      <aside class="report-help"><span>✦</span><h2>Report responsibly</h2><p>Share facts you know. SAVE-US checks reports before they can be distributed.</p><ul><li>Do not confront anyone involved.</li><li>Use the approximate public area, not a private address.</li><li>Private contacts are never displayed publicly.</li></ul></aside>
+    </div>
+  </section>
+{% endblock %}

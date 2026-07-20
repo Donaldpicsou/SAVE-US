@@ -135,12 +135,11 @@ class CoreModelTestCase(unittest.TestCase):
 
         self.assertEqual(
             set(details.validation_errors()),
-            {"photo", "abduction_at", "approximate_zone", "description", "circumstances", "private_contact"},
+            {"abduction_at", "approximate_zone", "description", "circumstances", "private_contact"},
         )
         self.assertFalse(details.is_submission_ready)
 
         alert.approximate_zone = "Mfoundi district, Yaoundé"
-        details.photo_path = "uploads/abduction-evidence.jpg"
         details.abduction_at = utc_now() - timedelta(hours=1)
         details.description = "A child was reportedly taken from the market area."
         details.circumstances = "Witnesses reported a vehicle leaving the area immediately afterwards."
@@ -149,6 +148,7 @@ class CoreModelTestCase(unittest.TestCase):
 
         self.assertEqual(details.validation_errors(), {})
         self.assertTrue(details.is_submission_ready)
+        self.assertIsNone(details.photo_path)
         self.assertIs(db.session.get(Alert, alert.id).suspected_abduction_details, details)
 
     def test_abduction_details_reject_future_event_time_and_wrong_alert_type(self) -> None:

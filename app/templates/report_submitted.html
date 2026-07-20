@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block title %}Report submitted · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Clear reporter confirmation without exposing internal verification terminology. -->
+  <section class="reviewing-page"><div class="reviewing-card"><p class="eyebrow">Report submitted</p><h1>Your report has been received.</h1><p>SAVE-US will check the information before deciding whether it can be shared with the community.</p><p class="reviewing-detail">You can find this report in My reports.</p><a class="button emergency" href="{{ url_for('main.my_reports') }}">View my reports</a></div></section>
+{% endblock %}
