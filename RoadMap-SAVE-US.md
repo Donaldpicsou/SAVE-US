@@ -69,6 +69,7 @@ flowchart LR
   T6 --> T37["T37 Localisation d’incident indépendante"]
   T11 --> T37
   T18 --> T37
+  T5 --> T38["T38 Action d’urgence persistante"]
 ```
 
 ## Tâches unitaires
@@ -117,6 +118,7 @@ flowchart LR
 | T35 | Adapter le fil et les détails d’alerte | Home, Alerts, My reports et le détail affichent cartes, filtres, libellés de sûreté et médias protégés adaptés aux deux nouveaux types d’incident. | T19, T22, T29, T33, T34 | Planifié |
 | T36 | Tester le parcours de démonstration multi-événements | Le test de bout en bout Cameroun/Centre couvre un enlèvement présumé national et un accident régional, y compris ciblage, notifications, expiration ou clôture et protection des médias non autorisés. | T27, T29, T31–T35 | Planifié |
 | T37 | Séparer la localisation de l’incident de celle du déclarant | Les disparitions préremplissent mais ne verrouillent pas le pays et la région touchés. Le serveur valide le couple pays/région CEMAC choisi, le sauvegarde sur l’alerte et le ciblage existant utilise ce lieu d’événement. | T6, T11, T18 | Terminé |
+| T38 | Garder l’action d’urgence persistante | La barre latérale desktop utilise une colonne compacte de hauteur fixe : seule la liste de navigation défile, tandis que le lien Settings et l’action Emergency report restent visibles en bas, avec des zones cliquables d’au moins 44 px. | T5 | Terminé |
 
 ## Chemin critique
 
@@ -127,6 +129,8 @@ Consolidation post-T20 : `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, `T4 + T
 Chemin critique de l’extension multi-événements : `T25 → T26 → T27 → T28 → T29 → T34 → T35 → T36`. La branche accident routier `T25 → T30 → T31 → T33 → T34` doit également être terminée avant T36.
 
 Correction de ciblage : `T6 + T11 + T18 → T37`.
+
+Correction ergonomique de sûreté : `T5 → T38`.
 
 ## Travail parallélisable
 

@@ -69,6 +69,7 @@ flowchart LR
   T6 --> T37["T37 Independent incident location"]
   T11 --> T37
   T18 --> T37
+  T5 --> T38["T38 Persistent emergency action"]
 ```
 
 ## Atomic tasks
@@ -117,6 +118,7 @@ flowchart LR
 | T35 | Adapt the alert feed and details | Home, Alerts, My reports, and alert details display category-appropriate cards, filters, safety labels, and protected media for the two new incident types. | T19, T22, T29, T33, T34 | Planned |
 | T36 | Test the multi-event demonstration journey | The Cameroon/Centre end-to-end test covers one country-wide suspected abduction and one regional road accident, including targeting, notifications, expiry or closure, and unauthorised-media protection. | T27, T29, T31–T35 | Planned |
 | T37 | Separate incident location from reporter location | Missing-person reports prefill but do not lock the affected country and region. The server validates the selected CEMAC country/region pair, persists it on the alert, and existing targeting uses that event location. | T6, T11, T18 | Completed |
+| T38 | Keep the emergency action persistent | The desktop sidebar uses a compact, fixed-height column: only the navigation list may scroll, while the settings link and Emergency report action remain visible at the bottom with 44px minimum touch targets. | T5 | Completed |
 
 ## Critical path
 
@@ -127,6 +129,8 @@ Post-T20 consolidation: `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, `T4 + T7
 Multi-event expansion critical path: `T25 → T26 → T27 → T28 → T29 → T34 → T35 → T36`. The road-accident branch `T25 → T30 → T31 → T33 → T34` must also complete before T36.
 
 Targeting correction: `T6 + T11 + T18 → T37`.
+
+Safety ergonomics correction: `T5 → T38`.
 
 ## Parallel work
 
