@@ -10,7 +10,7 @@ from .extensions import db
 from .ai_service import review_missing_person_alert, review_suspected_abduction_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
-from .notification_service import queue_closure_notifications, queue_review_outcome_notifications
+from .notification_service import queue_closure_notifications, queue_notification, queue_review_outcome_notifications
 from .publication import (
     apply_road_accident_publication,
     apply_publication_decision,
@@ -320,7 +320,9 @@ def alert_photo(alert_id: str):
     """Serve a validated report photo to its owner or an eligible alert recipient."""
     alert = db.session.get(Alert, alert_id)
     if alert is None or (
-        alert.reporter_id != g.current_user.id and not user_receives_alert(g.current_user, alert)
+        alert.reporter_id != g.current_user.id
+        and g.current_user.role not in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}
+        and not user_receives_alert(g.current_user, alert)
     ):
         abort(404)
     details = alert.missing_person_details or alert.suspected_abduction_details
@@ -1418,6 +1420,143 @@ def moderator_queue():
         app_shell=True,
         alerts=alerts,
     )
+
+
+def moderator_reviewable_alert(alert_id: str) -> Alert:
+    """Load a report that is awaiting moderation or an abduction kept for safety review."""
+    alert = db.session.get(Alert, alert_id)
+    if alert is None:
+        abort(404)
+    if alert.status == AlertStatus.NEEDS_MODERATION:
+        return alert
+    if alert.alert_type == AlertType.SUSPECTED_ABDUCTION and alert.status == AlertStatus.PUBLISHED:
+        return alert
+    abort(404)
+
+
+def moderator_private_details(alert: Alert) -> list[tuple[str, str]]:
+    """Return only the private data needed for an accountable human decision."""
+    if alert.alert_type == AlertType.MISSING_PERSON and alert.missing_person_details:
+        details = alert.missing_person_details
+        return [
+            ("Name", details.name or "Not provided"),
+            ("Age", str(details.age) if details.age is not None else "Not provided"),
+            ("Sex", details.sex or "Not provided"),
+            ("Last seen", details.last_seen_at.strftime("%d %b %Y · %H:%M UTC") if details.last_seen_at else "Not provided"),
+            ("Private last-seen location", details.last_seen_location or "Not provided"),
+            ("Private family contact", details.private_family_contact or "Not provided"),
+            ("Clothing", details.clothing_description or "Not provided"),
+            ("Circumstances", details.circumstances or "Not provided"),
+        ]
+    if alert.alert_type == AlertType.SUSPECTED_ABDUCTION and alert.suspected_abduction_details:
+        details = alert.suspected_abduction_details
+        return [
+            ("Reported time", details.abduction_at.strftime("%d %b %Y · %H:%M UTC") if details.abduction_at else "Not provided"),
+            ("Description", details.description or "Not provided"),
+            ("Circumstances", details.circumstances or "Not provided"),
+            ("Private contact", details.private_contact or "Not provided"),
+        ]
+    if alert.alert_type == AlertType.ROAD_ACCIDENT and alert.road_accident_details:
+        details = alert.road_accident_details
+        coordinates = f"{details.latitude}, {details.longitude}" if details.latitude is not None and details.longitude is not None else "Not provided"
+        return [
+            ("Occurred at", details.occurred_at.strftime("%d %b %Y · %H:%M UTC") if details.occurred_at else "Not provided"),
+            ("Manual location", details.manual_location or "Not provided"),
+            ("Coordinates", coordinates),
+            ("Victim count", str(details.victim_count) if details.victim_count is not None else "Not provided"),
+            ("Immediate needs", details.immediate_needs or "Not provided"),
+            ("Description", details.description or "Not provided"),
+        ]
+    return [("Report data", "No category-specific details are available.")]
+
+
+def queue_moderation_update(alert: Alert, *, title: str, message: str) -> None:
+    """Notify the reporter of a human decision without exposing internal moderation data."""
+    queue_notification(
+        alert.reporter,
+        alert=alert,
+        kind="moderation_update",
+        title=title,
+        body=message,
+        public_location=" · ".join(part for part in (alert.approximate_zone, alert.region, alert.country) if part),
+    )
+
+
+@bp.get("/moderator/alerts/<alert_id>")
+@moderator_required
+def moderator_review_alert(alert_id: str):
+    """Show restricted report information and AI/media signals for human review."""
+    alert = moderator_reviewable_alert(alert_id)
+    photo_available = bool(
+        (alert.missing_person_details and alert.missing_person_details.photo_path)
+        or (alert.suspected_abduction_details and alert.suspected_abduction_details.photo_path)
+        or (alert.road_accident_details and alert.road_accident_details.media_references)
+    )
+    return render_template(
+        "moderator_review.html",
+        active_page="moderator",
+        app_shell=True,
+        alert=alert,
+        private_details=moderator_private_details(alert),
+        photo_url=url_for("main.alert_photo", alert_id=alert.id) if photo_available else None,
+        media_review=alert.road_accident_media_review,
+    )
+
+
+@bp.post("/moderator/alerts/<alert_id>/decision")
+@moderator_required
+def moderate_alert(alert_id: str):
+    """Apply a reasoned human decision and preserve a non-public audit entry."""
+    alert = moderator_reviewable_alert(alert_id)
+    decision = request.form.get("decision", "").strip()
+    reason = request.form.get("reason", "").strip()
+    allowed_decisions = {"publish", "request_information", "reject"}
+    if alert.alert_type == AlertType.SUSPECTED_ABDUCTION and alert.status == AlertStatus.PUBLISHED:
+        allowed_decisions = {"withdraw"}
+    if decision not in allowed_decisions:
+        abort(400)
+    if not reason:
+        return redirect(url_for("main.moderator_review_alert", alert_id=alert.id, error="A decision reason is required."))
+
+    if decision == "publish":
+        if alert.alert_type == AlertType.ROAD_ACCIDENT:
+            media_review = alert.road_accident_media_review
+            if media_review is None or media_review.status == MEDIA_STATUS_BLOCKED:
+                return redirect(url_for("main.moderator_review_alert", alert_id=alert.id, error="A blocked or missing media review cannot be approved."))
+            media_review.status = "clear"
+            media_review.reason = f"Human moderator approved this media. {reason}"
+            media_review.source = "human_moderator"
+            publication = apply_road_accident_publication(alert)
+            if not publication.is_published:
+                return redirect(url_for("main.moderator_review_alert", alert_id=alert.id, error=publication.reason))
+        else:
+            if alert.ai_review is None or not alert.ai_review.public_summary:
+                return redirect(url_for("main.moderator_review_alert", alert_id=alert.id, error="A validated AI review is required before human publication."))
+            alert.status = AlertStatus.PUBLISHED
+            alert.published_at = datetime.now(timezone.utc)
+            alert.public_summary = alert.ai_review.public_summary
+        db.session.add(ReportAction(alert=alert, actor_id=g.current_user.id, action="moderator_publish", reason=reason))
+        queue_review_outcome_notifications(alert)
+    elif decision == "request_information":
+        alert.status = AlertStatus.NEEDS_MODERATION
+        db.session.add(ReportAction(alert=alert, actor_id=g.current_user.id, action="moderator_request_info", reason=reason))
+        queue_moderation_update(alert, title="A moderator needs more information", message="Your report remains private until the requested information is resolved.")
+    elif decision == "reject":
+        alert.status = AlertStatus.REJECTED
+        alert.published_at = None
+        alert.public_summary = None
+        db.session.add(ReportAction(alert=alert, actor_id=g.current_user.id, action="moderator_reject", reason=reason))
+        queue_moderation_update(alert, title="A moderator closed your report", message="Your report was not published. Open My reports for its current status.")
+    else:  # A published abduction can be withdrawn after a post-publication safety review.
+        users = db.session.scalars(db.select(User).where(User.is_phone_verified.is_(True))).all()
+        former_recipients = eligible_recipients(alert, users)
+        alert.status = AlertStatus.WITHDRAWN
+        db.session.add(ReportAction(alert=alert, actor_id=g.current_user.id, action="moderator_withdraw", reason=reason))
+        queue_closure_notifications(alert, former_recipients, action="withdrawn")
+        queue_moderation_update(alert, title="A moderator withdrew your alert", message="Your published report is no longer visible in the community feed.")
+
+    db.session.commit()
+    return redirect(url_for("main.moderator_queue"))
 
 
 def preference_country_data(user: User) -> tuple[str, dict]:

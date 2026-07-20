@@ -120,6 +120,7 @@ flowchart LR
 | T37 | Séparer la localisation de l’incident de celle du déclarant | Les disparitions préremplissent mais ne verrouillent pas le pays et la région touchés. Le serveur valide le couple pays/région CEMAC choisi, le sauvegarde sur l’alerte et le ciblage existant utilise ce lieu d’événement. | T6, T11, T18 | Terminé |
 | T38 | Garder l’action d’urgence persistante | La barre latérale desktop utilise une colonne compacte de hauteur fixe : seule la liste de navigation défile, tandis que le lien Settings et l’action Emergency report restent visibles en bas, avec des zones cliquables d’au moins 44 px. | T5 | Terminé |
 | T39 | Corriger les destinations de notification | La route partagée d’ouverture des notifications résout le type et le statut de l’alerte. Les signalements publiés ouvrent leur alerte publique, tandis que les mises à jour de modération ouvrent l’écran de statut ou de revue approprié. | T24, T29, T33 | Terminé |
+| T40 | Mettre en œuvre le workflow de modération humaine | Les modérateurs et administrateurs peuvent consulter en privé les signalements en file, examiner les médias protégés, puis publier, demander des informations, rejeter ou retirer un enlèvement publié avec motif obligatoire, trace d’audit et notification au déclarant. | T24, T29, T33, T35 | Terminé |
 
 ## Chemin critique
 

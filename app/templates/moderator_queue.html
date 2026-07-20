@@ -15,6 +15,7 @@
             <h2>{{ alert.title }}</h2>
             <p class="my-report-location">{{ alert.approximate_zone or alert.region or alert.country }} · {{ alert.country }}</p>
             {% if alert.ai_review %}<p class="my-report-history">Confidence {{ alert.ai_review.confidence_score }}/100 · Fraud risk {{ alert.ai_review.fraud_risk_score }}/100</p><p class="my-report-history">{{ alert.ai_review.reasons|join(' ') }}</p>{% endif %}
+            <div class="my-report-actions"><a class="button secondary" href="{{ url_for('main.moderator_review_alert', alert_id=alert.id) }}">Review report</a></div>
           </div>
         </article>
       {% else %}

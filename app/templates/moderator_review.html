@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Moderate report · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Restricted human-moderation workspace: never exposed through the public alert feed. -->
+  <section class="moderator-review-page">
+    <a class="back-link" href="{{ url_for('main.moderator_queue') }}">← Back to moderator queue</a>
+    <header class="moderator-review-heading"><div><p class="eyebrow">Restricted moderator workspace</p><h1>{{ alert.title }}</h1><p>{{ alert.alert_type.value|replace('_', ' ')|title }} · {{ alert.approximate_zone or alert.region or alert.country }} · {{ alert.country }}</p></div><span class="report-status {{ alert.status.value|replace('_', '-') }}">{{ 'Post-publication review' if alert.alert_type.value == 'suspected_abduction' and alert.status.value == 'published' else alert.status.value|replace('_', ' ')|title }}</span></header>
+
+    {% if request.args.get('error') %}<p class="moderation-error" role="alert">{{ request.args.get('error') }}</p>{% endif %}
+
+    <div class="moderator-review-grid">
+      <article class="review-card moderator-private-card"><p class="card-label">Private report information</p><dl class="extracted-data-list">{% for label, value in private_details %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl></article>
+      <article class="review-card"><p class="card-label">Automated review</p>{% if alert.ai_review %}<p><strong>Confidence:</strong> {{ alert.ai_review.confidence_score }}/100 · <strong>Fraud risk:</strong> {{ alert.ai_review.fraud_risk_score }}/100</p><p>{{ alert.ai_review.public_summary }}</p><ul class="review-list">{% for reason in alert.ai_review.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>{% else %}<p class="empty-review-state">No AI review is available for this report.</p>{% endif %}{% if media_review %}<hr><p><strong>Media safety:</strong> {{ media_review.status|replace('_', ' ')|title }}</p><p class="empty-review-state">{{ media_review.reason }}</p>{% endif %}</article>
+      {% if photo_url %}<article class="review-card moderator-media-card"><p class="card-label">Protected media</p><img src="{{ photo_url }}" alt="Protected evidence for moderator review"><p class="empty-review-state">Do not download, redistribute, or expose this media publicly.</p></article>{% endif %}
+    </div>
+
+    <!-- Each irreversible outcome needs a written reason and creates a private audit entry. -->
+    <article class="review-card moderator-decision-card"><p class="card-label">Human decision</p>{% if alert.alert_type.value == 'suspected_abduction' and alert.status.value == 'published' %}<h2>Post-publication safety review</h2><p>Keep the alert live if it remains safe. Withdraw it only when a documented safety reason requires it.</p>{% else %}<h2>Resolve this report</h2><p>Publishing uses the category’s established country or regional targeting rule. A road photo marked blocked cannot be approved.</p>{% endif %}<form method="post" action="{{ url_for('main.moderate_alert', alert_id=alert.id) }}"><label>Decision <select name="decision" required>{% if alert.alert_type.value == 'suspected_abduction' and alert.status.value == 'published' %}<option value="withdraw">Withdraw published alert</option>{% else %}<option value="publish">Publish alert</option><option value="request_information">Request more information</option><option value="reject">Reject report</option>{% endif %}</select></label><label>Reason for this decision <textarea name="reason" required minlength="10" maxlength="2000" placeholder="State the facts or safety concern that supports this decision."></textarea></label><button class="button emergency" type="submit">Record moderation decision</button></form></article>
+  </section>
+{% endblock %}
