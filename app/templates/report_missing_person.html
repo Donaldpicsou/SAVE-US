@@ -47,13 +47,13 @@
         <!-- Wizard navigation and server-side draft/review actions. -->
         <div class="form-actions" data-report-actions>
           <button class="button secondary" type="submit" name="action" value="save_draft" formnovalidate data-report-cancel>Save draft</button>
-          <button class="button secondary" type="button" data-report-back hidden>Back</button>
+          <button class="button secondary" type="button" data-report-back disabled>Back</button>
           <button class="button emergency" type="button" data-report-next>Continue</button>
-          <button class="button emergency" type="submit" name="action" value="review" data-report-finish hidden>Review with SAVE-US AI</button>
+          <button class="button emergency" type="submit" name="action" value="review" data-report-finish hidden>Submit report</button>
         </div>
       </form>
       <!-- Contextual privacy and data-quality guidance. -->
-      <aside class="report-help"><span>✦</span><h2>Why accurate data matters</h2><p>SAVE-US AI structures information and checks active alerts before an alert is shared.</p><ul><li>Clear photos help identification.</li><li>Accurate age and location improve targeting.</li><li>Private contact details are never displayed publicly.</li></ul></aside>
+      <aside class="report-help"><span>✦</span><h2>Why accurate data matters</h2><p>SAVE-US checks the information provided and active alerts before an alert is shared.</p><ul><li>Clear photos help identification.</li><li>Accurate age and location improve targeting.</li><li>Private contact details are never displayed publicly.</li></ul></aside>
     </div>
   </section>
 {% endblock %}

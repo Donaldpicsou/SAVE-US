@@ -191,16 +191,20 @@ class MissingPersonReportTestCase(unittest.TestCase):
             content_type="multipart/form-data",
         )
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/ai-review", response.headers["Location"])
+        self.assertIn("/reviewing", response.headers["Location"])
 
         review = db.session.scalar(db.select(AIReview))
         self.assertEqual(review.decision, "publish_candidate")
         self.assertEqual(review.source, "deterministic_demo_fallback")
         screen = self.client.get(response.headers["Location"])
         self.assertEqual(screen.status_code, 200)
-        self.assertIn(b"Public summary", screen.data)
-        self.assertIn(b"Confidence score", screen.data)
-        self.assertIn(b"Possible duplicates", screen.data)
+        self.assertIn(b"We are checking your report", screen.data)
+        review_screen = self.client.get(f"/reports/{review.alert_id}/ai-review")
+        self.assertEqual(review_screen.status_code, 200)
+        self.assertIn(b"automated checks", review_screen.data)
+        self.assertIn(b"Public summary", review_screen.data)
+        self.assertIn(b"Confidence score", review_screen.data)
+        self.assertIn(b"Possible duplicates", review_screen.data)
 
 
 if __name__ == "__main__":

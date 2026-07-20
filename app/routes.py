@@ -377,7 +377,7 @@ def report_missing_person():
                 if not errors:
                     persist_ai_review(draft, review_missing_person_alert(draft))
                     db.session.commit()
-                    return redirect(url_for("main.ai_review", alert_id=draft.id))
+                    return redirect(url_for("main.report_reviewing", alert_id=draft.id))
             elif not errors:
                 db.session.commit()
                 if new_photo_path:
@@ -403,10 +403,25 @@ def report_missing_person():
     )
 
 
+@bp.get("/reports/<alert_id>/reviewing")
+@login_required
+def report_reviewing(alert_id: str):
+    """Brief, plain-language transition while a submitted report is checked."""
+    alert = owned_missing_person_alert(alert_id)
+    if alert.ai_review is None:
+        return redirect(url_for("main.report_missing_person", draft=alert.id))
+    return render_template(
+        "report_reviewing.html",
+        active_page="reports",
+        app_shell=True,
+        alert=alert,
+    )
+
+
 @bp.get("/reports/<alert_id>/ai-review")
 @login_required
 def ai_review(alert_id: str):
-    """Show a reporter the structured, persisted AI review for their alert."""
+    """Show a reporter the structured, persisted review for their alert."""
     alert = owned_missing_person_alert(alert_id)
     review = alert.ai_review
     if review is None:

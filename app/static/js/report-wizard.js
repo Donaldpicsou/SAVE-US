@@ -30,8 +30,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const completion = (currentStep / totalSteps) * 100;
     progress.style.background = `linear-gradient(to right, var(--blue) ${completion}%, #d6e7fb ${completion}%)`;
     progressText.textContent = `${currentStep} / ${totalSteps}`;
-    backButton.hidden = currentStep === 1;
-    nextButton.hidden = currentStep === totalSteps;
+    // Keep navigation visible as a progress cue, while disabling unavailable directions.
+    backButton.hidden = false;
+    backButton.disabled = currentStep === 1;
+    nextButton.hidden = false;
+    nextButton.disabled = currentStep === totalSteps;
     finishButton.hidden = currentStep !== totalSteps;
     cancelButton.hidden = currentStep !== 1;
     window.scrollTo({ top: 0, behavior: "smooth" });

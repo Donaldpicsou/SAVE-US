@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Checking your report · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Brief, accessible transition after a reporter submits complete information. -->
+  <section class="reviewing-page" aria-live="polite">
+    <div class="reviewing-card">
+      <span class="reviewing-spinner" aria-hidden="true"></span>
+      <p class="eyebrow">Report submitted</p>
+      <h1>We are checking your report</h1>
+      <p>We are reviewing the details provided to help prevent misinformation and keep community alerts reliable.</p>
+      <p class="reviewing-detail">Your report review will open shortly.</p>
+      <a class="button secondary" href="{{ url_for('main.ai_review', alert_id=alert.id) }}">View report review now</a>
+    </div>
+  </section>
+  <!-- The delayed redirect is only a visual transition; the link above remains available. -->
+  <script>window.setTimeout(function () { window.location.assign({{ url_for('main.ai_review', alert_id=alert.id)|tojson }}); }, 1200);</script>
+{% endblock %}
