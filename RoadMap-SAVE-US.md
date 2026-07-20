@@ -46,6 +46,26 @@ flowchart LR
   T17 --> T24["T24 Centre de notifications persistant"]
   T18 --> T24
   T23 --> T24
+  T23 --> T25["T25 Parcours de signalement généralisé"]
+  T25 --> T26["T26 Détails enlèvement"]
+  T26 --> T27["T27 Formulaire enlèvement"]
+  T12 --> T27
+  T26 --> T28["T28 Contrat IA enlèvement"]
+  T28 --> T29["T29 Règles de publication enlèvement"]
+  T25 --> T30["T30 Détails accident routier"]
+  T30 --> T31["T31 Formulaire accident routier"]
+  T12 --> T31
+  T30 --> T32["T32 Modération médias accident"]
+  T13 --> T32
+  T31 --> T33["T33 Publication et expiration accident"]
+  T17 --> T33
+  T29 --> T34["T34 Adaptation ciblage et notifications"]
+  T33 --> T34
+  T24 --> T34
+  T34 --> T35["T35 Adaptation fil et détails"]
+  T22 --> T35
+  T27 --> T36["T36 Parcours démo multi-événements"]
+  T35 --> T36
 ```
 
 ## Tâches unitaires
@@ -81,6 +101,18 @@ flowchart LR
 | T22 | Diffuser les photos d’alerte de manière protégée | Les photos téléversées restent privées et ne sont visibles dans Home, Alerts et le détail que par le déclarant ou un destinataire éligible d’une alerte publiée. Les requêtes non autorisées renvoient `404` ; les réponses photo sont privées et non mises en cache. | T12, T17, T18, T19 | Terminé |
 | T23 | Construire l’espace déclarant | My reports affiche uniquement les rapports du déclarant connecté, propose filtres statut/catégorie/recherche, reprise des brouillons, accès aux revues et alertes publiées, et consigne les actions motivées « personne retrouvée » ou « retrait » dans une piste d’audit non publique. | T4, T7, T11, T16, T17 | Terminé |
 | T24 | Livrer le centre de notifications persistant | Les événements de publication, modération et clôture créent des notifications ciblées ; l’aperçu d’en-tête et la page de notifications affichent les états réels lu/non lu, les filtres, l’action explicite « tout marquer comme lu », des liens d’alerte protégés et l’état simulé de l’e-mail. | T17, T18, T23 | Terminé |
+| T25 | Généraliser le parcours de signalement | Une entrée unique « Signaler un incident » permet à un utilisateur vérifié de choisir Missing person, Suspected abduction ou Road accident. Les brouillons, validations et accès déclarant restent isolés par type. | T4, T11, T23 | Planifié |
+| T26 | Définir les détails d’un enlèvement présumé | Une migration et une entité dédiée prennent en charge photo, date/heure, zone approximative, description, circonstances et contact privé, avec règles de champs côté serveur. | T4, T25 | Planifié |
+| T27 | Construire le formulaire d’enlèvement | Un formulaire anglais, mobile et en étapes permet photo facultative validée, brouillons, reprise, progression sûre et action finale claire sans jargon technique. | T5, T7, T12, T26 | Planifié |
+| T28 | Définir le contrat IA d’enlèvement | La revue structurée fournit résumé public sûr, données extraites, données manquantes, doublons possibles, confiance, risque de fraude et motifs. | T13, T26 | Planifié |
+| T29 | Appliquer les règles de publication d’enlèvement | Le signalement est diffusé dans tout le pays si confiance ≥ 80 et risque de fraude < 80 ; sinon il entre en modération. Les enlèvements publiés restent visibles des modérateurs pour revue a posteriori. | T17, T28 | Planifié |
+| T30 | Définir les détails d’un accident routier | Une entité dédiée stocke date/heure, localisation manuelle et coordonnées facultatives, région touchée, nombre de victimes, besoins immédiats, description et références média facultatives. | T4, T25 | Planifié |
+| T31 | Construire le formulaire d’accident routier | Un formulaire mobile rapide offre géolocalisation facultative avec saisie manuelle de secours, validations serveur, brouillons et téléversement photo facultatif protégé. | T5, T7, T12, T30 | Planifié |
+| T32 | Modérer les médias d’accident routier | Des contrôles serveur et IA identifient les médias d’accident invalides, sensibles ou graphiques, les bloquent ou envoient le signalement en modération avec explication claire. | T12, T13, T30 | Planifié |
+| T33 | Appliquer publication et expiration d’accident | Les accidents publiés ciblent la région touchée ou un rayon défini, expirent automatiquement après 24 h et permettent une clôture manuelle motivée avec piste d’audit. | T17, T30, T31 | Planifié |
+| T34 | Adapter le ciblage et les notifications | Les enlèvements atteignent tous les abonnés du pays ayant activé la catégorie ; les accidents atteignent les abonnés régionaux éligibles. Publication, modération, clôture et expiration utilisent ces règles. | T18, T24, T29, T33 | Planifié |
+| T35 | Adapter le fil et les détails d’alerte | Home, Alerts, My reports et le détail affichent cartes, filtres, libellés de sûreté et médias protégés adaptés aux deux nouveaux types d’incident. | T19, T22, T29, T33, T34 | Planifié |
+| T36 | Tester le parcours de démonstration multi-événements | Le test de bout en bout Cameroun/Centre couvre un enlèvement présumé national et un accident régional, y compris ciblage, notifications, expiration ou clôture et protection des médias non autorisés. | T27, T29, T31–T35 | Planifié |
 
 ## Chemin critique
 
@@ -88,9 +120,13 @@ flowchart LR
 
 Consolidation post-T20 : `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, `T4 + T7 + T11 + T16 + T17 → T23` et `T17 + T18 + T23 → T24`.
 
+Chemin critique de l’extension multi-événements : `T25 → T26 → T27 → T28 → T29 → T34 → T35 → T36`. La branche accident routier `T25 → T30 → T31 → T33 → T34` doit également être terminée avant T36.
+
 ## Travail parallélisable
 
 - Dès que T1 est terminé : T5 peut avancer en parallèle de T2.
 - Dès que T4 est terminé : T6 et T10 peuvent avancer en parallèle.
 - Dès que T10 est terminé : T11 et T13 peuvent avancer en parallèle.
 - T14/T15 peuvent être développées pendant la construction de T11/T12.
+- Après T25, la branche enlèvement (T26–T29) et la branche accident routier (T30–T33) peuvent être réalisées en parallèle.
+- T32 peut avancer en parallèle de T31 ; T34 débute une fois les règles de publication des deux nouvelles catégories prêtes.

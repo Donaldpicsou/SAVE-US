@@ -46,6 +46,26 @@ flowchart LR
   T17 --> T24["T24 Persisted notification centre"]
   T18 --> T24
   T23 --> T24
+  T23 --> T25["T25 Generalised reporting flow"]
+  T25 --> T26["T26 Abduction details"]
+  T26 --> T27["T27 Abduction form"]
+  T12 --> T27
+  T26 --> T28["T28 Abduction AI contract"]
+  T28 --> T29["T29 Abduction publication rules"]
+  T25 --> T30["T30 Road-accident details"]
+  T30 --> T31["T31 Road-accident form"]
+  T12 --> T31
+  T30 --> T32["T32 Accident-media moderation"]
+  T13 --> T32
+  T31 --> T33["T33 Accident publication and expiry"]
+  T17 --> T33
+  T29 --> T34["T34 Targeting and notification adaptation"]
+  T33 --> T34
+  T24 --> T34
+  T34 --> T35["T35 Feed and alert-detail adaptation"]
+  T22 --> T35
+  T27 --> T36["T36 Multi-event demo journey"]
+  T35 --> T36
 ```
 
 ## Atomic tasks
@@ -81,6 +101,18 @@ flowchart LR
 | T22 | Deliver protected alert photos | Uploaded photos stay in private storage and appear on Home, Alerts, and alert detail only for the report owner or an eligible recipient of a published alert. Unauthorised requests return `404`; photo responses are private and non-cacheable. | T12, T17, T18, T19 | Completed |
 | T23 | Build the reporter workspace | My reports lists only the signed-in reporter’s reports, supports status/category/search filters, resumes drafts, opens reviews and published alerts, and records reasoned “found” or “withdrawn” actions in a non-public audit trail. | T4, T7, T11, T16, T17 | Completed |
 | T24 | Deliver the persistent notification centre | Publication, moderation, and closure events create targeted in-app notifications; the header preview and notification page show real unread/read state, filters, explicit “mark all as read”, safe alert links, and simulated e-mail delivery state. | T17, T18, T23 | Completed |
+| T25 | Generalise the incident-reporting flow | A single “Report an incident” entry point lets a verified user select Missing person, Suspected abduction, or Road accident. Type-specific drafts, validation, and reporter access remain isolated. | T4, T11, T23 | Planned |
+| T26 | Define suspected-abduction details | A migration and dedicated details entity support photo, date/time, approximate location, description, circumstances, and private contact with server-side field rules. | T4, T25 | Planned |
+| T27 | Build the suspected-abduction form | A mobile-friendly English multi-step form supports validated optional photos, drafts, safe progress states, and a clear non-technical final review action. | T5, T7, T12, T26 | Planned |
+| T28 | Define the abduction AI contract | Structured review returns a safe public summary, extracted details, missing data, possible duplicates, confidence, fraud risk, and reasons. | T13, T26 | Planned |
+| T29 | Apply abduction publication rules | A report is distributed country-wide when confidence is at least 80 and fraud risk is below 80; otherwise it enters moderation. Published abduction reports remain visible to moderators for post-publication review. | T17, T28 | Planned |
+| T30 | Define road-accident details | A dedicated entity stores date/time, manual location and optional coordinates, affected region, victim count, immediate needs, description, and optional media references. | T4, T25 | Planned |
+| T31 | Build the road-accident form | A fast mobile reporting form offers optional device location with manual location fallback, server validation, drafts, and protected optional-photo upload. | T5, T7, T12, T30 | Planned |
+| T32 | Moderate road-accident media | Server and AI checks identify unsafe, graphic, or invalid accident media and block it or route the report to moderation with a clear explanation. | T12, T13, T30 | Planned |
+| T33 | Apply road-accident publication and expiry rules | Published accidents target the affected region or defined radius, expire automatically after 24 hours, and support reasoned manual closure with an audit trail. | T17, T30, T31 | Planned |
+| T34 | Adapt targeting and notifications | Abductions reach all in-country subscribers who enabled the category; road accidents reach eligible regional followers. Publication, moderation, closure, and expiry notifications use the same rules. | T18, T24, T29, T33 | Planned |
+| T35 | Adapt the alert feed and details | Home, Alerts, My reports, and alert details display category-appropriate cards, filters, safety labels, and protected media for the two new incident types. | T19, T22, T29, T33, T34 | Planned |
+| T36 | Test the multi-event demonstration journey | The Cameroon/Centre end-to-end test covers one country-wide suspected abduction and one regional road accident, including targeting, notifications, expiry or closure, and unauthorised-media protection. | T27, T29, T31–T35 | Planned |
 
 ## Critical path
 
@@ -88,9 +120,13 @@ flowchart LR
 
 Post-T20 consolidation: `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, `T4 + T7 + T11 + T16 + T17 → T23`, and `T17 + T18 + T23 → T24`.
 
+Multi-event expansion critical path: `T25 → T26 → T27 → T28 → T29 → T34 → T35 → T36`. The road-accident branch `T25 → T30 → T31 → T33 → T34` must also complete before T36.
+
 ## Parallel work
 
 - After T1: T5 can proceed in parallel with T2.
 - After T4: T6 and T10 can proceed in parallel.
 - After T10: T11 and T13 can proceed in parallel.
 - T14/T15 can be developed while T11/T12 are being built.
+- After T25, the abduction branch (T26–T29) and road-accident branch (T30–T33) can proceed in parallel.
+- T32 can proceed in parallel with T31; T34 begins only once the publication rules for both new categories are ready.
