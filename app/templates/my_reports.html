@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}My reports · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Private reporter workspace: records are scoped server-side to the signed-in owner. -->
+  <section class="my-reports-page">
+    <header class="my-reports-heading">
+      <div><p class="eyebrow">Reporter workspace</p><h1>My reports</h1><p>Resume drafts, follow review outcomes, and close a report responsibly when the person is found or the alert must be withdrawn.</p></div>
+      <a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Report missing person</a>
+    </header>
+
+    {% if action_error %}<p class="form-error" role="alert">{{ action_error }}</p>{% endif %}
+
+    <!-- Combined server-side filters keep a report workspace URL shareable and predictable. -->
+    <form class="my-reports-controls" method="get">
+      <label>Search reports<input type="search" name="q" value="{{ search }}" placeholder="Name or summary"></label>
+      <label>Status<select name="status"><option value="">All statuses</option>{% for value, label in report_status_filters %}<option value="{{ value }}" {{ 'selected' if selected_status == value else '' }}>{{ label }}</option>{% endfor %}</select></label>
+      <label>Category<select name="type"><option value="">All categories</option>{% for value, label in report_type_filters %}<option value="{{ value }}" {{ 'selected' if selected_type == value else '' }}>{{ label }}</option>{% endfor %}</select></label>
+      <button class="button secondary" type="submit">Apply filters</button>
+    </form>
+
+    <!-- Every card exposes only the owner’s report data and status-specific actions. -->
+    <section class="my-reports-list">
+      {% for report in reports %}
+        <article class="my-report-card">
+          <div class="my-report-avatar">{% if report.missing_person_details and report.missing_person_details.photo_path %}<img src="{{ url_for('main.alert_photo', alert_id=report.id) }}" alt="Photo uploaded for {{ report.title }}">{% else %}<span aria-hidden="true">{{ report.title[:2]|upper }}</span>{% endif %}</div>
+          <div class="my-report-content">
+            <div class="my-report-top"><p class="critical-label">{{ report.alert_type.value|replace('_', ' ')|title }}</p><span class="report-status {{ report.status.value|replace('_', '-') }}">{{ report.status.value|replace('_', ' ')|title }}</span></div>
+            <h2>{{ report.title }}</h2>
+            <p class="my-report-location">{{ report.approximate_zone or report.region or report.country }} · {{ report.country }}</p>
+            <p class="my-report-date">Last updated {{ report.updated_at.strftime('%d %b %Y · %H:%M UTC') }}</p>
+            {% if report.report_actions %}<p class="my-report-history">Latest action: <strong>{{ report.report_actions[0].action|replace('_', ' ')|title }}</strong> · {{ report.report_actions[0].reason }}</p>{% endif %}
+
+            <!-- Draft, review, and public-alert links are selected from the actual lifecycle status. -->
+            <div class="my-report-actions">
+              {% if report.status.value == 'draft' %}<a class="button secondary" href="{{ url_for('main.report_missing_person', draft=report.id) }}">Resume draft</a>{% endif %}
+              {% if report.ai_review %}<a class="button secondary" href="{{ url_for('main.ai_review', alert_id=report.id) }}">View review</a>{% endif %}
+              {% if report.status.value == 'published' %}<a class="button emergency" href="{{ url_for('main.alert_detail', alert_id=report.id) }}">View published alert</a>{% endif %}
+            </div>
+
+            <!-- Closure actions require a reason and create a non-public audit record. -->
+            {% if report.status.value not in ['reported_found', 'withdrawn', 'expired'] %}
+              <details class="close-report-panel"><summary>Close this report</summary><p>Use this only when the person is found or the alert must be withdrawn. The reason is retained privately for accountability.</p><form action="{{ url_for('main.close_report', alert_id=report.id) }}" method="post"><label>Reason<textarea name="reason" rows="3" required placeholder="Explain why this report is being closed."></textarea></label><div><button class="text-button found" type="submit" name="action" value="reported_found">Mark as found</button><button class="text-button" type="submit" name="action" value="withdrawn">Withdraw report</button></div></form></details>
+            {% endif %}
+          </div>
+        </article>
+      {% else %}
+        <!-- Empty state also covers filters that do not match any owned report. -->
+        <article class="my-reports-empty"><span>⌁</span><h2>No reports found</h2><p>Create a missing-person report or adjust the filters to view your saved reports.</p><a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Report missing person</a></article>
+      {% endfor %}
+    </section>
+  </section>
+{% endblock %}

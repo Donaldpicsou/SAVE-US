@@ -20,6 +20,7 @@ from .models import (
     AlertType,
     MissingPersonDetails,
     MissingPersonSex,
+    ReportAction,
     User,
 )
 
@@ -85,6 +86,9 @@ ALERT_FEED_FILTERS = (
     (AlertType.UNKNOWN_HOSPITAL_PATIENT.value, "Unknown patients"),
     (AlertType.ROAD_ACCIDENT.value, "Road accidents"),
 )
+
+REPORT_STATUS_FILTERS = tuple((status.value, status.value.replace("_", " ").title()) for status in AlertStatus)
+REPORT_TYPE_FILTERS = tuple((alert_type.value, alert_type.value.replace("_", " ").title()) for alert_type in AlertType)
 
 
 @bp.before_app_request
@@ -243,7 +247,7 @@ def alert_detail(alert_id: str):
     """Open a public-safe alert only when it belongs in the viewer's feed."""
     stored_alert = db.session.get(Alert, alert_id)
     if stored_alert is not None:
-        if not user_receives_alert(g.current_user, stored_alert):
+        if stored_alert.reporter_id != g.current_user.id and not user_receives_alert(g.current_user, stored_alert):
             abort(404)
         return render_template(
             "alert_detail.html",
@@ -269,9 +273,11 @@ def alert_detail(alert_id: str):
 @bp.get("/alerts/<alert_id>/photo")
 @login_required
 def alert_photo(alert_id: str):
-    """Serve a validated report photo only to an eligible recipient of a published alert."""
+    """Serve a validated report photo to its owner or an eligible alert recipient."""
     alert = db.session.get(Alert, alert_id)
-    if alert is None or not user_receives_alert(g.current_user, alert):
+    if alert is None or (
+        alert.reporter_id != g.current_user.id and not user_receives_alert(g.current_user, alert)
+    ):
         abort(404)
     details = alert.missing_person_details
     if details is None or not details.photo_path:
@@ -578,7 +584,60 @@ def missing_person_photo_preview(alert_id: str):
 @bp.get("/reports")
 @login_required
 def my_reports():
-    return render_template("simple_page.html", title="My reports", eyebrow="Reporter workspace", description="Manage drafts, active alerts, and reports that need review.", active_page="reports", app_shell=True, primary_action="Report a missing person", primary_url="main.report_missing_person")
+    """List and filter the signed-in reporter's private report workspace."""
+    selected_status = request.args.get("status", "").strip()
+    selected_type = request.args.get("type", "").strip()
+    search = request.args.get("q", "").strip()
+    valid_statuses = {value for value, _label in REPORT_STATUS_FILTERS}
+    valid_types = {value for value, _label in REPORT_TYPE_FILTERS}
+    if selected_status not in valid_statuses:
+        selected_status = ""
+    if selected_type not in valid_types:
+        selected_type = ""
+
+    reports = db.session.scalars(
+        db.select(Alert).where(Alert.reporter_id == g.current_user.id)
+    ).all()
+    search_term = search.casefold()
+    reports = [
+        report for report in reports
+        if (not selected_status or report.status.value == selected_status)
+        and (not selected_type or report.alert_type.value == selected_type)
+        and (not search_term or search_term in " ".join((report.title, report.public_summary or "")).casefold())
+    ]
+    reports.sort(key=lambda report: report.updated_at or report.created_at, reverse=True)
+    return render_template(
+        "my_reports.html",
+        active_page="reports",
+        app_shell=True,
+        reports=reports,
+        report_status_filters=REPORT_STATUS_FILTERS,
+        report_type_filters=REPORT_TYPE_FILTERS,
+        selected_status=selected_status,
+        selected_type=selected_type,
+        search=search,
+        action_error=request.args.get("action_error"),
+    )
+
+
+@bp.post("/reports/<alert_id>/close")
+@login_required
+def close_report(alert_id: str):
+    """Mark one owned report as found or withdrawn and preserve a reasoned audit record."""
+    alert = owned_missing_person_alert(alert_id)
+    action = request.form.get("action", "").strip()
+    reason = request.form.get("reason", "").strip()
+    if action not in {"reported_found", "withdrawn"}:
+        abort(400)
+    if not reason:
+        return redirect(url_for("main.my_reports", action_error="Provide a reason before closing a report."))
+    if alert.status in {AlertStatus.REPORTED_FOUND, AlertStatus.WITHDRAWN, AlertStatus.EXPIRED}:
+        return redirect(url_for("main.my_reports", action_error="This report has already been closed."))
+
+    alert.status = AlertStatus.REPORTED_FOUND if action == "reported_found" else AlertStatus.WITHDRAWN
+    db.session.add(ReportAction(alert=alert, actor_id=g.current_user.id, action=action, reason=reason))
+    db.session.commit()
+    return redirect(url_for("main.my_reports"))
 
 
 @bp.get("/moderator")

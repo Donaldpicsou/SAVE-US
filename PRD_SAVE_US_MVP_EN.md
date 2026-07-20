@@ -7,6 +7,8 @@
 **Demo market:** Cameroon; architecture and country picker ready for all six CEMAC countries  
 **Devpost target:** *Apps for your life*
 
+**Change control:** Any approved change that alters the product intent, user promise, scope, safety rule, or acceptance criteria must update this PRD and both roadmap files. Implementation refinements that already satisfy this PRD are recorded in the roadmaps only.
+
 ## 1. Executive summary
 
 SAVE-US is a community-led emergency alert and verification platform for the CEMAC region. Verified citizens can report missing persons, suspected abductions, and serious road accidents. Verified medical institutions can report an unidentified, amnesiac, or unconscious patient in their care.

@@ -2,6 +2,10 @@
 
 Ce document découpe le plan d’exécution du Jour 1 du PRD en tâches unitaires, testables et ordonnables. L’objectif est de livrer le parcours de démonstration : inscription, déclaration de disparition, revue IA, publication et fil d’alertes géociblé.
 
+## Maintenance documentaire
+
+Lorsqu’une modification approuvée change l’intention du produit, la promesse utilisateur, le périmètre, une règle de sécurité ou un critère d’acceptation, le PRD et les deux fichiers de roadmap doivent être mis à jour. Les raffinements déjà couverts par le PRD sont consignés ci-dessous comme consolidation post-T20.
+
 ## Dépendances globales
 
 ```mermaid
@@ -30,6 +34,15 @@ flowchart LR
   T17 --> T18
   T18 --> T19["T19 Fil d’alertes"]
   T19 --> T20["T20 Test de bout en bout"]
+  T19 --> T21["T21 Alignement accueil/fil"]
+  T12 --> T22["T22 Photos d’alerte protégées"]
+  T17 --> T22
+  T18 --> T22
+  T19 --> T22
+  T4 --> T23["T23 Espace déclarant"]
+  T11 --> T23
+  T16 --> T23
+  T17 --> T23
 ```
 
 ## Tâches unitaires
@@ -57,9 +70,19 @@ flowchart LR
 | T19 | Construire le fil d’alertes | Cartes d’alerte ciblées, filtrées et stylées selon la charte. | T5, T18 |
 | T20 | Tester le parcours de démonstration | Le scénario Cameroun/Centre complet passe sans erreur. | T7, T11, T15, T17, T19 |
 
+## Journal de consolidation post-T20
+
+| ID | Tâche | Livrable / définition de terminé | Dépendances | Statut |
+|---|---|---|---|---|
+| T21 | Aligner l’accueil avec le fil d’alertes | Home devient un tableau de bord vivant affichant jusqu’à trois alertes récentes ciblées par préférences, un compteur d’alertes actives et la couverture ; Alerts conserve le fil complet, recherché et filtrable. | T18, T19 | Terminé |
+| T22 | Diffuser les photos d’alerte de manière protégée | Les photos téléversées restent privées et ne sont visibles dans Home, Alerts et le détail que par le déclarant ou un destinataire éligible d’une alerte publiée. Les requêtes non autorisées renvoient `404` ; les réponses photo sont privées et non mises en cache. | T12, T17, T18, T19 | Terminé |
+| T23 | Construire l’espace déclarant | My reports affiche uniquement les rapports du déclarant connecté, propose filtres statut/catégorie/recherche, reprise des brouillons, accès aux revues et alertes publiées, et consigne les actions motivées « personne retrouvée » ou « retrait » dans une piste d’audit non publique. | T4, T7, T11, T16, T17 | Terminé |
+
 ## Chemin critique
 
 `T1 → T2 → T3 → T4 → T10 → T11 → T16 → T17 → T18 → T19 → T20`
+
+Consolidation post-T20 : `T19 → T21`, `T12 + T17 + T18 + T19 → T22` et `T4 + T7 + T11 + T16 + T17 → T23`.
 
 ## Travail parallélisable
 

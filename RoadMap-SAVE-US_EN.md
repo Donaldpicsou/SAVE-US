@@ -2,6 +2,10 @@
 
 This document breaks the PRD’s Day 1 execution plan into independent, testable, and ordered tasks. The goal is to deliver the demonstration journey: sign-up, missing-person reporting, AI review, publication, and a geo-targeted alert feed.
 
+## Documentation maintenance
+
+When an approved change alters the product intent, user promise, scope, safety rule, or acceptance criteria, update the PRD and both roadmap files. Refinements already covered by the PRD are logged below as post-T20 consolidation work.
+
 ## Overall dependencies
 
 ```mermaid
@@ -30,6 +34,15 @@ flowchart LR
   T17 --> T18
   T18 --> T19["T19 Alert feed"]
   T19 --> T20["T20 End-to-end test"]
+  T19 --> T21["T21 Home/feed alignment"]
+  T12 --> T22["T22 Protected alert photos"]
+  T17 --> T22
+  T18 --> T22
+  T19 --> T22
+  T4 --> T23["T23 Reporter workspace"]
+  T11 --> T23
+  T16 --> T23
+  T17 --> T23
 ```
 
 ## Atomic tasks
@@ -57,9 +70,19 @@ flowchart LR
 | T19 | Build the alert feed | Targeted, filtered, visually styled alert cards are displayed. | T5, T18 |
 | T20 | Test the demo journey | The full Cameroon/Centre scenario completes without error. | T7, T11, T15, T17, T19 |
 
+## Post-T20 consolidation log
+
+| ID | Task | Deliverable / definition of done | Dependencies | Status |
+|---|---|---|---|---|
+| T21 | Align Home with the alert feed | Home is a compact live dashboard showing up to three recent preference-targeted alerts, an active-alert count, and coverage; Alerts remains the complete searchable and filterable feed. | T18, T19 | Completed |
+| T22 | Deliver protected alert photos | Uploaded photos stay in private storage and appear on Home, Alerts, and alert detail only for the report owner or an eligible recipient of a published alert. Unauthorised requests return `404`; photo responses are private and non-cacheable. | T12, T17, T18, T19 | Completed |
+| T23 | Build the reporter workspace | My reports lists only the signed-in reporter’s reports, supports status/category/search filters, resumes drafts, opens reviews and published alerts, and records reasoned “found” or “withdrawn” actions in a non-public audit trail. | T4, T7, T11, T16, T17 | Completed |
+
 ## Critical path
 
 `T1 → T2 → T3 → T4 → T10 → T11 → T16 → T17 → T18 → T19 → T20`
+
+Post-T20 consolidation: `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, and `T4 + T7 + T11 + T16 + T17 → T23`.
 
 ## Parallel work
 

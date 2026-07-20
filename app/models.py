@@ -181,6 +181,11 @@ class Alert(db.Model):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    report_actions: Mapped[list["ReportAction"]] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+        order_by="ReportAction.created_at.desc()",
+    )
 
     def __repr__(self) -> str:
         return f"<Alert {self.id} {self.alert_type.value} {self.status.value}>"
@@ -302,6 +307,30 @@ class AIReview(db.Model):
         return f"<AIReview alert_id={self.alert_id} decision={self.decision}>"
 
 
+class ReportAction(db.Model):
+    """Non-public audit record for a reporter's closure or correction action."""
+
+    __tablename__ = "report_actions"
+    __table_args__ = (Index("ix_report_actions_alert_created", "alert_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    alert: Mapped[Alert] = relationship(back_populates="report_actions")
+    actor: Mapped[User] = relationship(foreign_keys=[actor_id])
+
+    def __repr__(self) -> str:
+        return f"<ReportAction alert_id={self.alert_id} action={self.action}>"
+
+
 __all__ = [
     "Alert",
     "AlertPreference",
@@ -310,6 +339,7 @@ __all__ = [
     "AIReview",
     "MissingPersonDetails",
     "MissingPersonSex",
+    "ReportAction",
     "User",
     "UserRole",
     "db",
