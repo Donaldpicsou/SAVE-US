@@ -201,7 +201,19 @@ def verify_otp():
 @bp.get("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html", active_page="home", app_shell=True)
+    """Show a compact, live preview of the same preference-targeted alert feed."""
+    feed_items = targeted_alert_feed(g.current_user)
+    preference = g.current_user.alert_preference
+    followed_regions = preference.followed_regions if preference else []
+    coverage_regions = list(dict.fromkeys([g.current_user.primary_region, *followed_regions]))
+    return render_template(
+        "dashboard.html",
+        active_page="home",
+        app_shell=True,
+        recent_alerts=feed_items[:3],
+        alert_count=len(feed_items),
+        coverage_regions=coverage_regions,
+    )
 
 
 @bp.get("/alerts")

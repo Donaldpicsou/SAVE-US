@@ -93,6 +93,18 @@ class AlertFeedTestCase(unittest.TestCase):
         self.assertEqual(self.client.get(f"/alerts/{visible.id}").status_code, 200)
         self.assertEqual(self.client.get(f"/alerts/{hidden.id}").status_code, 404)
 
+    def test_dashboard_uses_the_same_live_targeted_alert_source_as_the_full_feed(self) -> None:
+        visible = self.add_alert("Nadia Mbarga", AlertType.MISSING_PERSON)
+        hidden = self.add_alert("Road accident", AlertType.ROAD_ACCIDENT)
+
+        dashboard = self.client.get("/dashboard")
+
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertIn(b"Latest alerts", dashboard.data)
+        self.assertIn(f"/alerts/{visible.id}".encode(), dashboard.data)
+        self.assertNotIn(f"/alerts/{hidden.id}".encode(), dashboard.data)
+        self.assertIn(b"View all alerts", dashboard.data)
+
 
 if __name__ == "__main__":
     unittest.main()

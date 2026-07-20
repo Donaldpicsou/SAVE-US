@@ -3,25 +3,31 @@
 {% block title %}Home · SAVE-US{% endblock %}
 
 {% block content %}
-  <!-- Dashboard heading: recipient context and alert search. -->
-  <section class="dashboard-head">
-    <div><p class="eyebrow">{{ current_user.country }} · {{ current_user.primary_region }} region</p><h1>Good morning,<br>{{ current_user.display_name or "community member" }}</h1></div>
-    <label class="search-box">⌕ <input type="search" placeholder="Search alerts…"></label>
+  <!-- Home is a live dashboard preview, not a duplicate of the full alert feed. -->
+  <section class="dashboard-head dashboard-live-heading">
+    <div><p class="eyebrow">{{ current_user.country }} · {{ current_user.primary_region }}</p><h1>Welcome back,<br>{{ current_user.display_name or "community member" }}</h1><p>Your latest alerts are selected from the coverage and categories you chose.</p></div>
+    <a class="button emergency" href="{{ url_for('main.alerts') }}">View all alerts</a>
   </section>
-  <!-- Alert-type filter controls. -->
-  <div class="filter-row"><button class="selected">All alerts</button><button>Missing persons</button><button>Abduction</button><button>Medical emergency</button></div>
-  <!-- Main feed and contextual network sidebar. -->
-  <div class="dashboard-grid">
-    <section>
-      <!-- Featured high-priority alert card. -->
-      <article class="alert-card featured-alert">
-        <div class="portrait-placeholder">JB</div>
-        <div><span class="status-chip">Published 2h ago</span><p class="critical-label">Missing person</p><h2>Jean Bakary, 8</h2><p>Last seen near a primary school in Yaoundé, Centre Region. Wearing a blue school uniform and red backpack.</p><p class="alert-meta">◷ Today · ◉ Yaoundé area</p><div class="button-row"><a class="button danger" href="{{ url_for('main.alerts') }}">View alert</a><button class="button secondary">Share</button></div></div>
-      </article>
-      <!-- Secondary alert card. -->
-      <article class="alert-card compact-alert"><div class="portrait-placeholder pale">SV</div><div><p class="critical-label">Road accident</p><h3>Serious incident reported</h3><p>Support requested near Douala, Littoral.</p><a href="{{ url_for('main.alerts') }}">View details →</a></div></article>
+
+  <!-- A maximum of three live, preference-targeted cards provides a fast home overview. -->
+  <div class="dashboard-grid dashboard-live-grid">
+    <section class="dashboard-alert-preview" aria-label="Latest targeted alerts">
+      <div class="dashboard-section-heading"><div><p class="eyebrow">Latest alerts</p><h2>What needs attention</h2></div><span>{{ alert_count }} active</span></div>
+      <div class="dashboard-alert-list">
+        {% for alert in recent_alerts %}
+          <article class="dashboard-alert-card {{ alert.type_value }}">
+            <div class="dashboard-alert-avatar" aria-hidden="true">{{ alert.initials }}</div>
+            <div><div class="dashboard-alert-top"><p class="critical-label">{{ alert.type }}</p><span class="status-chip">Published</span></div><h3>{{ alert.title }}</h3><p>{{ alert.summary }}</p><p class="alert-meta">◷ {{ alert.published_label }} · ⌖ {{ alert.location }}</p><a href="{{ url_for('main.alert_detail', alert_id=alert.id) }}">View alert →</a></div>
+          </article>
+        {% else %}
+          <!-- Empty dashboard state reflects actual alert eligibility rather than static demo cards. -->
+          <article class="dashboard-empty-state"><span>✓</span><h2>No active alerts for you</h2><p>We will show published alerts matching your country, coverage, and alert preferences here.</p><a href="{{ url_for('main.settings') }}">Manage coverage</a></article>
+        {% endfor %}
+      </div>
+      {% if recent_alerts %}<a class="dashboard-view-all" href="{{ url_for('main.alerts') }}">View all {{ alert_count }} targeted alerts →</a>{% endif %}
     </section>
-    <!-- Network status and local-coverage panels. -->
-    <aside class="dashboard-side"><article class="side-card"><h3>◉ Network status</h3><p>Active alerts in region <strong>12</strong></p><div class="status-line"><span></span></div><small>40% increase from last week</small></article><article class="side-card"><h3>⌖ Local coverage</h3><p>Cameroon · Centre</p><a class="button secondary full-width" href="{{ url_for('main.settings') }}">Manage coverage</a></article></aside>
+
+    <!-- Context panels explain the real targeting rules behind the dashboard preview. -->
+    <aside class="dashboard-side"><article class="side-card dashboard-count-card"><h3>◉ Active alerts</h3><strong>{{ alert_count }}</strong><p>Published alerts currently matching your preferences.</p></article><article class="side-card"><h3>⌖ Your coverage</h3><p>{{ current_user.country }}</p><ul class="coverage-region-list">{% for region in coverage_regions %}<li>{{ region }}{{ " · Primary region" if region == current_user.primary_region else " · Following" }}</li>{% endfor %}</ul><a class="button secondary full-width" href="{{ url_for('main.settings') }}">Manage coverage</a></article></aside>
   </div>
 {% endblock %}
