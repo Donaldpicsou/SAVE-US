@@ -105,12 +105,32 @@ def queue_closure_notifications(alert: Alert, recipients: Iterable[User], *, act
     return notifications
 
 
+def queue_expiry_notifications(alert: Alert, recipients: Iterable[User]) -> list[Notification]:
+    """Notify only former eligible recipients that a time-limited alert expired."""
+    notifications = []
+    for recipient in recipients:
+        if recipient.id == alert.reporter_id:
+            continue
+        notifications.append(
+            queue_notification(
+                recipient,
+                alert=alert,
+                kind="alert_expired",
+                title="Road-accident alert expired",
+                body="This road-accident alert reached its 24-hour visibility limit and is no longer active.",
+                public_location=_public_location(alert),
+            )
+        )
+    return notifications
+
+
 def _public_location(alert: Alert) -> str:
     return " · ".join(part for part in (alert.approximate_zone, alert.region, alert.country) if part)
 
 
 __all__ = [
     "queue_closure_notifications",
+    "queue_expiry_notifications",
     "queue_notification",
     "queue_review_outcome_notifications",
 ]

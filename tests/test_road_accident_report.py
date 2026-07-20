@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from app import create_app
 from app.extensions import db
-from app.models import Alert, AlertPreference, AlertStatus, AlertType, ReportAction, RoadAccidentDetails, User, utc_now
+from app.models import Alert, AlertPreference, AlertStatus, AlertType, Notification, ReportAction, RoadAccidentDetails, User, utc_now
 from app.road_media_moderation import MEDIA_STATUS_BLOCKED, review_road_accident_media
 
 
@@ -111,6 +111,13 @@ class RoadAccidentReportTestCase(unittest.TestCase):
         db.session.commit()
         self.client.get("/dashboard")
         self.assertEqual(db.session.get(Alert, alert.id).status, AlertStatus.EXPIRED)
+        expiry_notification = db.session.scalar(
+            db.select(Notification).where(
+                Notification.recipient_id == subscriber.id,
+                Notification.kind == "alert_expired",
+            )
+        )
+        self.assertIsNotNone(expiry_notification)
 
     def test_reporter_can_close_a_published_accident_with_a_reasoned_audit_record(self) -> None:
         self.client.post("/report/road-accident", data={"action": "submit", **self.form_data()})
@@ -137,6 +144,7 @@ class RoadAccidentReportTestCase(unittest.TestCase):
         alert = db.session.scalar(db.select(Alert).where(Alert.alert_type == AlertType.ROAD_ACCIDENT))
         self.assertEqual(alert.status, AlertStatus.NEEDS_MODERATION)
         self.assertEqual(alert.road_accident_media_review.status, "needs_moderation")
+        self.assertEqual(self.user.notifications[0].kind, "report_needs_moderation")
         submitted = self.client.get(response.headers["Location"])
         self.assertIn(b"needs a safety check", submitted.data)
 

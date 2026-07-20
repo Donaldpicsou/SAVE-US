@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from .extensions import db
-from .models import AIReview, Alert, AlertStatus, AlertType, utc_now
+from .models import AIReview, Alert, AlertStatus, AlertType, User, utc_now
+from .notification_service import queue_expiry_notifications
 from .road_media_moderation import MEDIA_STATUS_BLOCKED, MEDIA_STATUS_CLEAR, MEDIA_STATUS_NEEDS_MODERATION
+from .targeting import eligible_recipients
 
 
 MINIMUM_PUBLICATION_CONFIDENCE = 80
@@ -117,7 +119,10 @@ def expire_due_road_accidents() -> list[Alert]:
         )
     ).all()
     for alert in alerts:
+        users = db.session.scalars(db.select(User).where(User.is_phone_verified.is_(True))).all()
+        recipients = eligible_recipients(alert, users)
         alert.status = AlertStatus.EXPIRED
+        queue_expiry_notifications(alert, recipients)
     if alerts:
         db.session.commit()
     return alerts

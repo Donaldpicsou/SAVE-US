@@ -147,6 +147,32 @@ class NotificationTestCase(unittest.TestCase):
         self.assertIn(f"/alerts/{abduction.id}", response.headers["Location"])
         self.assertTrue(db.session.get(Notification, notification.id).is_read)
 
+    def test_abduction_publication_reaches_enabled_subscribers_across_the_country(self) -> None:
+        distant_region = User(
+            phone_number="+237699000004", country="Cameroon", primary_region="Littoral", is_phone_verified=True,
+        )
+        other_country = User(
+            phone_number="+24169900005", country="Gabon", primary_region="Estuaire", is_phone_verified=True,
+        )
+        db.session.add_all([
+            distant_region,
+            other_country,
+            AlertPreference(user=distant_region, enabled_categories=["suspected_abduction"]),
+            AlertPreference(user=other_country, enabled_categories=["suspected_abduction"]),
+        ])
+        abduction = Alert(
+            reporter=self.reporter, alert_type=AlertType.SUSPECTED_ABDUCTION, status=AlertStatus.PUBLISHED,
+            title="Country-wide abduction", public_summary="A suspected abduction was reported.",
+            country="Cameroon", region="Centre",
+        )
+        db.session.add(abduction)
+        db.session.commit()
+
+        queue_review_outcome_notifications(abduction)
+        db.session.commit()
+        self.assertEqual(len(distant_region.notifications), 1)
+        self.assertEqual(len(other_country.notifications), 0)
+
     def test_mark_all_and_closure_updates_are_persisted(self) -> None:
         queue_review_outcome_notifications(self.alert)
         db.session.commit()

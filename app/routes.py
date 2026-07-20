@@ -1022,7 +1022,7 @@ def report_road_accident():
                         ),
                     )
                     apply_road_accident_publication(draft)
-                    if draft.status == AlertStatus.PUBLISHED:
+                    if draft.status in {AlertStatus.PUBLISHED, AlertStatus.NEEDS_MODERATION}:
                         queue_review_outcome_notifications(draft)
                 db.session.commit()
                 if new_photo_path:
