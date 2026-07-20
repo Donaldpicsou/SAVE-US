@@ -66,6 +66,9 @@ flowchart LR
   T22 --> T35
   T27 --> T36["T36 Multi-event demo journey"]
   T35 --> T36
+  T6 --> T37["T37 Independent incident location"]
+  T11 --> T37
+  T18 --> T37
 ```
 
 ## Atomic tasks
@@ -113,6 +116,7 @@ flowchart LR
 | T34 | Adapt targeting and notifications | Abductions reach all in-country subscribers who enabled the category; road accidents reach eligible regional followers. Publication, moderation, closure, and expiry notifications use the same rules. | T18, T24, T29, T33 | Planned |
 | T35 | Adapt the alert feed and details | Home, Alerts, My reports, and alert details display category-appropriate cards, filters, safety labels, and protected media for the two new incident types. | T19, T22, T29, T33, T34 | Planned |
 | T36 | Test the multi-event demonstration journey | The Cameroon/Centre end-to-end test covers one country-wide suspected abduction and one regional road accident, including targeting, notifications, expiry or closure, and unauthorised-media protection. | T27, T29, T31–T35 | Planned |
+| T37 | Separate incident location from reporter location | Missing-person reports prefill but do not lock the affected country and region. The server validates the selected CEMAC country/region pair, persists it on the alert, and existing targeting uses that event location. | T6, T11, T18 | Completed |
 
 ## Critical path
 
@@ -121,6 +125,8 @@ flowchart LR
 Post-T20 consolidation: `T19 → T21`, `T12 + T17 + T18 + T19 → T22`, `T4 + T7 + T11 + T16 + T17 → T23`, and `T17 + T18 + T23 → T24`.
 
 Multi-event expansion critical path: `T25 → T26 → T27 → T28 → T29 → T34 → T35 → T36`. The road-accident branch `T25 → T30 → T31 → T33 → T34` must also complete before T36.
+
+Targeting correction: `T6 + T11 + T18 → T37`.
 
 ## Parallel work
 

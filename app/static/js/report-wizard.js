@@ -16,10 +16,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const photoPreview = wizard.querySelector("[data-photo-preview]");
   const photoStatus = wizard.querySelector("[data-photo-status]");
   const photoName = wizard.querySelector("[data-photo-name]");
+  const incidentCountry = wizard.querySelector("[data-incident-country]");
+  const incidentRegion = wizard.querySelector("[data-incident-region]");
+  const regionsData = document.getElementById("incident-regions-data");
   const labels = ["Identifying information", "Last-seen information", "Contact and circumstances"];
   const totalSteps = Number(wizard.dataset.stepCount) || steps.length;
   let hasPhoto = wizard.dataset.hasStoredPhoto === "true";
   let currentStep = 1;
+
+  // Event location is deliberately separate from the reporter's profile location.
+  if (incidentCountry && incidentRegion && regionsData) {
+    const regionsByCountry = JSON.parse(regionsData.textContent);
+    const refreshRegions = () => {
+      const previousRegion = incidentRegion.value;
+      const regions = regionsByCountry[incidentCountry.value] || [];
+      incidentRegion.replaceChildren(new Option("Select region", ""));
+      regions.forEach((region) => incidentRegion.add(new Option(region, region)));
+      if (regions.includes(previousRegion)) incidentRegion.value = previousRegion;
+    };
+    incidentCountry.addEventListener("change", refreshRegions);
+  }
 
   const updateStep = () => {
     currentStep = Math.min(Math.max(currentStep, 1), totalSteps);

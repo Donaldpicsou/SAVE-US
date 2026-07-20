@@ -77,6 +77,30 @@ class MissingPersonReportTestCase(unittest.TestCase):
         self.assertIn(b"Draft saved", response.data)
         self.assertIn(b'value="Jean Bakary"', response.data)
 
+    def test_reporter_can_select_the_affected_cemac_country_and_region(self) -> None:
+        response = self.client.post(
+            "/report/missing-person",
+            data={
+                "action": "save_draft",
+                "name": "Nora M.",
+                "country": "Gabon",
+                "region": "Estuaire",
+                "approximate_zone": "Libreville waterfront",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        alert = db.session.scalar(db.select(Alert))
+        self.assertEqual((alert.country, alert.region), ("Gabon", "Estuaire"))
+
+    def test_reporter_cannot_pair_a_region_with_the_wrong_country(self) -> None:
+        response = self.client.post(
+            "/report/missing-person",
+            data={"action": "save_draft", "country": "Gabon", "region": "Centre"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Choose a region from the selected country", response.data)
+        self.assertIsNone(db.session.scalar(db.select(Alert)))
+
     def test_save_draft_rejects_invalid_field_formats(self) -> None:
         response = self.client.post(
             "/report/missing-person",

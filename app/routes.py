@@ -446,7 +446,12 @@ def persist_ai_review(alert: Alert, execution) -> AIReview:
 
 def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str]]:
     """Parse draft-safe fields and return only format errors from the report form."""
+    _countries, regions_by_country = incident_location_reference()
+    selected_country = request.form.get("country", "").strip() or g.current_user.country
+    selected_region = request.form.get("region", "").strip() or g.current_user.primary_region
     data: dict[str, object | None] = {
+        "country": selected_country,
+        "region": selected_region,
         "name": request.form.get("name", "").strip() or None,
         "sex": request.form.get("sex", "").strip() or None,
         "last_seen_location": request.form.get("last_seen_location", "").strip() or None,
@@ -458,6 +463,10 @@ def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str
         "last_seen_at": None,
     }
     errors: dict[str, str] = {}
+    if selected_country not in regions_by_country:
+        errors["country"] = "Choose a supported CEMAC country."
+    elif selected_region not in regions_by_country[selected_country]:
+        errors["region"] = "Choose a region from the selected country."
     raw_age = request.form.get("age", "").strip()
     if raw_age:
         try:
@@ -484,13 +493,31 @@ def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str
     return data, errors
 
 
-def report_form_values(details: MissingPersonDetails | None = None) -> dict[str, str]:
+def incident_location_reference() -> tuple[list[str], dict[str, list[str]]]:
+    """Return public CEMAC countries and their selectable subdivisions by display name."""
+    dataset = load_cemac_data()
+    regions_by_country = {
+        country["name"]: [subdivision["nom"] for subdivision in country["subdivisions"]]
+        for country in dataset.values()
+    }
+    return sorted(regions_by_country), regions_by_country
+
+
+def report_form_values(
+    details: MissingPersonDetails | None = None,
+    *,
+    default_country: str = "",
+    default_region: str = "",
+) -> dict[str, str]:
     """Supply safe values to repopulate a draft or a failed server validation."""
     if details is None:
-        return {field: "" for field in (
+        values = {field: "" for field in (
             "name", "age", "sex", "last_seen_at", "last_seen_location",
             "approximate_zone", "clothing_description", "private_family_contact", "circumstances",
         )}
+        values["country"] = default_country
+        values["region"] = default_region
+        return values
     return {
         "name": details.name or "",
         "age": str(details.age) if details.age is not None else "",
@@ -501,6 +528,8 @@ def report_form_values(details: MissingPersonDetails | None = None) -> dict[str,
         "clothing_description": details.clothing_description or "",
         "private_family_contact": details.private_family_contact or "",
         "circumstances": details.circumstances or "",
+        "country": details.alert.country or default_country,
+        "region": details.alert.region or default_region,
     }
 
 
@@ -559,18 +588,20 @@ def report_missing_person():
                     alert_type=AlertType.MISSING_PERSON,
                     status=AlertStatus.DRAFT,
                     title=form_data["name"] or "Missing-person report draft",
-                    country=g.current_user.country,
-                    region=g.current_user.primary_region,
+                    country=form_data["country"],
+                    region=form_data["region"],
                     approximate_zone=form_data["approximate_zone"],
                 )
                 details = MissingPersonDetails(alert=draft)
                 db.session.add(draft)
             else:
                 draft.title = form_data["name"] or "Missing-person report draft"
+                draft.country = form_data["country"]
+                draft.region = form_data["region"]
                 draft.approximate_zone = form_data["approximate_zone"]
 
             for field, value in form_data.items():
-                if field != "approximate_zone":
+                if field not in {"approximate_zone", "country", "region"}:
                     setattr(details, field, value)
 
             action = request.form.get("action", "save_draft")
@@ -613,12 +644,21 @@ def report_missing_person():
                 return redirect(url_for("main.report_missing_person", draft=draft.id, saved=1))
 
     if details is not None:
-        values = report_form_values(details)
+        values = report_form_values(
+            details,
+            default_country=g.current_user.country,
+            default_region=g.current_user.primary_region,
+        )
     elif request.method == "POST":
         values = {key: str(value or "") for key, value in form_data.items()}
         values["last_seen_at"] = request.form.get("last_seen_at", "")
     else:
-        values = report_form_values()
+        values = report_form_values(
+            default_country=g.current_user.country,
+            default_region=g.current_user.primary_region,
+        )
+
+    incident_countries, regions_by_country = incident_location_reference()
 
     return render_template(
         "report_missing_person.html",
@@ -628,6 +668,8 @@ def report_missing_person():
         values=values,
         errors=errors,
         saved=saved,
+        incident_countries=incident_countries,
+        regions_by_country=regions_by_country,
     )
 
 
