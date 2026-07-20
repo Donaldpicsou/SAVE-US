@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Active alerts · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Preference-targeted alert feed, filtered by category and public text. -->
+  <section class="alert-feed-page">
+    <header class="alert-feed-heading">
+      <div><p class="eyebrow">{{ current_user.country }} · {{ current_user.primary_region }}</p><h1>Alerts for you</h1><p>Published alerts selected from your country, regions, and alert preferences.</p></div>
+      <a class="button emergency" href="{{ url_for('main.report_missing_person') }}">Report missing person</a>
+    </header>
+
+    <!-- Server-side search and category controls keep the feed URL shareable. -->
+    <form class="alert-feed-controls" method="get">
+      <label class="alert-feed-search">⌕ <input type="search" name="q" value="{{ search }}" placeholder="Search alerts by name or summary"></label>
+      <div class="alert-feed-filters" aria-label="Filter alerts by category">
+        {% for value, label in filters %}
+          <button class="{{ 'selected' if selected_type == value else '' }}" type="submit" name="type" value="{{ value }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+    </form>
+
+    <!-- Each card contains only public-safe alert information. -->
+    <section class="alert-feed-list" aria-live="polite">
+      {% for alert in alerts %}
+        <article class="feed-alert-card {{ alert.type_value }}">
+          <div class="feed-alert-avatar" aria-hidden="true">{{ alert.initials }}</div>
+          <div class="feed-alert-content">
+            <div class="feed-alert-top"><p class="critical-label">{{ alert.type }}</p><span class="status-chip">Published</span></div>
+            <h2>{{ alert.title }}</h2>
+            <p>{{ alert.summary }}</p>
+            <p class="alert-meta">◷ {{ alert.published_label }} · ⌖ {{ alert.location }}</p>
+            <a class="feed-alert-link" href="{{ url_for('main.alert_detail', alert_id=alert.id) }}">View alert <span>→</span></a>
+          </div>
+        </article>
+      {% else %}
+        <!-- Empty state confirms that filtering is respecting the user's coverage. -->
+        <article class="alert-feed-empty"><span>✓</span><h2>No matching alerts</h2><p>There are no published alerts matching your current country, regions, category choices, and search.</p><a href="{{ url_for('main.settings') }}">Manage alert preferences</a></article>
+      {% endfor %}
+    </section>
+  </section>
+{% endblock %}

@@ -11,6 +11,7 @@ from .ai_service import review_missing_person_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, private_media_path, store_missing_person_photo
 from .publication import apply_publication_decision, decide_publication
+from .targeting import user_receives_alert
 from .models import (
     AIReview,
     Alert,
@@ -74,6 +75,15 @@ PREFERENCE_CATEGORIES = (
         "title": "Road accidents",
         "description": "Serious road incidents near your primary and followed regions.",
     },
+)
+
+
+ALERT_FEED_FILTERS = (
+    ("", "All alerts"),
+    (AlertType.MISSING_PERSON.value, "Missing people"),
+    (AlertType.SUSPECTED_ABDUCTION.value, "Suspected abductions"),
+    (AlertType.UNKNOWN_HOSPITAL_PATIENT.value, "Unknown patients"),
+    (AlertType.ROAD_ACCIDENT.value, "Road accidents"),
 )
 
 
@@ -197,16 +207,90 @@ def dashboard():
 @bp.get("/alerts")
 @login_required
 def alerts():
-    return render_template("simple_page.html", title="Active alerts", eyebrow="Cameroon · Centre", description="Browse alerts that match your country, regions, and preferences.", active_page="alerts", app_shell=True, primary_action="Browse alerts")
+    """Show only published alerts that match the signed-in user's preferences."""
+    selected_type = request.args.get("type", "").strip()
+    valid_types = {value for value, _label in ALERT_FEED_FILTERS if value}
+    if selected_type not in valid_types:
+        selected_type = ""
+    search = request.args.get("q", "").strip()
+    feed_items = targeted_alert_feed(g.current_user, selected_type=selected_type, search=search)
+    return render_template(
+        "alerts.html",
+        active_page="alerts",
+        app_shell=True,
+        alerts=feed_items,
+        filters=ALERT_FEED_FILTERS,
+        selected_type=selected_type,
+        search=search,
+    )
 
 
 @bp.get("/alerts/<alert_id>")
 @login_required
 def alert_detail(alert_id: str):
+    """Open a public-safe alert only when it belongs in the viewer's feed."""
+    stored_alert = db.session.get(Alert, alert_id)
+    if stored_alert is not None:
+        if not user_receives_alert(g.current_user, stored_alert):
+            abort(404)
+        return render_template(
+            "alert_detail.html",
+            alert=public_alert_view(stored_alert),
+            back_url=url_for("main.alerts"),
+            active_page="alerts",
+            app_shell=True,
+        )
+
+    # Keep the pre-T19 static notification examples available during the demo.
     alert = next((item for item in DEMO_NOTIFICATIONS if item["id"] == alert_id), None)
     if alert is None:
         abort(404)
-    return render_template("alert_detail.html", alert=alert, active_page="alerts", app_shell=True)
+    return render_template(
+        "alert_detail.html",
+        alert=alert,
+        back_url=url_for("main.notifications"),
+        active_page="alerts",
+        app_shell=True,
+    )
+
+
+def targeted_alert_feed(user: User, *, selected_type: str = "", search: str = "") -> list[dict]:
+    """Build a sorted, public-safe feed from published alerts eligible for one user."""
+    stored_alerts = db.session.scalars(
+        db.select(Alert).where(Alert.status == AlertStatus.PUBLISHED)
+    ).all()
+    search_term = search.casefold()
+    matching_alerts = []
+    for alert in stored_alerts:
+        if not user_receives_alert(user, alert):
+            continue
+        if selected_type and alert.alert_type.value != selected_type:
+            continue
+        searchable_text = " ".join((alert.title, alert.public_summary or "")).casefold()
+        if search_term and search_term not in searchable_text:
+            continue
+        matching_alerts.append(alert)
+    matching_alerts.sort(key=lambda alert: alert.published_at or alert.created_at, reverse=True)
+    return [public_alert_view(alert) for alert in matching_alerts]
+
+
+def public_alert_view(alert: Alert) -> dict:
+    """Return display-only data that never includes private contact or precise location."""
+    published_at = alert.published_at or alert.created_at
+    location = " · ".join(
+        part for part in (alert.approximate_zone, alert.region, alert.country) if part
+    )
+    initials = "".join(word[0] for word in alert.title.split()[:2]).upper() or "SU"
+    return {
+        "id": alert.id,
+        "title": alert.title,
+        "type": alert.alert_type.value.replace("_", " ").title(),
+        "type_value": alert.alert_type.value,
+        "summary": alert.public_summary or "A SAVE-US alert has been published.",
+        "location": location or alert.country,
+        "published_label": published_at.strftime("%d %b %Y · %H:%M UTC"),
+        "initials": initials,
+    }
 
 
 def owned_missing_person_draft(draft_id: str | None) -> Alert | None:
