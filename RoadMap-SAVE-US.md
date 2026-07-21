@@ -158,7 +158,7 @@ flowchart LR
 | T51 | Générer la fiche d’alerte PDF côté serveur | La même fiche publique sûre et autorisée est téléchargeable en PDF, avec nom de fichier anglais cohérent et en-têtes de réponse privés/non mis en cache. | T49 | Terminé |
 | T52 | Construire les liens de partage sécurisés | Des liens opaques, révocables et expirables n’exposent que le contenu public autorisé et cessent de fonctionner lorsqu’une alerte est retirée, rejetée ou expirée. Les médias partagés sont absents sauf autorisation explicite de publication. | T49 | Terminé |
 | T53 | Construire les actions de partage | Le détail d’alerte propose copie de lien, partage mobile Web Share avec repli et partage WhatsApp prérempli contenant `Source: SAVE-US` et l’URL sécurisée. | T50, T51, T52 | Terminé |
-| T54 | Tester la sûreté des fiches et du partage | Des tests E2E automatisés couvrent HTML imprimable, PDF, contenu anglais, attribution, charge utile WhatsApp, révocation de lien et absence de données privées ou médias non autorisés. | T50–T53 | Planifié |
+| T54 | Tester la sûreté des fiches et du partage | Des tests E2E automatisés couvrent HTML imprimable, PDF, contenu anglais, attribution, charge utile WhatsApp, révocation de lien et absence de données privées ou médias non autorisés. | T50–T53 | Terminé |
 
 ## Chemin critique
 
