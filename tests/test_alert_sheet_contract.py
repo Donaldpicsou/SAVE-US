@@ -3,6 +3,7 @@
 import json
 import unittest
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from app import create_app
 from app.alert_sheet_contract import (
@@ -13,7 +14,7 @@ from app.alert_sheet_contract import (
     validate_alert_sheet,
 )
 from app.extensions import db
-from app.models import Alert, AlertPreference, AlertStatus, AlertType, MissingPersonDetails, RoadAccidentDetails, User, utc_now
+from app.models import Alert, AlertPreference, AlertShareLink, AlertStatus, AlertType, MissingPersonDetails, RoadAccidentDetails, User, utc_now
 
 
 class AlertSheetContractTestCase(unittest.TestCase):
@@ -209,6 +210,134 @@ class AlertSheetRouteTestCase(unittest.TestCase):
         self.sign_in_as(self.outsider)
         self.assertEqual(self.client.get(f"/alerts/{self.alert.id}/sheet").status_code, 404)
         self.assertEqual(self.client.get(f"/alerts/{self.alert.id}/sheet.pdf").status_code, 404)
+
+
+class SecureShareLinkRouteTestCase(unittest.TestCase):
+    """Verify T52 opaque sharing never bypasses the public-safe contract."""
+
+    def setUp(self) -> None:
+        self.app = create_app({"TESTING": True, "SECRET_KEY": "test-secret", "SQLALCHEMY_DATABASE_URI": "sqlite://"})
+        self.context = self.app.app_context()
+        self.context.push()
+        db.create_all()
+        self.reporter = User(phone_number="+237692000021", country="Cameroon", primary_region="Centre", is_phone_verified=True)
+        self.outsider = User(phone_number="+24174001001", country="Gabon", primary_region="Estuaire", is_phone_verified=True)
+        self.alert = Alert(
+            reporter=self.reporter,
+            alert_type=AlertType.MISSING_PERSON,
+            status=AlertStatus.PUBLISHED,
+            title="Find Amadou",
+            public_summary="A missing person alert was published for the Mfoundi district.",
+            country="Cameroon",
+            region="Centre",
+            approximate_zone="Mfoundi district",
+            published_at=utc_now(),
+        )
+        db.session.add_all([
+            self.reporter,
+            self.outsider,
+            self.alert,
+            MissingPersonDetails(
+                alert=self.alert,
+                private_family_contact="+237 692 333 444",
+                last_seen_location="12 Rue de la Paix",
+                circumstances="Private family circumstances.",
+                photo_path="missing_person/private/amadou.png",
+            ),
+        ])
+        db.session.commit()
+        self.client = self.app.test_client()
+
+    def tearDown(self) -> None:
+        db.session.remove()
+        db.drop_all()
+        self.context.pop()
+
+    def sign_in_as(self, user: User) -> None:
+        with self.client.session_transaction() as browser_session:
+            browser_session["user_id"] = user.id
+
+    def issue_link(self) -> tuple[str, AlertShareLink]:
+        self.sign_in_as(self.reporter)
+        response = self.client.post(f"/alerts/{self.alert.id}/share-links")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        path = urlparse(payload["url"]).path
+        self.assertRegex(path, r"^/s/[A-Za-z0-9_-]{30,}$")
+        self.assertNotIn(self.alert.id, path)
+        link = db.session.scalar(db.select(AlertShareLink).where(AlertShareLink.alert_id == self.alert.id))
+        self.assertIsNotNone(link)
+        self.assertEqual(payload["expires_at"], link.expires_at.isoformat())
+        return path, link
+
+    def test_public_link_exposes_only_safe_contract_content_and_security_headers(self) -> None:
+        path, _link = self.issue_link()
+        with self.client.session_transaction() as browser_session:
+            browser_session.clear()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Find Amadou", response.data)
+        self.assertIn(b"Source: SAVE-US", response.data)
+        self.assertNotIn(b"+237 692 333 444", response.data)
+        self.assertNotIn(b"12 Rue de la Paix", response.data)
+        self.assertNotIn(b"Private family circumstances.", response.data)
+        self.assertNotIn(b"missing_person/private/amadou.png", response.data)
+        self.assertNotIn(b"<img", response.data)
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store, max-age=0")
+        self.assertEqual(response.headers["Referrer-Policy"], "no-referrer")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+
+    def test_only_authorised_users_can_issue_or_revoke_and_revocation_disables_link(self) -> None:
+        self.sign_in_as(self.outsider)
+        self.assertEqual(self.client.post(f"/alerts/{self.alert.id}/share-links").status_code, 404)
+
+        path, link = self.issue_link()
+        self.sign_in_as(self.outsider)
+        self.assertEqual(
+            self.client.post(f"/alerts/{self.alert.id}/share-links/{link.id}/revoke").status_code,
+            404,
+        )
+        self.sign_in_as(self.reporter)
+        self.assertEqual(
+            self.client.post(f"/alerts/{self.alert.id}/share-links/{link.id}/revoke").status_code,
+            204,
+        )
+        self.assertIsNotNone(db.session.get(AlertShareLink, link.id).revoked_at)
+        with self.client.session_transaction() as browser_session:
+            browser_session.clear()
+        self.assertEqual(self.client.get(path).status_code, 404)
+
+    def test_link_stops_for_expiry_and_alert_lifecycle_changes(self) -> None:
+        path, link = self.issue_link()
+        link.expires_at = utc_now() - timedelta(seconds=1)
+        db.session.commit()
+        with self.client.session_transaction() as browser_session:
+            browser_session.clear()
+        self.assertEqual(self.client.get(path).status_code, 404)
+
+        for terminal_status in (AlertStatus.WITHDRAWN, AlertStatus.REJECTED, AlertStatus.EXPIRED):
+            self.alert.status = AlertStatus.PUBLISHED
+            db.session.commit()
+            self.sign_in_as(self.reporter)
+            response = self.client.post(f"/alerts/{self.alert.id}/share-links")
+            self.assertEqual(response.status_code, 200)
+            next_path = urlparse(response.get_json()["url"]).path
+            self.alert.status = terminal_status
+            db.session.commit()
+            with self.client.session_transaction() as browser_session:
+                browser_session.clear()
+            self.assertEqual(self.client.get(next_path).status_code, 404)
+
+    def test_link_never_outlives_an_alert_with_a_shorter_expiry(self) -> None:
+        self.alert.expires_at = utc_now() + timedelta(hours=2)
+        db.session.commit()
+        _path, link = self.issue_link()
+        self.assertLessEqual(link.expires_at, self.alert.expires_at)
+
+        self.alert.expires_at = utc_now() - timedelta(seconds=1)
+        db.session.commit()
+        self.sign_in_as(self.reporter)
+        self.assertEqual(self.client.post(f"/alerts/{self.alert.id}/share-links").status_code, 404)
 
         self.sign_in_as(self.reporter)
         self.alert.public_summary = "Call +237 692 333 444 immediately."

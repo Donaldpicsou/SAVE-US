@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <!-- Public T52 share view: it renders only the validated T49 contract; no original media is ever embedded. -->
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <title>{{ sheet.title }} · SAVE-US</title>
+    <style>
+      :root { --navy:#003f70; --blue:#1284bd; --sky:#e8f5ff; --orange:#ff6a00; --ink:#0b2740; --muted:#506176; }
+      * { box-sizing:border-box; } body { background:#edf3f8; color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:2rem 1rem; }
+      main { background:#fff; border-top:5px solid var(--orange); box-shadow:0 14px 40px rgba(0,41,76,.12); margin:0 auto; max-width:700px; padding:2rem; }
+      .brand { color:var(--navy); font-size:1.45rem; font-weight:900; letter-spacing:.02em; margin:0; }.network { color:var(--muted); font-size:.68rem; font-weight:800; letter-spacing:.1em; margin:.25rem 0 1.7rem; text-transform:uppercase; }
+      .category { color:var(--blue); font-size:.78rem; font-weight:900; letter-spacing:.1em; margin:0 0 .55rem; text-transform:uppercase; }.status { background:#e3f5e6; border-radius:999px; color:#17642a; display:inline-block; font-size:.72rem; font-weight:900; letter-spacing:.06em; padding:.45rem .65rem; text-transform:uppercase; }
+      h1 { color:var(--navy); font-size:clamp(1.8rem,6vw,2.45rem); letter-spacing:-.035em; line-height:1.08; margin:.8rem 0 1rem; overflow-wrap:anywhere; }.summary { border-left:5px solid var(--blue); font-size:1.08rem; line-height:1.65; margin:1.2rem 0 1.5rem; padding-left:1rem; }
+      .meta { display:grid; gap:.7rem; grid-template-columns:repeat(2,minmax(0,1fr)); }.meta article { background:var(--sky); border-radius:.6rem; padding:.85rem; }.meta span { color:var(--muted); display:block; font-size:.67rem; font-weight:900; letter-spacing:.07em; text-transform:uppercase; }.meta strong { color:var(--navy); display:block; line-height:1.45; margin-top:.3rem; }
+      .safety { background:#fff4e9; border:1px solid #f3c28b; border-radius:.65rem; line-height:1.55; margin-top:1.4rem; padding:1rem; }.safety h2 { color:#934000; font-size:.85rem; letter-spacing:.06em; margin:0 0 .4rem; text-transform:uppercase; }.safety p { margin:0; }
+      footer { border-top:1px solid #cbddea; color:var(--muted); display:flex; font-size:.75rem; justify-content:space-between; margin-top:1.7rem; padding-top:1rem; } footer strong { color:var(--navy); }
+      @media (max-width:560px) { body { padding:0; } main { min-height:100vh; padding:1.5rem; } .meta { grid-template-columns:1fr; } footer { flex-direction:column; gap:.35rem; } }
+    </style>
+  </head>
+  <body>
+    <main aria-labelledby="shared-alert-title">
+      <!-- Brand and incident state -->
+      <p class="brand">SAVE-US</p><p class="network">CEMAC Emergency Network</p>
+      <span class="status">{{ sheet.status }}</span>
+      <!-- Approved public-safe incident fields -->
+      <p class="category">{{ sheet.category_label }}</p>
+      <h1 id="shared-alert-title">{{ sheet.title }}</h1>
+      <p class="summary">{{ sheet.summary }}</p>
+      <section class="meta" aria-label="Public alert information">
+        <article><span>Approximate area</span><strong>{{ sheet.approximate_location }}</strong></article>
+        <article><span>Coverage</span><strong>{{ sheet.coverage }}</strong></article>
+        <article><span>Published</span><strong>{{ sheet.published_label }}</strong></article>
+        {% if sheet.expires_label %}<article><span>Alert expiry</span><strong>{{ sheet.expires_label }}</strong></article>{% endif %}
+      </section>
+      <!-- Safety guidance; the shared view intentionally has no media or contact action. -->
+      <section class="safety"><h2>Safety guidance</h2><p>{{ sheet.safety_guidance }}</p></section>
+      <footer><strong>{{ sheet.source }}</strong><span>Shared {{ generated_at.strftime('%d %b %Y · %H:%M UTC') }}</span></footer>
+    </main>
+  </body>
+</html>

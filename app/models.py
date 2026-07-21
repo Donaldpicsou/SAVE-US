@@ -103,6 +103,10 @@ class User(db.Model):
         foreign_keys="Notification.recipient_id",
         order_by="Notification.created_at.desc()",
     )
+    created_share_links: Mapped[list["AlertShareLink"]] = relationship(
+        back_populates="created_by",
+        foreign_keys="AlertShareLink.created_by_id",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.id} {self.phone_number}>"
@@ -211,9 +215,41 @@ class Alert(db.Model):
         back_populates="alert",
         cascade="all, delete-orphan",
     )
+    share_links: Mapped[list["AlertShareLink"]] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+        order_by="AlertShareLink.created_at.desc()",
+    )
 
     def __repr__(self) -> str:
         return f"<Alert {self.id} {self.alert_type.value} {self.status.value}>"
+
+
+class AlertShareLink(db.Model):
+    """Opaque, revocable external access to an alert's T49-safe representation."""
+
+    __tablename__ = "alert_share_links"
+    __table_args__ = (
+        Index("ix_alert_share_links_alert_active", "alert_id", "revoked_at", "expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_by_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token: Mapped[str] = mapped_column(String(96), nullable=False, unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    alert: Mapped[Alert] = relationship(back_populates="share_links")
+    created_by: Mapped[User] = relationship(back_populates="created_share_links", foreign_keys=[created_by_id])
+
+    def __repr__(self) -> str:
+        return f"<AlertShareLink alert_id={self.alert_id} expires_at={self.expires_at}>"
 
 
 class MissingPersonDetails(db.Model):
@@ -576,6 +612,7 @@ class Notification(db.Model):
 __all__ = [
     "Alert",
     "AlertPreference",
+    "AlertShareLink",
     "AlertStatus",
     "AlertType",
     "AIReview",

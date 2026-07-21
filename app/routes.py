@@ -26,10 +26,12 @@ from .road_media_moderation import (
     MEDIA_STATUS_NEEDS_MODERATION,
     review_road_accident_media,
 )
+from .share_links import create_or_get_active_share_link, is_share_link_active, revoke_share_link
 from .targeting import eligible_recipients, user_receives_alert
 from .models import (
     AIReview,
     Alert,
+    AlertShareLink,
     AlertPreference,
     AlertStatus,
     AlertType,
@@ -318,16 +320,21 @@ def alert_detail(alert_id: str):
     abort(404)
 
 
+def may_access_alert(user: User, alert: Alert) -> bool:
+    """Return whether a signed-in user may access an alert's safe public view."""
+    return (
+        alert.reporter_id == user.id
+        or user.role in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}
+        or user_receives_alert(user, alert)
+    )
+
+
 @bp.get("/alerts/<alert_id>/sheet")
 @login_required
 def alert_sheet(alert_id: str):
     """Render an authorised A4-friendly sheet from the T49 public-safe contract."""
     stored_alert = db.session.get(Alert, alert_id)
-    if stored_alert is None or (
-        stored_alert.reporter_id != g.current_user.id
-        and g.current_user.role not in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}
-        and not user_receives_alert(g.current_user, stored_alert)
-    ):
+    if stored_alert is None or not may_access_alert(g.current_user, stored_alert):
         abort(404)
     try:
         sheet = build_alert_sheet(stored_alert, generated_at=datetime.now(timezone.utc))
@@ -347,11 +354,7 @@ def alert_sheet(alert_id: str):
 def alert_sheet_pdf(alert_id: str):
     """Download a private, non-cacheable PDF generated from the T49 contract."""
     stored_alert = db.session.get(Alert, alert_id)
-    if stored_alert is None or (
-        stored_alert.reporter_id != g.current_user.id
-        and g.current_user.role not in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}
-        and not user_receives_alert(g.current_user, stored_alert)
-    ):
+    if stored_alert is None or not may_access_alert(g.current_user, stored_alert):
         abort(404)
     try:
         generated_at = datetime.now(timezone.utc)
@@ -370,6 +373,71 @@ def alert_sheet_pdf(alert_id: str):
         max_age=0,
     )
     response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@bp.post("/alerts/<alert_id>/share-links")
+@login_required
+def create_alert_share_link(alert_id: str):
+    """Issue or reuse an opaque external link for an authorised published alert.
+
+    This is deliberately a JSON endpoint. T53 will attach it to visible
+    copy/Web Share/WhatsApp controls without exposing report identifiers.
+    """
+    stored_alert = db.session.get(Alert, alert_id)
+    if stored_alert is None or not may_access_alert(g.current_user, stored_alert):
+        abort(404)
+    try:
+        # Validate the same T49 representation before any public URL exists.
+        build_alert_sheet(stored_alert, generated_at=datetime.now(timezone.utc))
+        link = create_or_get_active_share_link(stored_alert, created_by_id=g.current_user.id)
+    except (AlertSheetSafetyError, ValueError):
+        abort(404)
+    return jsonify(
+        {
+            "url": url_for("main.public_share_link", token=link.token, _external=True),
+            "expires_at": link.expires_at.isoformat(),
+        }
+    )
+
+
+@bp.post("/alerts/<alert_id>/share-links/<link_id>/revoke")
+@login_required
+def revoke_alert_share_link(alert_id: str, link_id: str):
+    """Revoke a link while retaining its non-public accountability record."""
+    stored_alert = db.session.get(Alert, alert_id)
+    link = db.session.get(AlertShareLink, link_id)
+    if stored_alert is None or link is None or link.alert_id != stored_alert.id:
+        abort(404)
+    if stored_alert.reporter_id != g.current_user.id and g.current_user.role not in {
+        UserRole.MODERATOR,
+        UserRole.ADMINISTRATOR,
+    }:
+        abort(404)
+    revoke_share_link(link)
+    return ("", 204)
+
+
+@bp.get("/s/<token>")
+def public_share_link(token: str):
+    """Serve only the T49-safe external representation for a live opaque link."""
+    link = db.session.scalar(db.select(AlertShareLink).where(AlertShareLink.token == token))
+    if link is None or not is_share_link_active(link):
+        abort(404)
+    try:
+        generated_at = datetime.now(timezone.utc)
+        sheet = build_alert_sheet(link.alert, generated_at=generated_at)
+    except AlertSheetSafetyError:
+        abort(404)
+    response = current_app.make_response(
+        render_template("shared_alert.html", sheet=sheet, generated_at=generated_at)
+    )
+    # Tokens may be forwarded; do not let browsers, proxies, or referrers
+    # retain them beyond the intentional recipient.
+    response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
