@@ -30,6 +30,7 @@ from .road_media_moderation import (
 from .share_links import build_public_share_message, create_or_get_active_share_link, is_share_link_active, revoke_share_link
 from .targeting import eligible_recipients, user_receives_alert
 from .models import (
+    AdministrationAuditEntry,
     AIReview,
     Alert,
     AlertShareLink,
@@ -300,6 +301,98 @@ def dashboard():
 def administrator_home():
     """Provide the restricted entry point for the staged T43–T47 tools."""
     return render_template("admin_home.html", active_page="admin", app_shell=True)
+
+
+def moderator_restore_role(user_id: int) -> UserRole:
+    """Restore the role before the latest moderator grant, or citizen by default."""
+    grant = db.session.scalar(
+        db.select(AdministrationAuditEntry)
+        .where(
+            AdministrationAuditEntry.target_user_id == user_id,
+            AdministrationAuditEntry.action == "moderator_granted",
+        )
+        .order_by(AdministrationAuditEntry.created_at.desc())
+    )
+    prior_role = grant.prior_value.get("role") if grant and isinstance(grant.prior_value, dict) else None
+    allowed_roles = {
+        UserRole.CITIZEN.value: UserRole.CITIZEN,
+        UserRole.REPORTER.value: UserRole.REPORTER,
+        UserRole.HOSPITAL_REPRESENTATIVE.value: UserRole.HOSPITAL_REPRESENTATIVE,
+    }
+    return allowed_roles.get(prior_role, UserRole.CITIZEN)
+
+
+@bp.get("/admin/moderators")
+@administrator_required
+def administrator_moderators():
+    """Find users privately before making an accountable moderator role change."""
+    search = request.args.get("q", "").strip()
+    query = db.select(User).order_by(User.created_at.desc())
+    if search:
+        pattern = f"%{search}%"
+        query = query.where((User.display_name.ilike(pattern)) | (User.phone_number.ilike(pattern)))
+    return render_template(
+        "admin_moderators.html",
+        active_page="admin",
+        app_shell=True,
+        users=db.session.scalars(query.limit(50)).all(),
+        search=search,
+        error=request.args.get("error"),
+        message=request.args.get("message"),
+    )
+
+
+@bp.post("/admin/moderators/<int:user_id>/role")
+@administrator_required
+def update_moderator_role(user_id: int):
+    """Grant or remove moderator access with an immutable reasoned audit entry."""
+    target = db.session.get(User, user_id)
+    if target is None:
+        abort(404)
+    search = request.form.get("q", "").strip()
+    action = request.form.get("action", "").strip()
+    reason = request.form.get("reason", "").strip()
+    redirect_args = {"q": search} if search else {}
+
+    def rejected(message: str):
+        return redirect(url_for("main.administrator_moderators", error=message, **redirect_args))
+
+    if not reason:
+        return rejected("A reason is required for every moderator role change.")
+    if target.role == UserRole.ADMINISTRATOR:
+        administrator_count = db.session.scalar(db.select(db.func.count(User.id)).where(User.role == UserRole.ADMINISTRATOR))
+        if administrator_count <= 1:
+            return rejected("The last administrator cannot be changed or removed.")
+        if target.id == g.current_user.id:
+            return rejected("You cannot change your own administrator role from moderator management.")
+        return rejected("Administrator roles cannot be changed from moderator management.")
+    if target.id == g.current_user.id:
+        return rejected("You cannot change your own administrator role from moderator management.")
+
+    prior_value = {"role": target.role.value}
+    if action == "grant":
+        if target.role == UserRole.MODERATOR:
+            return rejected("This user already has moderator access.")
+        target.role = UserRole.MODERATOR
+        audit_action = "moderator_granted"
+    elif action == "revoke":
+        if target.role != UserRole.MODERATOR:
+            return rejected("Only an active moderator can have moderator access removed.")
+        target.role = moderator_restore_role(target.id)
+        audit_action = "moderator_revoked"
+    else:
+        return rejected("Choose whether to grant or remove moderator access.")
+
+    record_administration_audit(
+        actor_id=g.current_user.id,
+        action=audit_action,
+        reason=reason,
+        prior_value=prior_value,
+        new_value={"role": target.role.value},
+        target_user_id=target.id,
+    )
+    db.session.commit()
+    return redirect(url_for("main.administrator_moderators", message="Moderator access updated.", **redirect_args))
 
 
 @bp.route("/hospital-verification/request", methods=("GET", "POST"))

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Moderator management · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- T44 administrator-only moderator access management and immutable audit workflow. -->
+  <section class="my-reports-page moderator-management-page">
+    <header class="my-reports-heading"><div><p class="eyebrow">Administrator access</p><h1>Moderator management</h1><p>Find a user, then grant or remove moderator access with a clear reason. Administrator roles are protected here.</p></div></header>
+    {% if error %}<p class="verification-status-card report-status rejected" role="alert">{{ error }}</p>{% endif %}
+    {% if message %}<p class="verification-success" role="status">{{ message }}</p>{% endif %}
+    <form class="moderator-search" method="get" role="search"><label for="moderator-search">Find a user by name or phone number</label><div><input id="moderator-search" name="q" value="{{ search }}" autocomplete="off" placeholder="Name or phone number"><button class="button primary" type="submit">Search</button></div><p>Results are private and limited to 50 users.</p></form>
+    <section class="moderator-user-list" aria-label="User search results">
+      {% for user in users %}
+        <article class="moderator-user-card">
+          <div class="moderator-user-summary"><span class="account-avatar">{{ user.display_name[:1] if user.display_name else 'U' }}</span><div><h2>{{ user.display_name or 'Unnamed SAVE-US user' }}</h2><p>{{ user.phone_number[:5] }}•••• · {{ user.primary_region }} · {{ user.country }}</p><span class="report-status {{ user.role.value }}">{{ user.role.value.replace('_', ' ')|title }}</span></div></div>
+          {% if user.id == current_user.id %}<p class="moderator-role-protection">Your own role cannot be changed here.</p>
+          {% elif user.role.value == 'administrator' %}<p class="moderator-role-protection">Administrator access is protected and cannot be changed here.</p>
+          {% else %}
+            <form class="moderator-role-form" method="post" action="{{ url_for('main.update_moderator_role', user_id=user.id) }}"><input type="hidden" name="q" value="{{ search }}"><input type="hidden" name="action" value="{{ 'revoke' if user.role.value == 'moderator' else 'grant' }}"><label for="reason-{{ user.id }}">Audit reason</label><textarea id="reason-{{ user.id }}" name="reason" rows="2" maxlength="2000" required placeholder="Why is this access change needed?"></textarea><div><button class="button {{ 'danger' if user.role.value == 'moderator' else 'primary' }}" type="submit">{{ 'Remove moderator access' if user.role.value == 'moderator' else 'Grant moderator access' }}</button>{% if user.role.value == 'moderator' %}<small>Returns to their earlier role where recorded; otherwise citizen.</small>{% endif %}</div></form>
+          {% endif %}
+        </article>
+      {% else %}<article class="my-reports-empty"><span>⌕</span><h2>No users found</h2><p>Try a name or phone number registered on SAVE-US.</p></article>{% endfor %}
+    </section>
+  </section>
+{% endblock %}
