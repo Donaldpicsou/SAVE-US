@@ -1,7 +1,7 @@
 """Presentation routes, simulated authentication, and session helpers."""
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from io import BytesIO
 from pathlib import Path
@@ -302,8 +302,59 @@ def dashboard():
 @bp.get("/admin")
 @administrator_required
 def administrator_home():
-    """Provide the restricted entry point for the staged T43–T47 tools."""
-    return render_template("admin_home.html", active_page="admin", app_shell=True)
+    """Provide privacy-minimised operational health metrics for administrators."""
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+    pending_statuses = [AlertStatus.AI_REVIEW, AlertStatus.NEEDS_MODERATION]
+    active_alerts = db.session.scalar(db.select(db.func.count(Alert.id)).where(Alert.status == AlertStatus.PUBLISHED))
+    pending_alerts = db.session.scalar(db.select(db.func.count(Alert.id)).where(Alert.status.in_(pending_statuses)))
+    expired_alerts = db.session.scalar(db.select(db.func.count(Alert.id)).where(Alert.status == AlertStatus.EXPIRED))
+    reports_created = db.session.scalar(db.select(db.func.count(Alert.id)).where(Alert.created_at >= seven_days_ago))
+    pending_hospital_requests = db.session.scalar(
+        db.select(db.func.count(HospitalVerificationRequest.id)).where(
+            HospitalVerificationRequest.status == HospitalVerificationStatus.PENDING
+        )
+    )
+    moderation_actions = db.session.scalars(
+        db.select(ReportAction)
+        .where(ReportAction.action.like("moderator_%"), ReportAction.created_at >= seven_days_ago)
+        .order_by(ReportAction.created_at.desc())
+    ).all()
+    action_alert_ids = {action.alert_id for action in moderation_actions}
+    action_alerts = db.session.scalars(db.select(Alert).where(Alert.id.in_(action_alert_ids))).all() if action_alert_ids else []
+    alerts_by_id = {alert.id: alert for alert in action_alerts}
+    moderation_delays = [
+        max(0, (action.created_at.timestamp() - alerts_by_id[action.alert_id].created_at.timestamp()) / 3600)
+        for action in moderation_actions
+        if action.alert_id in alerts_by_id
+    ]
+    pending_items = db.session.scalars(db.select(Alert).where(Alert.status.in_(pending_statuses))).all()
+    pending_ages = [max(0, (now.timestamp() - alert.created_at.timestamp()) / 3600) for alert in pending_items]
+    actor_counts: dict[int, int] = {}
+    for action in moderation_actions:
+        actor_counts[action.actor_id] = actor_counts.get(action.actor_id, 0) + 1
+    moderators = db.session.scalars(db.select(User).where(User.id.in_(set(actor_counts)))).all() if actor_counts else []
+    moderator_names = {user.id: user.display_name or f"Account #{user.id}" for user in moderators}
+    moderator_activity = [
+        {"name": moderator_names.get(actor_id, f"Account #{actor_id}"), "actions": count}
+        for actor_id, count in sorted(actor_counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+    return render_template(
+        "admin_home.html",
+        active_page="admin",
+        app_shell=True,
+        metrics={
+            "active_alerts": active_alerts or 0,
+            "pending_alerts": pending_alerts or 0,
+            "expired_alerts": expired_alerts or 0,
+            "reports_created": reports_created or 0,
+            "pending_hospital_requests": pending_hospital_requests or 0,
+            "moderation_actions": len(moderation_actions),
+            "average_moderation_hours": round(sum(moderation_delays) / len(moderation_delays), 1) if moderation_delays else None,
+            "average_pending_hours": round(sum(pending_ages) / len(pending_ages), 1) if pending_ages else None,
+        },
+        moderator_activity=moderator_activity[:6],
+    )
 
 
 def moderator_restore_role(user_id: int) -> UserRole:

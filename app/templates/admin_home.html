@@ -3,11 +3,22 @@
 {% block title %}Administration · SAVE-US{% endblock %}
 
 {% block content %}
-  <!-- T42 restricted administration entry: it intentionally exposes no private data or management action yet. -->
+  <!-- T47 administrator-only operational dashboard: aggregate metrics, never private report content. -->
   <section class="simple-page admin-home-page">
     <p class="eyebrow">Administrator access</p>
     <h1>Administration workspace</h1>
-    <p class="lead">This private area is reserved for SAVE-US administrators. It will host accountable operational tools as each administration workflow is completed.</p>
+    <p class="lead">A safe operational view of SAVE-US activity. All indicators are aggregated and do not expose private report details, contacts, media, or exact locations.</p>
+    <section class="admin-metric-grid" aria-label="Operational alert and moderation metrics">
+      <article><span>Active alerts</span><strong>{{ metrics.active_alerts }}</strong><small>Currently published</small></article>
+      <article><span>Pending alerts</span><strong>{{ metrics.pending_alerts }}</strong><small>AI review or moderation</small></article>
+      <article><span>Expired alerts</span><strong>{{ metrics.expired_alerts }}</strong><small>Historical expiry total</small></article>
+      <article><span>Reports · 7 days</span><strong>{{ metrics.reports_created }}</strong><small>New incident reports</small></article>
+    </section>
+    <section class="admin-operations-grid" aria-label="Moderation operations">
+      <article class="admin-operations-card"><h2>Moderation workload</h2><dl><div><dt>Decisions · 7 days</dt><dd>{{ metrics.moderation_actions }}</dd></div><div><dt>Average decision delay</dt><dd>{{ metrics.average_moderation_hours ~ ' h' if metrics.average_moderation_hours is not none else 'No decisions yet' }}</dd></div><div><dt>Average pending age</dt><dd>{{ metrics.average_pending_hours ~ ' h' if metrics.average_pending_hours is not none else 'No pending alerts' }}</dd></div></dl></article>
+      <article class="admin-operations-card"><h2>Hospital verification</h2><p><strong>{{ metrics.pending_hospital_requests }}</strong> private request{{ '' if metrics.pending_hospital_requests == 1 else 's' }} awaiting review.</p><a class="button secondary" href="{{ url_for('main.administrator_hospital_verifications') }}">Review requests</a></article>
+      <article class="admin-operations-card"><h2>Moderator activity · 7 days</h2><ul class="moderator-activity-list">{% for item in moderator_activity %}<li><span>{{ item.name }}</span><strong>{{ item.actions }} action{{ '' if item.actions == 1 else 's' }}</strong></li>{% else %}<li class="empty">No moderator decisions recorded in this period.</li>{% endfor %}</ul></article>
+    </section>
     <section class="admin-foundations" aria-label="Administration workflow status">
       <article><h2>Hospital verification</h2><p>Review private institution requests and record a reasoned approval or rejection.</p><a class="button secondary" href="{{ url_for('main.administrator_hospital_verifications') }}">Review requests</a></article>
       <article><h2>Moderator management</h2><p>Grant or remove moderator access with safeguards and an immutable audit reason.</p><a class="button secondary" href="{{ url_for('main.administrator_moderators') }}">Manage moderators</a></article>
