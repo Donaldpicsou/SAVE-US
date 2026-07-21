@@ -42,6 +42,7 @@ def record_administration_audit(
     target_user_id: int | None = None,
     alert_id: str | None = None,
     hospital_verification_request_id: str | None = None,
+    moderator_access_request_id: str | None = None,
 ) -> AdministrationAuditEntry:
     """Stage one validated immutable entry; the caller controls its transaction."""
     entry = AdministrationAuditEntry(
@@ -53,6 +54,7 @@ def record_administration_audit(
         target_user_id=target_user_id,
         alert_id=alert_id,
         hospital_verification_request_id=hospital_verification_request_id,
+        moderator_access_request_id=moderator_access_request_id,
     )
     errors = entry.validation_errors()
     if errors:

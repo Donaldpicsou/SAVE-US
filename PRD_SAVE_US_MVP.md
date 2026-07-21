@@ -2,18 +2,18 @@
 
 **Produit :** SAVE-US, CEMAC Emergency Network  
 **Version :** MVP Hackathon — OpenAI Build Week  
-**Date :** 18 juillet 2026  
+**Date :** 21 juillet 2026
 **Langue de l’interface MVP :** anglais uniquement  
 **Marché de démonstration :** Cameroun ; architecture et sélecteur prêts pour les 6 pays CEMAC  
 **Cible Devpost :** *Apps for your life*
 
 ## 1. Résumé
 
-SAVE-US est une plateforme communautaire d’alerte et de vérification d’urgence pour la CEMAC. Elle permet aux citoyens vérifiés de déclarer des disparitions, des enlèvements présumés et des accidents routiers graves ; les établissements médicaux vérifiés peuvent signaler une personne inconnue, amnésique ou inconsciente prise en charge.
+SAVE-US est une plateforme communautaire d’alerte et de vérification d’urgence pour la CEMAC. Elle permet aux citoyens vérifiés de déclarer des disparitions, des enlèvements présumés et des accidents routiers graves. Les établissements médicaux vérifiés constituent le rôle prévu pour le futur parcours de personne inconnue, amnésique ou inconsciente prise en charge.
 
 Les agents IA structurent les déclarations, détectent les informations manquantes et les doublons, évaluent le risque de fraude et produisent une fiche d’alerte partageable. La diffusion est géociblée par pays, région et préférences d’alerte afin de diffuser vite sans noyer les utilisateurs sous des notifications non pertinentes.
 
-Le MVP démontre surtout un parcours de disparition au Cameroun : déclaration par une famille, revue IA, publication géociblée, notification e-mail simulée et partage.
+Le MVP démontre surtout un parcours de disparition au Cameroun, tout en incluant les parcours d’enlèvement présumé et d’accident routier, la modération humaine, l’administration restreinte et le partage public sûr. Le parcours dédié de patient hospitalier inconnu reste différé après le hackathon.
 
 ## 2. Problème et proposition de valeur
 
@@ -28,7 +28,7 @@ Les informations critiques circulent souvent tardivement, de manière dispersée
 3. Publier une alerte si elle respecte les règles de sécurité et de confiance.
 4. Cibler les abonnés du même pays et de la région concernée, selon leurs réglages.
 5. Générer une fiche d’alerte en anglais, imprimable/PDF et partageable.
-6. Montrer les quatre types d’alerte dans le produit, les flux hôpital et accident restant secondaires dans la démo.
+6. Démontrer les trois parcours opérationnels (disparition, enlèvement présumé et accident routier) ; conserver le patient hospitalier inconnu comme évolution explicitement différée.
 
 ### Indicateurs de succès de la démo
 
@@ -46,8 +46,9 @@ Les informations critiques circulent souvent tardivement, de manière dispersée
 - Profil : pays, région principale, régions supplémentaires suivies, catégories d’alertes activées.
 - Catalogue complet des pays et subdivisions CEMAC fourni par le porteur du projet.
 - Fil d’alertes géociblé et recherche simple par nom/statut.
-- Déclaration de disparition complète ; formulaires des trois autres catégories.
+- Déclarations complètes de disparition, enlèvement présumé et accident routier ; le parcours de patient hospitalier inconnu est différé.
 - Analyse IA, doublon, modération minimale, génération de fiche et partage.
+- Administration restreinte : vérification hospitalière privée, demandes motivées d’accès modérateur et gestion des rôles, règles de sûreté bornées, journal d’audit et tableau opérationnel agrégé avec boîte de travail privée et compteurs d’action.
 - Statuts d’alerte, signalement d’erreur/fausse alerte et retrait motivé par le déclarant.
 - E-mail de démo et centre de notifications in-app.
 - Bannière de non-substitution aux services d’urgence.
@@ -60,6 +61,7 @@ Les informations critiques circulent souvent tardivement, de manière dispersée
 - Carte temps réel détaillée ; le fil d’alertes est la vue principale du MVP.
 - Badge « validé par les autorités », commentaires publics, réseau social interne.
 - Publication hospitalière réelle sans vérification manuelle préalable.
+- Formulaire et publication dédiés de patient hospitalier inconnu, y compris son renouvellement par l’hôpital.
 
 ## 5. Utilisateurs et droits
 
@@ -67,7 +69,7 @@ Les informations critiques circulent souvent tardivement, de manière dispersée
 |---|---|
 | Citizen / subscriber | Consulte, règle ses alertes, marque « seen », partage, signale une erreur. |
 | Reporter | Citoyen avec téléphone vérifié ; crée une disparition, un enlèvement ou un accident. |
-| Hospital representative | Compte institutionnel vérifié manuellement et par document ; crée une alerte de patient inconnu. |
+| Hospital representative | Compte institutionnel vérifié manuellement et par document ; rôle prêt pour le futur parcours de patient inconnu. |
 | Moderator | Consulte les alertes à risque, doublons et demandes de retrait ; décide publication/suspension. |
 | Administrator | Vérifie les hôpitaux, gère les modérateurs et les règles. |
 
@@ -79,7 +81,7 @@ Un même utilisateur peut être à la fois citoyen et déclarant. Les alertes re
 |---|---|---|---|---|
 | Missing person | Téléphone vérifié | Nom, âge, photo, sexe, date, dernier lieu vu, contact familial | Région concernée ; autres régions si préférences | 7 jours |
 | Suspected abduction | Téléphone vérifié | Photo, lieu, date/heure, description | Tout le pays | 30 jours |
-| Unknown hospital patient | Hôpital vérifié | Tranche d’âge, sexe, signe distinctif, hôpital, contact du service ; photo si possible | Tout le pays | 3 jours, renouvelable par l’hôpital |
+| Unknown hospital patient | Hôpital vérifié | Tranche d’âge, sexe, signe distinctif, hôpital, contact du service ; photo si possible | Tout le pays | Prévu après le hackathon : 3 jours, renouvelable par l’hôpital |
 | Serious road accident | Téléphone vérifié | Position GPS ; photo/vidéo, victimes et besoin immédiat facultatifs | Région de l’accident ou rayon géographique | 24 h par défaut, clôture manuelle possible |
 
 L’expiration de 24 heures pour les accidents routiers est une décision de cadrage MVP, faute de durée fournie ; elle devra être validée avec les futurs partenaires de secours.
@@ -92,7 +94,7 @@ Règles de sélection d’un destinataire :
 
 1. Le pays de l’alerte doit correspondre au pays choisi par le destinataire.
 2. Pour une disparition ou un accident, le destinataire doit suivre la région concernée (ou être dans le rayon, lorsque celui-ci existe).
-3. Pour un enlèvement ou un patient inconnu, tout utilisateur du pays ayant activé la catégorie est éligible.
+3. Pour un enlèvement, tout utilisateur du pays ayant activé la catégorie est éligible. La règle patient inconnu est réservée au parcours différé.
 4. Une préférence explicite de désactivation prévaut toujours.
 
 ## 8. Workflow IA et décision de publication
@@ -133,6 +135,7 @@ L’IA ne contacte jamais une autorité et ne prétend jamais confirmer un fait.
 8. Reporter dashboard : alertes créées, renouvellement, retrait motivé, « Found ».
 9. Moderator queue : éléments bloqués ou à risque.
 10. Settings : pays/région principale, régions suivies, catégories et rappel de contribution.
+11. Administration : vérifications hospitalières privées, demandes et gestion des accès modérateur, règles de sûreté, journal d’audit, notifications opérationnelles privées et tableau de bord agrégé réservés aux administrateurs.
 
 ## 11. Protection, sûreté et vie privée
 
@@ -154,7 +157,11 @@ L’IA ne contacte jamais une autorité et ne prétend jamais confirmer un fait.
 | AIReview | alert_id, résumé, données manquantes, doublons, confidence_score, fraud_risk_score, décision, motifs |
 | Media | alert_id, chemin privé, type, résultat de modération, version publique éventuelle |
 | Notification | destinataire, alerte, canal, statut de livraison/lecture |
-| ReportAction | retrait, « found », correction, fausse alerte ; justification et pièce jointe |
+| ReportAction | retrait, « found », correction, fausse alerte et décisions de modération ; justification privée |
+| HospitalVerificationRequest | demande institutionnelle privée, décideur, décision et motif |
+| ModeratorAccessRequest | motif privé du demandeur, statut, décideur, décision et motif |
+| Notification | élément privé pour son destinataire ; les éléments opérationnels ne référencent que la demande administrative autorisée |
+| SafetyRule / AdministrationAuditEntry | seuil borné, auteur, action, ancienne/nouvelle valeur, motif immuable et référence de demande autorisée |
 
 Statuts d’alerte : `draft`, `ai_review`, `needs_moderation`, `published`, `rejected`, `reported_found`, `withdrawn`, `expired`.
 
@@ -229,6 +236,8 @@ Le logo fourni est l’autorité visuelle. L’interface doit évoquer protectio
 - Le numéro familial et la position exacte ne sont jamais rendus publics.
 - Le lien de partage inclut l’attribution SAVE-US.
 - Une alerte peut être signalée, retirée avec motif, marquée « found » et expirer selon sa catégorie.
+- Les actions administratives sensibles nécessitent un motif, sont auditées et restent réservées aux administrateurs.
+- Les administrateurs reçoivent des notifications in-app privées pour les vérifications hospitalières et demandes d’accès modérateur en attente ; l’espace de travail et la navigation n’affichent que des compteurs agrégés, retirés dès qu’une décision est enregistrée.
 
 ## 17. Évolutions après le hackathon
 
@@ -237,4 +246,5 @@ Le logo fourni est l’autorité visuelle. L’interface doit évoquer protectio
 - Application mobile et notifications push/SMS/WhatsApp Business.
 - Cartographie, rayons géographiques et intégrations hôpitaux/autorités.
 - Vérification d’autorités et badge officiel.
+- Parcours complet de patient hospitalier inconnu : formulaire réservé à l’hôpital vérifié, revue, publication nationale, expiration et renouvellement.
 - Politique de conservation des données, accords institutionnels et revue juridique locale pour chaque pays CEMAC.

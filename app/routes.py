@@ -15,7 +15,12 @@ from .alert_sheet_pdf import render_alert_sheet_pdf
 from .ai_service import review_missing_person_alert, review_suspected_abduction_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
-from .notification_service import queue_closure_notifications, queue_notification, queue_review_outcome_notifications
+from .notification_service import (
+    queue_administrator_request_notifications,
+    queue_closure_notifications,
+    queue_notification,
+    queue_review_outcome_notifications,
+)
 from .publication import (
     apply_road_accident_publication,
     apply_publication_decision,
@@ -41,6 +46,8 @@ from .models import (
     HospitalVerificationStatus,
     MissingPersonDetails,
     MissingPersonSex,
+    ModeratorAccessRequest,
+    ModeratorAccessRequestStatus,
     Notification,
     ReportAction,
     RoadAccidentDetails,
@@ -148,7 +155,7 @@ def load_current_user() -> None:
 
 @bp.app_context_processor
 def inject_shared_template_data() -> dict:
-    """Expose only the signed-in user's persisted notification previews."""
+    """Expose a user's notifications and role-appropriate operational-work counters."""
     notification_items = notification_views_for_user(g.current_user, limit=4) if g.current_user else []
     unread_notification_count = (
         db.session.scalar(
@@ -160,11 +167,29 @@ def inject_shared_template_data() -> dict:
         if g.current_user
         else 0
     )
+    staff_workload = {"moderation_queue": 0, "hospital_requests": 0, "moderator_requests": 0, "administration": 0}
+    if g.current_user and g.current_user.role in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}:
+        staff_workload["moderation_queue"] = db.session.scalar(
+            db.select(db.func.count(Alert.id)).where(Alert.status.in_([AlertStatus.AI_REVIEW, AlertStatus.NEEDS_MODERATION]))
+        ) or 0
+    if g.current_user and g.current_user.role == UserRole.ADMINISTRATOR:
+        staff_workload["hospital_requests"] = db.session.scalar(
+            db.select(db.func.count(HospitalVerificationRequest.id)).where(
+                HospitalVerificationRequest.status == HospitalVerificationStatus.PENDING
+            )
+        ) or 0
+        staff_workload["moderator_requests"] = db.session.scalar(
+            db.select(db.func.count(ModeratorAccessRequest.id)).where(
+                ModeratorAccessRequest.status == ModeratorAccessRequestStatus.PENDING
+            )
+        ) or 0
+        staff_workload["administration"] = staff_workload["hospital_requests"] + staff_workload["moderator_requests"]
     return {
         "current_user": g.current_user,
         "is_authenticated": g.current_user is not None,
         "notification_items": notification_items,
         "notification_count": unread_notification_count,
+        "staff_workload": staff_workload,
     }
 
 
@@ -315,6 +340,11 @@ def administrator_home():
             HospitalVerificationRequest.status == HospitalVerificationStatus.PENDING
         )
     )
+    pending_moderator_requests = db.session.scalar(
+        db.select(db.func.count(ModeratorAccessRequest.id)).where(
+            ModeratorAccessRequest.status == ModeratorAccessRequestStatus.PENDING
+        )
+    )
     moderation_actions = db.session.scalars(
         db.select(ReportAction)
         .where(ReportAction.action.like("moderator_%"), ReportAction.created_at >= seven_days_ago)
@@ -330,6 +360,18 @@ def administrator_home():
     ]
     pending_items = db.session.scalars(db.select(Alert).where(Alert.status.in_(pending_statuses))).all()
     pending_ages = [max(0, (now.timestamp() - alert.created_at.timestamp()) / 3600) for alert in pending_items]
+    pending_hospital_items = db.session.scalars(
+        db.select(HospitalVerificationRequest).where(HospitalVerificationRequest.status == HospitalVerificationStatus.PENDING)
+    ).all()
+    pending_moderator_items = db.session.scalars(
+        db.select(ModeratorAccessRequest).where(ModeratorAccessRequest.status == ModeratorAccessRequestStatus.PENDING)
+    ).all()
+    pending_administration_items = [*pending_hospital_items, *pending_moderator_items]
+    oldest_administration_hours = (
+        round(max(0, (now.timestamp() - min(item.created_at for item in pending_administration_items).timestamp()) / 3600), 1)
+        if pending_administration_items
+        else None
+    )
     actor_counts: dict[int, int] = {}
     for action in moderation_actions:
         actor_counts[action.actor_id] = actor_counts.get(action.actor_id, 0) + 1
@@ -349,9 +391,12 @@ def administrator_home():
             "expired_alerts": expired_alerts or 0,
             "reports_created": reports_created or 0,
             "pending_hospital_requests": pending_hospital_requests or 0,
+            "pending_moderator_requests": pending_moderator_requests or 0,
+            "pending_administration_requests": (pending_hospital_requests or 0) + (pending_moderator_requests or 0),
             "moderation_actions": len(moderation_actions),
             "average_moderation_hours": round(sum(moderation_delays) / len(moderation_delays), 1) if moderation_delays else None,
             "average_pending_hours": round(sum(pending_ages) / len(pending_ages), 1) if pending_ages else None,
+            "oldest_administration_hours": oldest_administration_hours,
         },
         moderator_activity=moderator_activity[:6],
     )
@@ -447,6 +492,142 @@ def update_moderator_role(user_id: int):
     )
     db.session.commit()
     return redirect(url_for("main.administrator_moderators", message="Moderator access updated.", **redirect_args))
+
+
+@bp.route("/moderator-access/request", methods=("GET", "POST"))
+@login_required
+def request_moderator_access():
+    """Allow a verified non-staff user to request, but never self-grant, moderator access."""
+    if g.current_user.role in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}:
+        abort(403)
+    existing_request = db.session.scalar(
+        db.select(ModeratorAccessRequest).where(
+            ModeratorAccessRequest.submitted_by_id == g.current_user.id,
+            ModeratorAccessRequest.status == ModeratorAccessRequestStatus.PENDING,
+        )
+    )
+    reason = request.form.get("reason", "").strip()
+    errors: dict[str, str] = {}
+    submitted = request.args.get("submitted") == "1"
+    if request.method == "POST":
+        if existing_request is not None:
+            errors["request"] = "A moderator-access request is already awaiting review."
+        else:
+            access_request = ModeratorAccessRequest(submitted_by_id=g.current_user.id, reason=reason)
+            errors = access_request.submission_validation_errors()
+            if not errors:
+                db.session.add(access_request)
+                db.session.flush()
+                queue_administrator_request_notifications(
+                    request_type="moderator_access",
+                    request_id=access_request.id,
+                    title="Moderator access request awaiting review",
+                    body="A verified SAVE-US user requested moderator access. Open the private request to review the stated reason.",
+                )
+                db.session.commit()
+                return redirect(url_for("main.request_moderator_access", submitted="1"))
+    return render_template(
+        "moderator_access_request.html",
+        active_page="settings",
+        app_shell=True,
+        existing_request=existing_request,
+        submitted=submitted,
+        reason=reason,
+        errors=errors,
+    )
+
+
+@bp.get("/admin/moderator-requests")
+@administrator_required
+def administrator_moderator_requests():
+    """List private, pending-or-decided moderator-access requests for administrators."""
+    selected_status = request.args.get("status", ModeratorAccessRequestStatus.PENDING.value)
+    statuses = {status.value: status for status in ModeratorAccessRequestStatus}
+    if selected_status not in statuses and selected_status != "all":
+        selected_status = ModeratorAccessRequestStatus.PENDING.value
+    statement = db.select(ModeratorAccessRequest).order_by(ModeratorAccessRequest.created_at.desc())
+    if selected_status != "all":
+        statement = statement.where(ModeratorAccessRequest.status == statuses[selected_status])
+    return render_template(
+        "admin_moderator_requests.html",
+        active_page="admin",
+        app_shell=True,
+        access_requests=db.session.scalars(statement).all(),
+        selected_status=selected_status,
+    )
+
+
+def private_moderator_access_request(request_id: str) -> ModeratorAccessRequest:
+    """Resolve one moderator-access request only in the administrator workspace."""
+    access_request = db.session.get(ModeratorAccessRequest, request_id)
+    if access_request is None:
+        abort(404)
+    return access_request
+
+
+@bp.get("/admin/moderator-requests/<request_id>")
+@administrator_required
+def administrator_moderator_request_detail(request_id: str):
+    """Display a private moderator-access request and its decision form."""
+    return render_template(
+        "admin_moderator_request_detail.html",
+        active_page="admin",
+        app_shell=True,
+        access_request=private_moderator_access_request(request_id),
+        error=request.args.get("error"),
+    )
+
+
+@bp.post("/admin/moderator-requests/<request_id>/decision")
+@administrator_required
+def decide_moderator_access_request(request_id: str):
+    """Approve or reject one requested role with an immutable, reasoned audit record."""
+    access_request = private_moderator_access_request(request_id)
+    if access_request.status != ModeratorAccessRequestStatus.PENDING:
+        abort(409)
+    decision = request.form.get("decision", "").strip()
+    reason = request.form.get("reason", "").strip()
+    if decision not in {"approve", "reject"} or not reason:
+        return redirect(url_for("main.administrator_moderator_request_detail", request_id=request_id, error="Choose approve or reject and provide a decision reason."))
+
+    applicant = access_request.submitted_by
+    prior_value = {"status": access_request.status.value, "role": applicant.role.value}
+    access_request.reviewed_by_id = g.current_user.id
+    access_request.reviewed_at = datetime.now(timezone.utc)
+    access_request.decision_reason = reason
+    if decision == "approve":
+        access_request.status = ModeratorAccessRequestStatus.APPROVED
+        applicant.role = UserRole.MODERATOR
+        audit_action = "moderator_access_request_approved"
+        reporter_title = "Your moderator access was approved"
+        reporter_body = "SAVE-US approved your moderator-access request. Your account can now open the moderator queue."
+    else:
+        access_request.status = ModeratorAccessRequestStatus.REJECTED
+        audit_action = "moderator_access_request_rejected"
+        reporter_title = "Your moderator access request was not approved"
+        reporter_body = "SAVE-US recorded a decision on your moderator-access request. Open this notification for the next steps."
+    validation_errors = access_request.decision_validation_errors()
+    if validation_errors:
+        return redirect(url_for("main.administrator_moderator_request_detail", request_id=request_id, error=next(iter(validation_errors.values()))))
+    record_administration_audit(
+        actor_id=g.current_user.id,
+        action=audit_action,
+        reason=reason,
+        prior_value=prior_value,
+        new_value={"status": access_request.status.value, "role": applicant.role.value},
+        target_user_id=applicant.id,
+        moderator_access_request_id=access_request.id,
+    )
+    queue_notification(
+        applicant,
+        alert=None,
+        kind="moderator_access_request_decision",
+        title=reporter_title,
+        body=reporter_body,
+        public_location="Account",
+    )
+    db.session.commit()
+    return redirect(url_for("main.administrator_moderator_requests", message="Moderator-access request decision recorded."))
 
 
 @bp.route("/admin/safety-rules", methods=("GET", "POST"))
@@ -657,6 +838,13 @@ def request_hospital_verification():
                 errors["contact_phone"] = "Enter a valid CEMAC institution contact phone number."
             if not errors:
                 db.session.add(verification_request)
+                db.session.flush()
+                queue_administrator_request_notifications(
+                    request_type="hospital_verification",
+                    request_id=verification_request.id,
+                    title="Hospital verification awaiting review",
+                    body="A verified SAVE-US user submitted a private institution-verification request. Open the private request to review its evidence reference.",
+                )
                 db.session.commit()
                 return redirect(url_for("main.request_hospital_verification", submitted="1"))
     return render_template(
@@ -1071,6 +1259,7 @@ def notification_view(notification: Notification) -> dict:
         "is_read": notification.is_read,
         "email_delivery_status": notification.email_delivery_status,
         "type_value": alert.alert_type.value if alert else "report_update",
+        "is_administrative": notification.kind == "administrative_request",
         "photo_url": url_for("main.alert_photo", alert_id=alert.id) if photo_available else None,
         "open_url": url_for("main.open_notification", notification_id=notification.id),
     }
@@ -2375,6 +2564,13 @@ def open_notification(notification_id: str):
         notification.read_at = datetime.now(timezone.utc)
         db.session.commit()
     alert = notification.alert
+    if notification.kind == "administrative_request" and g.current_user.role == UserRole.ADMINISTRATOR:
+        if notification.administrative_request_type == "hospital_verification" and notification.administrative_request_id:
+            if db.session.get(HospitalVerificationRequest, notification.administrative_request_id):
+                return redirect(url_for("main.administrator_hospital_verification_detail", request_id=notification.administrative_request_id))
+        if notification.administrative_request_type == "moderator_access" and notification.administrative_request_id:
+            if db.session.get(ModeratorAccessRequest, notification.administrative_request_id):
+                return redirect(url_for("main.administrator_moderator_request_detail", request_id=notification.administrative_request_id))
     if notification.kind == "alert_published" and alert and user_receives_alert(g.current_user, alert):
         return redirect(url_for("main.alert_detail", alert_id=alert.id))
     if notification.kind == "report_published" and alert and alert.reporter_id == g.current_user.id:

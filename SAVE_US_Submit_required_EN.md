@@ -11,6 +11,12 @@ This checklist prioritises the work that most improves SAVE-US’s OpenAI Build 
 
 ## Priority 0 — Required before submission
 
+### Current readiness
+
+- Product tasks T1–T54 are complete, including the strengthened T41–T48 administration workflow (private hospital and moderator-access requests, work-inbox notifications, counters, and audit) and the T49–T54 safe sheet/PDF/sharing flow.
+- The remaining priorities are operational and submission-focused: stable deployment, real OpenAI demonstration, Devpost video, Devpost page, and hackathon evidence.
+- The complete `Unknown hospital patient` journey is deliberately deferred until after submission and must not be presented as available.
+
 ### 1. Maintain the README and license — Completed
 
 `README.md`, `README_FR.md`, and the MIT `LICENSE` are present and now document the working alert-sheet and sharing flow, including A4 HTML, server-side PDF, opaque links, WhatsApp/Web Share actions, privacy boundaries, demo access, installation, and tests. Keep these files aligned with any further MVP change before submission.
@@ -61,6 +67,10 @@ The implemented sheet and external share link never expose:
 
 Any future externally shareable photo must require explicit moderation approval and should be a separate derivative rather than the original private upload. The current MVP shares no incident media externally.
 
+## Completed PRD promise — Responsible administration (T41–T48)
+
+T41–T48 are complete. Administrators have a private workspace to review hospital-verification and reasoned moderator-access requests, manage active moderators with anti-self-lockout safeguards, adjust bounded safety rules, and consult a minimised audit log. Private in-app notifications and role-aware badges surface pending work; the action-first dashboard aggregates moderation volume and delay, active/pending/expired alerts, hospital and moderator-access requests, and moderator activity without exposing private report content. Automated E2E coverage covers the full workflow.
+
 ## Priority 1 — Strengthen the technical demonstration
 
 ### 5. Demonstrate real OpenAI use
@@ -100,7 +110,6 @@ Any future externally shareable photo must require explicit moderation approval 
 
 The following work is valuable but should not delay the items above:
 
-- Administration dashboards and hospital-verification workflow (T41–T48).
 - Native mobile applications.
 - Real payments, Mobile Money, SMS, push notifications, or WhatsApp Business API.
 - Authority integrations and public authority-verification badges.
@@ -117,3 +126,4 @@ The following work is valuable but should not delay the items above:
 - [ ] Code repository URL, YouTube URL, and Codex `/feedback` session ID are added to Devpost.
 - [ ] No API key, real personal data, or unlicensed asset is included.
 - [x] Printable/PDF/share flow works and is covered by automated end-to-end safety tests.
+- [x] Administrator workflow and access protections are covered by an end-to-end test.

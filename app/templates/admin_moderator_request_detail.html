@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Review moderator access request · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Administrator-only detail. The requester reason must not be exposed in public surfaces. -->
+  <section class="report-page moderator-access-detail-page">
+    <a class="back-link" href="{{ url_for('main.administrator_moderator_requests') }}">← Back to requests</a>
+    <header class="report-heading"><div><p class="eyebrow">Private moderator access request</p><h1>{{ access_request.submitted_by.display_name or 'SAVE-US user' }}</h1><p class="lead">{{ access_request.submitted_by.primary_region }} · {{ access_request.submitted_by.country }} · verified account</p></div><span class="report-status {{ access_request.status.value }}">{{ access_request.status.value|title }}</span></header>
+    <article class="review-card moderator-private-card"><p class="card-label">Requester statement</p><p class="private-request-reason">{{ access_request.reason }}</p><dl class="extracted-data-list"><div><dt>Verified phone</dt><dd>{{ access_request.submitted_by.phone_number[:5] }}••••••</dd></div><div><dt>Submitted</dt><dd>{{ access_request.created_at.strftime('%d %b %Y · %H:%M UTC') }}</dd></div>{% if access_request.reviewed_at %}<div><dt>Reviewed</dt><dd>{{ access_request.reviewed_at.strftime('%d %b %Y · %H:%M UTC') }}</dd></div>{% endif %}</dl></article>
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    {% if access_request.status.value == 'pending' %}
+      <form class="verification-decision-form" method="post" action="{{ url_for('main.decide_moderator_access_request', request_id=access_request.id) }}"><h2>Record access decision</h2><label>Decision<select name="decision" required><option value="">Choose a decision</option><option value="approve">Approve and grant moderator access</option><option value="reject">Reject request</option></select></label><label>Reason<textarea name="reason" rows="4" required placeholder="Explain why the request is approved or cannot be approved."></textarea></label><p>The decision, actor, former role and new role become immutable private audit metadata.</p><div class="form-actions"><button class="button emergency" type="submit">Save decision</button></div></form>
+    {% else %}
+      <article class="verification-status-card"><h2>Decision recorded</h2><p>{{ access_request.decision_reason }}</p></article>
+    {% endif %}
+  </section>
+{% endblock %}

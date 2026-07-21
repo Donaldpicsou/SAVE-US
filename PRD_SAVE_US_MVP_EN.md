@@ -2,7 +2,7 @@
 
 **Product:** SAVE-US, CEMAC Emergency Network  
 **Version:** OpenAI Build Week Hackathon MVP  
-**Date:** July 18, 2026  
+**Date:** July 21, 2026
 **MVP interface language:** English only  
 **Demo market:** Cameroon; architecture and country picker ready for all six CEMAC countries  
 **Devpost target:** *Apps for your life*
@@ -11,11 +11,11 @@
 
 ## 1. Executive summary
 
-SAVE-US is a community-led emergency alert and verification platform for the CEMAC region. Verified citizens can report missing persons, suspected abductions, and serious road accidents. Verified medical institutions can report an unidentified, amnesiac, or unconscious patient in their care.
+SAVE-US is a community-led emergency alert and verification platform for the CEMAC region. Verified citizens can report missing persons, suspected abductions, and serious road accidents. Verified medical institutions are the role planned for the future unidentified, amnesiac, or unconscious-patient journey.
 
 AI agents structure reports, identify missing or inconsistent information, detect possible duplicates, assess fraud risk, and generate a shareable alert sheet. Alerts are targeted by country, region, and user preferences so that critical information travels quickly without overwhelming people with irrelevant notifications.
 
-The MVP primarily demonstrates a missing-person journey in Cameroon: a family submits a report, AI reviews it, the alert is geo-targeted, and subscribers receive and share it.
+The MVP primarily demonstrates a missing-person journey in Cameroon while also including suspected-abduction and road-accident journeys, human moderation, restricted administration, and safe public sharing. The dedicated unknown-hospital-patient journey remains deferred until after the hackathon.
 
 ## 2. Problem and value proposition
 
@@ -30,7 +30,7 @@ Critical information often arrives late, is fragmented, and lacks a consistent v
 3. Publish an alert when it satisfies the confidence and safety rules.
 4. Target subscribers in the relevant country and region according to their preferences.
 5. Generate an English printable/PDF alert sheet and share links.
-6. Present all four alert types in the product, while keeping hospital and accident journeys secondary in the demo.
+6. Demonstrate the three operational journeys (missing person, suspected abduction, and road accident); keep the unknown-hospital-patient journey as an explicitly deferred evolution.
 
 ### Demo success metrics
 
@@ -48,8 +48,9 @@ Critical information often arrives late, is fragmented, and lacks a consistent v
 - Profile with country, primary region, additional followed regions, and enabled alert categories.
 - Full CEMAC country/subdivision catalogue supplied by the project owner.
 - Geo-targeted alert feed and simple search by name/status.
-- Complete missing-person report flow; forms for the other three categories.
+- Complete missing-person, suspected-abduction, and road-accident reporting flows; the unknown-hospital-patient journey is deferred.
 - AI review, duplicate detection, lightweight moderation, alert-sheet generation, and sharing.
+- Restricted administration: private hospital verification, reasoned moderator-access requests and role management, bounded safety rules, audit log, and an aggregate operational dashboard with a private work inbox and action counters.
 - Alert status, false-alert/error reporting, and reporter-initiated withdrawal with a reason.
 - Demo email and in-app notification centre.
 - Prominent emergency-services disclaimer.
@@ -62,6 +63,7 @@ Critical information often arrives late, is fragmented, and lacks a consistent v
 - Detailed real-time map; the alert feed is the primary MVP view.
 - “Verified by authorities” badge, public comments, or an internal social network.
 - Real hospital publication without prior manual institutional verification.
+- Dedicated unknown-hospital-patient reporting and publication, including hospital renewal.
 
 ## 5. Users and permissions
 
@@ -69,7 +71,7 @@ Critical information often arrives late, is fragmented, and lacks a consistent v
 |---|---|
 | Citizen / subscriber | View alerts, manage alert preferences, mark “seen”, share, and report an error. |
 | Reporter | A citizen with a verified phone number; creates missing-person, abduction, and road-accident reports. |
-| Hospital representative | Institution manually verified through documentation; creates unidentified-patient alerts. |
+| Hospital representative | Institution manually verified through documentation; role ready for the future unidentified-patient journey. |
 | Moderator | Reviews high-risk reports, duplicates, and removal requests; decides on publication or suspension. |
 | Administrator | Verifies hospitals, manages moderators, and manages rules. |
 
@@ -81,7 +83,7 @@ One person can be both a citizen and a reporter. Viewing and receiving alerts re
 |---|---|---|---|---|
 | Missing person | Verified phone user | Name, age, photo, sex, date, last-seen location, family contact | Relevant region; other regions only when followed | 7 days |
 | Suspected abduction | Verified phone user | Location, date/time, description; photo is optional and validated when provided | Entire country | 30 days |
-| Unknown hospital patient | Verified hospital | Age range, sex, distinguishing mark, hospital, service contact; photo when possible | Entire country | 3 days; renewable by hospital |
+| Unknown hospital patient | Verified hospital | Age range, sex, distinguishing mark, hospital, service contact; photo when possible | Entire country | Deferred after the hackathon: 3 days; renewable by hospital |
 | Serious road accident | Verified phone user | GPS location; photo/video, victim count, and immediate need are optional | Accident region or geographic radius | 24 hours by default; manual closure allowed |
 
 The 24-hour road-accident expiration is an MVP scoping decision because no duration was specified. It must be validated with future emergency-service partners.
@@ -94,7 +96,7 @@ Recipient selection rules:
 
 1. The alert’s country must match the recipient’s selected country.
 2. For missing persons and accidents, the recipient must follow the affected region, or be within the defined radius when one exists.
-3. For abductions and unknown hospital patients, every in-country user who enabled that category is eligible.
+3. For abductions, every in-country user who enabled that category is eligible. The unknown-hospital-patient rule is reserved for the deferred journey.
 4. An explicit opt-out always overrides other conditions.
 
 ## 8. AI workflow and publication decision
@@ -135,6 +137,7 @@ AI never contacts an authority and never claims to verify facts. Blocked cases, 
 8. Reporter dashboard: submitted alerts, renewal, reasoned withdrawal, and “Found”.
 9. Moderator queue: blocked and high-risk items.
 10. Settings: primary country/region, followed regions, categories, and contribution reminder.
+11. Administration: private hospital verification, moderator-access requests and management, safety rules, audit log, private operational notifications, and an aggregate dashboard restricted to administrators.
 
 ## 11. Safety, privacy, and responsible use
 
@@ -156,7 +159,11 @@ AI never contacts an authority and never claims to verify facts. Blocked cases, 
 | AIReview | alert_id, summary, missing data, duplicate candidates, confidence_score, fraud_risk_score, decision, reasons |
 | Media | alert_id, private path, type, moderation result, optional public rendition |
 | Notification | recipient, alert, channel, delivery/read status |
-| ReportAction | withdrawal, found, correction, false-alert report; reason and evidence |
+| ReportAction | withdrawal, found, correction, false-alert report, and moderation decisions; private reason |
+| HospitalVerificationRequest | private institution request, reviewer, decision, and reason |
+| ModeratorAccessRequest | private applicant reason, status, reviewer, decision, and reason |
+| Notification | private recipient item; operational items reference only the authorised administrative request |
+| SafetyRule / AdministrationAuditEntry | bounded threshold, actor, action, prior/new value, immutable reason, and authorised request reference |
 
 Alert statuses: `draft`, `ai_review`, `needs_moderation`, `published`, `rejected`, `reported_found`, `withdrawn`, `expired`.
 
@@ -231,6 +238,8 @@ The supplied logo is the visual authority. The interface should convey protectio
 - The family phone number and precise location are never publicly exposed.
 - The share link includes SAVE-US attribution.
 - An alert can be reported, withdrawn with a reason, marked “found”, and expired according to its category.
+- Sensitive administration actions require a reason, are audited, and remain administrator-only.
+- Administrators receive private in-app notifications for pending hospital-verification and moderator-access requests; the workspace and navigation show only aggregate pending counts and clear them once the underlying request is decided.
 
 ## 17. Post-hackathon roadmap
 
@@ -239,4 +248,5 @@ The supplied logo is the visual authority. The interface should convey protectio
 - Mobile apps and push/SMS/WhatsApp Business notifications.
 - Mapping, geographic radii, and hospital/authority integrations.
 - Authority verification and official badge.
+- Complete unknown-hospital-patient journey: verified-hospital-only report, review, country-wide publication, expiry, and renewal.
 - Data-retention policy, institutional agreements, and local legal review in every CEMAC country.

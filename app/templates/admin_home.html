@@ -8,6 +8,11 @@
     <p class="eyebrow">Administrator access</p>
     <h1>Administration workspace</h1>
     <p class="lead">A safe operational view of SAVE-US activity. All indicators are aggregated and do not expose private report details, contacts, media, or exact locations.</p>
+    <!-- Immediate operational work: counts and age only, with direct private queues. -->
+    <section class="admin-attention-panel" aria-label="Requires your attention">
+      <div><p class="eyebrow">Requires your attention</p><h2>{{ metrics.pending_administration_requests }} administrative request{{ '' if metrics.pending_administration_requests == 1 else 's' }} awaiting review</h2><p>{% if metrics.oldest_administration_hours is not none %}Oldest pending request: {{ metrics.oldest_administration_hours }} h ago.{% else %}No hospital or moderator-access request is awaiting a decision.{% endif %}</p></div>
+      <div class="admin-attention-actions"><a class="button secondary" href="{{ url_for('main.administrator_hospital_verifications') }}">Hospital verifications{% if metrics.pending_hospital_requests %} ({{ metrics.pending_hospital_requests }}){% endif %}</a><a class="button secondary" href="{{ url_for('main.administrator_moderator_requests') }}">Moderator requests{% if metrics.pending_moderator_requests %} ({{ metrics.pending_moderator_requests }}){% endif %}</a><a class="button emergency" href="{{ url_for('main.moderator_queue') }}">Moderate reports{% if metrics.pending_alerts %} ({{ metrics.pending_alerts }}){% endif %}</a></div>
+    </section>
     <section class="admin-metric-grid" aria-label="Operational alert and moderation metrics">
       <article><span>Active alerts</span><strong>{{ metrics.active_alerts }}</strong><small>Currently published</small></article>
       <article><span>Pending alerts</span><strong>{{ metrics.pending_alerts }}</strong><small>AI review or moderation</small></article>
@@ -17,11 +22,12 @@
     <section class="admin-operations-grid" aria-label="Moderation operations">
       <article class="admin-operations-card"><h2>Moderation workload</h2><dl><div><dt>Decisions · 7 days</dt><dd>{{ metrics.moderation_actions }}</dd></div><div><dt>Average decision delay</dt><dd>{{ metrics.average_moderation_hours ~ ' h' if metrics.average_moderation_hours is not none else 'No decisions yet' }}</dd></div><div><dt>Average pending age</dt><dd>{{ metrics.average_pending_hours ~ ' h' if metrics.average_pending_hours is not none else 'No pending alerts' }}</dd></div></dl></article>
       <article class="admin-operations-card"><h2>Hospital verification</h2><p><strong>{{ metrics.pending_hospital_requests }}</strong> private request{{ '' if metrics.pending_hospital_requests == 1 else 's' }} awaiting review.</p><a class="button secondary" href="{{ url_for('main.administrator_hospital_verifications') }}">Review requests</a></article>
+      <article class="admin-operations-card"><h2>Moderator access</h2><p><strong>{{ metrics.pending_moderator_requests }}</strong> private request{{ '' if metrics.pending_moderator_requests == 1 else 's' }} awaiting review.</p><a class="button secondary" href="{{ url_for('main.administrator_moderator_requests') }}">Review requests</a></article>
       <article class="admin-operations-card"><h2>Moderator activity · 7 days</h2><ul class="moderator-activity-list">{% for item in moderator_activity %}<li><span>{{ item.name }}</span><strong>{{ item.actions }} action{{ '' if item.actions == 1 else 's' }}</strong></li>{% else %}<li class="empty">No moderator decisions recorded in this period.</li>{% endfor %}</ul></article>
     </section>
     <section class="admin-foundations" aria-label="Administration workflow status">
       <article><h2>Hospital verification</h2><p>Review private institution requests and record a reasoned approval or rejection.</p><a class="button secondary" href="{{ url_for('main.administrator_hospital_verifications') }}">Review requests</a></article>
-      <article><h2>Moderator management</h2><p>Grant or remove moderator access with safeguards and an immutable audit reason.</p><a class="button secondary" href="{{ url_for('main.administrator_moderators') }}">Manage moderators</a></article>
+      <article><h2>Moderator access</h2><p>Review reasoned access requests or manage active moderator access with safeguards and immutable audit reasons.</p><a class="button secondary" href="{{ url_for('main.administrator_moderator_requests') }}">Review requests</a><a class="button secondary" href="{{ url_for('main.administrator_moderators') }}">Manage moderators</a></article>
       <article><h2>Safety rules</h2><p>Set bounded thresholds for future publication and expiry decisions; every change is audited.</p><a class="button secondary" href="{{ url_for('main.administrator_safety_rules') }}">Manage safety rules</a></article>
       <article><h2>Audit log</h2><p>Review private, minimised administrator and moderator actions with accountable reasons.</p><a class="button secondary" href="{{ url_for('main.administrator_audit_log') }}">Open audit log</a></article>
     </section>

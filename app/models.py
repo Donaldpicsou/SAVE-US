@@ -40,6 +40,14 @@ class HospitalVerificationStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class ModeratorAccessRequestStatus(str, Enum):
+    """Private lifecycle for a verified user's moderator-access request."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class SafetyRuleKey(str, Enum):
     """The small, bounded configuration surface administrators may later edit."""
 
@@ -139,6 +147,14 @@ class User(db.Model):
     reviewed_hospital_verification_requests: Mapped[list["HospitalVerificationRequest"]] = relationship(
         back_populates="reviewed_by",
         foreign_keys="HospitalVerificationRequest.reviewed_by_id",
+    )
+    moderator_access_requests: Mapped[list["ModeratorAccessRequest"]] = relationship(
+        back_populates="submitted_by",
+        foreign_keys="ModeratorAccessRequest.submitted_by_id",
+    )
+    reviewed_moderator_access_requests: Mapped[list["ModeratorAccessRequest"]] = relationship(
+        back_populates="reviewed_by",
+        foreign_keys="ModeratorAccessRequest.reviewed_by_id",
     )
     administration_audit_entries: Mapped[list["AdministrationAuditEntry"]] = relationship(
         back_populates="actor",
@@ -698,6 +714,59 @@ class HospitalVerificationRequest(db.Model):
         return f"<HospitalVerificationRequest {self.id} status={self.status.value}>"
 
 
+class ModeratorAccessRequest(db.Model):
+    """Private, auditable request for moderator access; never a public profile field."""
+
+    __tablename__ = "moderator_access_requests"
+    __table_args__ = (Index("ix_moderator_access_requests_status_created", "status", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    submitted_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[ModeratorAccessRequestStatus] = mapped_column(
+        SqlEnum(ModeratorAccessRequestStatus, native_enum=False, length=32),
+        nullable=False,
+        default=ModeratorAccessRequestStatus.PENDING,
+        index=True,
+    )
+    reviewed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    submitted_by: Mapped[User] = relationship(
+        back_populates="moderator_access_requests", foreign_keys=[submitted_by_id]
+    )
+    reviewed_by: Mapped[User | None] = relationship(
+        back_populates="reviewed_moderator_access_requests", foreign_keys=[reviewed_by_id]
+    )
+
+    def submission_validation_errors(self) -> dict[str, str]:
+        """Require a concise, accountable reason before an access request is queued."""
+        reason = self.reason.strip() if isinstance(self.reason, str) else ""
+        if not 10 <= len(reason) <= 2000:
+            return {"reason": "Explain the requested moderator access in 10 to 2000 characters."}
+        return {}
+
+    def decision_validation_errors(self) -> dict[str, str]:
+        """Require the administrator and an explicit reason for a final decision."""
+        errors = self.submission_validation_errors()
+        if self.status in {ModeratorAccessRequestStatus.APPROVED, ModeratorAccessRequestStatus.REJECTED}:
+            if self.reviewed_by_id is None:
+                errors["reviewed_by_id"] = "An administrator reviewer is required."
+            if self.reviewed_at is None:
+                errors["reviewed_at"] = "A review timestamp is required."
+            if not self.decision_reason or not self.decision_reason.strip():
+                errors["decision_reason"] = "A decision reason is required."
+        return errors
+
+    def __repr__(self) -> str:
+        return f"<ModeratorAccessRequest {self.id} status={self.status.value}>"
+
+
 class SafetyRule(db.Model):
     """A bounded, future-facing administration setting with a safe default."""
 
@@ -758,12 +827,18 @@ class AdministrationAuditEntry(db.Model):
     hospital_verification_request_id: Mapped[str | None] = mapped_column(
         ForeignKey("hospital_verification_requests.id", ondelete="SET NULL"), index=True
     )
+    moderator_access_request_id: Mapped[str | None] = mapped_column(
+        ForeignKey("moderator_access_requests.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     actor: Mapped[User] = relationship(back_populates="administration_audit_entries", foreign_keys=[actor_id])
     alert: Mapped[Alert | None] = relationship(back_populates="administration_audit_entries", foreign_keys=[alert_id])
     hospital_verification_request: Mapped[HospitalVerificationRequest | None] = relationship(
         back_populates="administration_audit_entries", foreign_keys=[hospital_verification_request_id]
+    )
+    moderator_access_request: Mapped[ModeratorAccessRequest | None] = relationship(
+        foreign_keys=[moderator_access_request_id]
     )
 
     def validation_errors(self) -> dict[str, str]:
@@ -805,6 +880,8 @@ class Notification(db.Model):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     alert_id: Mapped[str | None] = mapped_column(ForeignKey("alerts.id", ondelete="CASCADE"), index=True)
+    administrative_request_type: Mapped[str | None] = mapped_column(String(48), index=True)
+    administrative_request_id: Mapped[str | None] = mapped_column(String(36), index=True)
     kind: Mapped[str] = mapped_column(String(48), nullable=False)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
@@ -834,6 +911,8 @@ __all__ = [
     "HospitalVerificationStatus",
     "MissingPersonDetails",
     "MissingPersonSex",
+    "ModeratorAccessRequest",
+    "ModeratorAccessRequestStatus",
     "Notification",
     "ReportAction",
     "RoadAccidentDetails",

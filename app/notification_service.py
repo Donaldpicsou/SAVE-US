@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from .extensions import db
-from .models import Alert, AlertStatus, Notification, User
+from .models import Alert, AlertStatus, Notification, User, UserRole
 from .targeting import eligible_recipients
 
 
@@ -17,6 +17,8 @@ def queue_notification(
     title: str,
     body: str,
     public_location: str | None = None,
+    administrative_request_type: str | None = None,
+    administrative_request_id: str | None = None,
 ) -> Notification:
     """Queue one private in-app item and record whether demo e-mail was requested."""
     preference = recipient.alert_preference
@@ -28,11 +30,35 @@ def queue_notification(
         title=title,
         body=body,
         public_location=public_location,
+        administrative_request_type=administrative_request_type,
+        administrative_request_id=administrative_request_id,
         channel="in_app",
         email_delivery_status=email_delivery_status,
     )
     db.session.add(notification)
     return notification
+
+
+def queue_administrator_request_notifications(
+    *, request_type: str, request_id: str, title: str, body: str
+) -> list[Notification]:
+    """Notify each administrator about a private operational request, never by public alert targeting."""
+    administrators = db.session.scalars(
+        db.select(User).where(User.role == UserRole.ADMINISTRATOR, User.is_phone_verified.is_(True))
+    ).all()
+    return [
+        queue_notification(
+            administrator,
+            alert=None,
+            kind="administrative_request",
+            title=title,
+            body=body,
+            public_location="Administration",
+            administrative_request_type=request_type,
+            administrative_request_id=request_id,
+        )
+        for administrator in administrators
+    ]
 
 
 def queue_review_outcome_notifications(alert: Alert) -> list[Notification]:
@@ -130,6 +156,7 @@ def _public_location(alert: Alert) -> str:
 
 __all__ = [
     "queue_closure_notifications",
+    "queue_administrator_request_notifications",
     "queue_expiry_notifications",
     "queue_notification",
     "queue_review_outcome_notifications",

@@ -35,8 +35,8 @@
         <button class="icon-link notification-menu-trigger" type="button" data-popover-trigger="notification-menu" aria-label="Open notifications" aria-expanded="false" aria-controls="notification-menu">{{ icons.icon('bell') }}{% if is_authenticated and notification_count %}<span class="notification-badge">{{ notification_count }}</span>{% endif %}</button>
         <div id="notification-menu" class="notification-menu" data-popover hidden>
           {% if is_authenticated %}
-            <!-- Alerts shown here match the user's country, followed regions, and enabled categories. -->
-            <div class="notification-menu-heading"><div><strong>{{ notification_count }} unread notification{{ '' if notification_count == 1 else 's' }}</strong><small>{{ current_user.primary_region or 'All regions' }} · {{ current_user.country }} · based on your preferences</small></div><span class="notification-count">{{ notification_count }}</span></div>
+            <!-- Citizen alerts and private staff work items share this personal notification centre. -->
+            <div class="notification-menu-heading"><div><strong>{{ notification_count }} unread notification{{ '' if notification_count == 1 else 's' }}</strong><small>{{ current_user.primary_region or 'All regions' }} · {{ current_user.country }} · alerts follow your preferences; staff items are private</small></div><span class="notification-count">{{ notification_count }}</span></div>
             <div class="notification-preview-list">
               {% for item in notification_items %}
                 <a class="notification-preview {{ 'is-read' if item.is_read else 'is-unread' }}" href="{{ item.open_url }}">{% if item.photo_url %}<img class="notification-preview-image" src="{{ item.photo_url }}" alt="" loading="lazy">{% else %}<span class="notification-type-dot {{ item.type_value }}"></span>{% endif %}<span><strong>{{ item.title }}</strong><small>{{ item.body }} · {{ item.location }} · {{ item.created_label }}</small></span></a>
@@ -81,8 +81,8 @@
             <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">{{ icons.icon('alert') }} <span>Alerts</span></a>
             <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} <span>Report</span></a>
             <a class="{{ 'active' if active_page == 'reports' else '' }}" href="{{ url_for('main.my_reports') }}">{{ icons.icon('folder') }} <span>My reports</span></a>
-            {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span></a>{% endif %}
-            {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }} <span>Administration</span></a>{% endif %}
+            {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span>{% if staff_workload.moderation_queue %}<b class="sidebar-badge" aria-label="{{ staff_workload.moderation_queue }} reports awaiting moderation">{{ staff_workload.moderation_queue }}</b>{% endif %}</a>{% endif %}
+            {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }} <span>Administration</span>{% if staff_workload.administration %}<b class="sidebar-badge" aria-label="{{ staff_workload.administration }} administrative requests awaiting review">{{ staff_workload.administration }}</b>{% endif %}</a>{% endif %}
           </nav>
           <a class="sidebar-settings {{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }} <span>Settings</span></a>
           <a class="emergency-button" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} Emergency report</a>
@@ -99,8 +99,8 @@
         <a class="{{ 'active' if active_page == 'home' else '' }}" href="{{ url_for('main.dashboard') }}">{{ icons.icon('home') }}<span>Home</span></a>
         <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">{{ icons.icon('alert') }}<span>Alerts</span></a>
         <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }}<span>Report</span></a>
-        {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }}<span>Moderator</span></a>{% endif %}
-        {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }}<span>Admin</span></a>{% else %}
+        {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }}<span>Moderator{% if staff_workload.moderation_queue %} ({{ staff_workload.moderation_queue }}){% endif %}</span></a>{% endif %}
+        {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }}<span>Admin{% if staff_workload.administration %} ({{ staff_workload.administration }}){% endif %}</span></a>{% else %}
         <a class="{{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }}<span>Profile</span></a>
         {% endif %}
       </nav>

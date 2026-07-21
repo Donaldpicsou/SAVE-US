@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Request moderator access · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Private request flow: access is never granted automatically or publicly. -->
+  <section class="report-page moderator-access-request-page">
+    <header class="report-heading"><div><p class="eyebrow">Account access</p><h1>Request moderator access</h1><p class="lead">Explain why you can help review SAVE-US reports responsibly. An administrator must make and record every decision.</p></div></header>
+    {% if submitted %}<p class="verification-success" role="status">Your moderator-access request was submitted for private administrator review.</p>{% endif %}
+    {% if existing_request %}
+      <article class="verification-status-card"><h2>Request awaiting review</h2><p>Your request was received on {{ existing_request.created_at.strftime('%d %b %Y') }}. SAVE-US will notify you after an administrator records a decision.</p></article>
+    {% else %}
+      <form method="post" class="report-form moderator-access-request-form">
+        {% if errors.request %}<p class="form-error" role="alert">{{ errors.request }}</p>{% endif %}
+        <label>Why should you receive moderator access?<textarea name="reason" rows="7" minlength="10" maxlength="2000" required placeholder="Describe your relevant role, capacity, or responsible community-safety experience.">{{ reason }}</textarea></label>
+        {% if errors.reason %}<p class="form-error" role="alert">{{ errors.reason }}</p>{% endif %}
+        <p class="form-field-note">Your request and any decision are private. Moderator access does not allow public access to private contacts, precise locations, or protected media outside authorised review screens.</p>
+        <div class="form-actions"><a class="button secondary" href="{{ url_for('main.account') }}">Back to profile</a><button class="button emergency" type="submit">Submit request</button></div>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

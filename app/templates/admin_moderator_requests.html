@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Moderator access requests · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Administrator-only queue; access-request reasons are private operational data. -->
+  <section class="my-reports-page moderator-access-admin-page">
+    <header class="my-reports-heading"><div><p class="eyebrow">Administrator access</p><h1>Moderator access requests</h1><p>Review private, reasoned requests. Approval grants moderator access; every decision is auditable.</p></div></header>
+    <nav class="verification-filter" aria-label="Moderator access request status filters"><a class="{{ 'selected' if selected_status == 'pending' else '' }}" href="{{ url_for('main.administrator_moderator_requests', status='pending') }}">Pending</a><a class="{{ 'selected' if selected_status == 'approved' else '' }}" href="{{ url_for('main.administrator_moderator_requests', status='approved') }}">Approved</a><a class="{{ 'selected' if selected_status == 'rejected' else '' }}" href="{{ url_for('main.administrator_moderator_requests', status='rejected') }}">Rejected</a><a class="{{ 'selected' if selected_status == 'all' else '' }}" href="{{ url_for('main.administrator_moderator_requests', status='all') }}">All</a></nav>
+    <section class="my-reports-list" aria-label="Moderator access requests">
+      {% for access_request in access_requests %}
+        <article class="my-report-card"><div class="my-report-avatar"><span aria-hidden="true">M</span></div><div class="my-report-content"><div class="my-report-top"><p class="critical-label">Private moderator access request</p><span class="report-status {{ access_request.status.value }}">{{ access_request.status.value|title }}</span></div><h2>{{ access_request.submitted_by.display_name or 'SAVE-US user' }}</h2><p class="my-report-location">{{ access_request.submitted_by.primary_region }} · {{ access_request.submitted_by.country }}</p><p class="my-report-history">Submitted {{ access_request.created_at.strftime('%d %b %Y') }} · Reason and account information are visible only in the private review.</p><div class="my-report-actions"><a class="button secondary" href="{{ url_for('main.administrator_moderator_request_detail', request_id=access_request.id) }}">Review private request</a></div></div></article>
+      {% else %}
+        <section class="my-reports-empty"><span aria-hidden="true">✓</span><h2>No {{ selected_status if selected_status != 'all' else '' }} moderator access requests</h2><p>New requests will appear here and in the private administrator notification centre.</p></section>
+      {% endfor %}
+    </section>
+  </section>
+{% endblock %}

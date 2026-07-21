@@ -11,6 +11,12 @@ Cette checklist priorise le travail qui renforcera le plus la soumission SAVE-US
 
 ## Priorité 0 — Obligatoire avant la soumission
 
+### État de préparation actuel
+
+- Les tâches produit T1–T54 sont terminées, y compris le workflow administrateur renforcé T41–T48 (demandes privées hôpital et accès modérateur, notifications de boîte de travail, compteurs et audit) et les fiches/PDF/partages sûrs T49–T54.
+- Les priorités restantes sont donc opérationnelles et de soumission : déploiement stable, démo réelle OpenAI, vidéo Devpost, page Devpost et preuves du travail.
+- Le parcours complet `Unknown hospital patient` est volontairement différé après la soumission ; ne pas le présenter comme disponible.
+
 ### 1. Maintenir les README et la licence — Terminé
 
 `README.md`, `README_FR.md` et la licence MIT sont présents. Ils documentent maintenant le flux effectif de fiches et de partage : HTML A4, PDF côté serveur, liens opaques, actions WhatsApp/Web Share, limites de confidentialité, accès démo, installation et tests. Les maintenir à jour avant toute soumission si le MVP évolue.
@@ -61,6 +67,10 @@ La fiche et le lien de partage externe mis en œuvre n’exposent jamais :
 
 Toute future photo partageable à l’extérieur exigera une approbation explicite de modération et devra être une copie dérivée, non le média privé d’origine. Le MVP actuel ne partage aucun média d’incident à l’extérieur.
 
+## Promesse PRD terminée — Administration responsable (T41–T48)
+
+T41–T48 sont terminées. Les administrateurs disposent d’un espace privé pour examiner les demandes de vérification hospitalière et d’accès modérateur motivées, gérer les modérateurs actifs avec protections contre l’auto-blocage, ajuster des règles de sûreté bornées et consulter un journal d’audit minimisé. Des notifications in-app privées et badges adaptés au rôle remontent les travaux en attente ; le tableau de bord orienté action agrège volumes, délais, alertes actives/en attente/expirées, demandes hospitalières et d’accès modérateur, ainsi que l’activité des modérateurs sans exposer le contenu privé des signalements. Le parcours est couvert par des tests E2E automatisés.
+
 ## Priorité 1 — Renforcer la démonstration technique
 
 ### 5. Démontrer un usage réel d’OpenAI
@@ -100,7 +110,6 @@ Toute future photo partageable à l’extérieur exigera une approbation explici
 
 Ces travaux sont utiles mais ne doivent pas retarder les éléments ci-dessus :
 
-- Tableaux de bord administrateur et workflow de vérification hospitalière (T41–T48).
 - Applications mobiles natives.
 - Paiement réel, Mobile Money, SMS, push ou WhatsApp Business API.
 - Intégrations avec les autorités et badges publics de vérification.
@@ -117,3 +126,4 @@ Ces travaux sont utiles mais ne doivent pas retarder les éléments ci-dessus :
 - [ ] URL dépôt, URL YouTube et Session ID Codex `/feedback` ajoutés sur Devpost.
 - [ ] Aucune clé API, donnée personnelle réelle ou ressource non licenciée.
 - [x] Flux fiche imprimable/PDF/partage fonctionnel et couvert par des tests E2E de sûreté.
+- [x] Workflow administrateur et protections d’accès couverts par un test E2E.

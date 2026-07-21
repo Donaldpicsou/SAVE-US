@@ -49,6 +49,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 - In-app publication, moderation, closure, and expiry notifications with read state.
 - Moderator workspace for private review, reasoned publication, information requests, rejection, and post-publication abduction withdrawal.
 - Private audit entries for report closures and moderation decisions.
+- Restricted administration workspace: private hospital-verification review, reasoned moderator-access requests and protected role changes, bounded future-facing safety rules, searchable minimised audit log, private operational notifications, role-aware pending-work badges, and an action-first aggregate dashboard.
 
 ### Product experience
 
@@ -64,7 +65,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 
 - The app is a hackathon demonstration, not a substitute for emergency services or authorities.
 - OTP, e-mail, and notifications are simulated; there is no live SMS, push, or WhatsApp Business integration.
-- The `Unknown hospital patient` alert type exists in the domain model and preferences, but its dedicated reporting and institutional-verification journey is not yet implemented.
+- The `Unknown hospital patient` alert type exists in the domain model and preferences. Hospital-verification requests and administrator approval are implemented, but the dedicated patient-reporting, renewal, and publication journey is not yet implemented.
 - Payments, Mobile Money, authority integrations, real-time maps, native mobile apps, and public comments are out of scope.
 - AI output assists first-line review; it does not establish facts or contact authorities.
 - External sharing never includes the original uploaded photo. A future public-media feature would require explicit moderation approval and a derived public asset; it is not part of this MVP.
@@ -104,7 +105,7 @@ SAVE-US is intentionally designed around data minimisation and accountable decis
 - **Approximate public location:** public alerts use an approximate area or region; precise street addresses and GPS coordinates remain private.
 - **Preference-based targeting:** recipients must have a verified phone, matching country, enabled category, and—where relevant—matching or followed region.
 - **Human safeguards:** high-risk, incomplete, duplicate, or sensitive reports can be routed to a moderator.
-- **Audit trail:** reasoned closure and moderation actions record the actor, date, action, and justification privately.
+- **Audit trail:** reasoned closure, moderation, hospital-verification, moderator-role, and safety-rule actions retain accountable private audit metadata. Administrators can search a minimised view without exposing private report content.
 - **Media safety:** potentially graphic, invalid, or uncertain road-accident media is blocked or sent to moderation rather than being automatically published.
 - **Safe external sharing:** printable sheets, PDFs, and external links consume only the public-safe alert-sheet contract. They exclude original media, private contacts, exact addresses/GPS, private circumstances, and internal moderation reasons. Shared-link responses are non-cacheable and links can be revoked.
 
@@ -207,7 +208,7 @@ Run the complete automated test suite from the repository root:
 .venv/bin/python -m unittest discover -s tests -q
 ```
 
-The suite covers model validation, OpenAI contract validation, deterministic fallback, targeted delivery, protected media access, reporting flows, moderation decisions, Cameroon/Centre end-to-end journeys, and sheet/sharing safety. The final sharing E2E test extracts the generated PDF text and verifies English attribution, WhatsApp payload construction, link revocation, and the absence of private data or unapproved media.
+The suite covers model validation, OpenAI contract validation, deterministic fallback, targeted delivery, protected media access, reporting flows, moderation decisions, Cameroon/Centre end-to-end journeys, administration permissions and workflow (including private request notifications and pending-work counters), and sheet/sharing safety. The sharing E2E tests extract generated PDF text and verify English attribution, WhatsApp payload construction, link revocation, and the absence of private data or unapproved media.
 
 ## Built with Codex and GPT-5.6
 
@@ -219,7 +220,7 @@ Codex helped accelerate:
 
 - Flask project setup, application structure, migrations, SQLAlchemy entities, and test scaffolding;
 - the Stitch-derived visual integration, responsive shared shell, navigation, notification menus, and accessibility-oriented interaction refinements;
-- reporting workflows, validation rules, protected media handling, CEMAC data seeding, targeting logic, and moderation workspace;
+- reporting workflows, validation rules, protected media handling, CEMAC data seeding, targeting logic, moderation workspace, and restricted administration tools;
 - regression tests and end-to-end scenario coverage;
 - public-safe A4/PDF alert-sheet delivery, opaque share links, and safe sharing controls;
 - PRD, roadmap, submission checklist, and repository documentation.
@@ -246,7 +247,7 @@ If no API key is configured, the OpenAI package is unavailable, a request fails,
 
 ## Hackathon provenance
 
-The repository’s dated commit history records the project work completed during the hackathon submission period, including the PRD, English PRD, roadmap, Flask MVP, reporting flows, structured GPT-5.6 review, road-media moderation, targeting, notification centre, multi-event end-to-end tests, human moderation workflow, and public-safe alert sheets and sharing.
+The repository’s dated commit history records the project work completed during the hackathon submission period, including the PRD, English PRD, roadmap, Flask MVP, reporting flows, structured GPT-5.6 review, road-media moderation, targeting, notification centre, multi-event end-to-end tests, human moderation, operational administration inbox workflows, and public-safe alert sheets and sharing.
 
 SAVE-US is original work created and meaningfully extended for OpenAI Build Week 2026. Any open-source dependencies are used under their respective licences. The repository does not include an OpenAI API key or other production credential.
 
@@ -259,7 +260,7 @@ Near-term planned work is documented in:
 - [English submission priorities](SAVE_US_Submit_required_EN.md)
 - [French submission priorities](SAVE_US_Submit_required.md)
 
-The next planned product work is the administration dashboards and hospital-verification workflow (T41–T48), followed by the dedicated unknown-hospital-patient reporting journey.
+All planned MVP tasks T1–T54 are complete. The next product work is the post-submission unknown-hospital-patient journey, detailed as T55–T59 in the roadmaps; deployment, video, and Devpost preparation remain the immediate submission priorities.
 
 ## License
 

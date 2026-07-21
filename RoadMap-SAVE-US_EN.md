@@ -145,20 +145,32 @@ flowchart LR
 | T38 | Keep the emergency action persistent | The desktop sidebar uses a compact, fixed-height column: only the navigation list may scroll, while the settings link and Emergency report action remain visible at the bottom with 44px minimum touch targets. | T5 | Completed |
 | T39 | Correct notification destinations | The shared notification opening route resolves alert type and lifecycle state. Published reports open their public alert, while category-specific moderation updates open the appropriate status or review screen. | T24, T29, T33 | Completed |
 | T40 | Deliver the human moderation workflow | Moderators and administrators can privately review queued reports, inspect protected media, then publish, request information, reject, or withdraw a published abduction with a mandatory reason, audit entry, and reporter notification. | T24, T29, T33, T35 | Completed |
-| T41 | Define the administration model | Entities and validation rules support hospital-verification requests, safe configurable rules, and richer immutable audit metadata: actor, action, reason, prior value, and new value. | T4, T40 | Completed |
-| T42 | Build administrator access and navigation | The `/admin` area and its navigation are restricted to administrators; moderators retain only the moderation workspace. | T41 | Completed |
+| T41 | Define the administration model | Entities and validation rules support hospital-verification and moderator-access requests, private operational notification references, safe configurable rules, and richer immutable audit metadata: actor, action, reason, prior value, and new value. | T4, T40 | Completed |
+| T42 | Build administrator access and navigation | The `/admin` area and its navigation are restricted to administrators; moderators retain only the moderation workspace. Role-aware pending-work badges preserve the distinction between report moderation and administrator requests. | T41 | Completed |
 | T43 | Build hospital verification | Administrators can review private verification requests, approve or reject them with a mandatory reason, and grant the hospital-representative role only after approval. | T41, T42 | Completed |
-| T44 | Build moderator management | Administrators can search users and grant or revoke the moderator role with an audit reason; safeguards prevent accidental loss of the last administrator or self-lockout. | T41, T42 | Complete |
+| T44 | Build moderator management | Verified non-staff users can submit private, reasoned moderator-access requests. Administrators can approve or reject them with an audit reason, or search users and grant or revoke the moderator role; safeguards prevent accidental loss of the last administrator or self-lockout. | T41, T42 | Complete |
 | T45 | Build safety-rule management | Administrators can edit bounded confidence, fraud-risk, and category-expiry settings; changes are audited and affect only future decisions. | T41, T42 | Complete |
 | T46 | Build the administration audit log | A restricted, searchable audit view filters administrator and moderator actions by actor, action, report/user, and date, without exposing private data outside authorised screens. | T43, T44, T45 | Complete |
-| T47 | Build the administrator dashboard | A safe operational dashboard presents moderation volumes and delay, active/pending/expired alerts, pending hospital verification, and moderator activity. | T46 | Complete |
-| T48 | Test the administration workflow | Authorisation, role changes, hospital verification, rule boundaries, audit entries, and the administrator demo journey are covered by automated end-to-end tests. | T43–T47 | Complete |
+| T47 | Build the administrator dashboard | A safe operational dashboard presents moderation volumes and delay, active/pending/expired alerts, hospital and moderator-access requests, moderator activity, and an action-first private work-inbox panel with the oldest pending age. | T46 | Complete |
+| T48 | Test the administration workflow | Authorisation, role changes and requests, hospital verification, private administrator notifications, pending-work counters, rule boundaries, audit entries, and the administrator demo journey are covered by automated end-to-end tests. | T43–T47 | Complete |
 | T49 | Define the alert-sheet contract and safety rules | A single English public-safe representation is defined for each alert type: title, category, safe AI summary, approximate coverage, date, status, safety guidance, expiry where applicable, and `Source: SAVE-US`. It explicitly excludes private contact, precise address/GPS, private circumstances, and original media. | T17, T29, T33, T35 | Completed |
 | T50 | Build the printable HTML alert sheet | Published alerts have an authorised A4-friendly English sheet with SAVE-US branding, print styles, generation date, and a working Print action. | T49 | Completed |
 | T51 | Generate the server-side PDF alert sheet | The same authorised public-safe sheet can be downloaded as a PDF with a consistent English filename and private, non-cacheable response headers. | T49 | Completed |
 | T52 | Build secure share links | Opaque, revocable and expiring share links expose only approved public-safe content and stop working when their alert is withdrawn, rejected, or expired. Shared media is absent unless explicitly approved for public sharing. | T49 | Completed |
 | T53 | Build sharing actions | Alert detail provides copy-link, mobile Web Share fallback, and a prefilled WhatsApp share containing `Source: SAVE-US` and the secure URL. | T50, T51, T52 | Completed |
 | T54 | Test alert-sheet and sharing safety | Automated end-to-end tests cover printable HTML, PDF, English content, attribution, WhatsApp payload, link revocation, and the absence of private data or unauthorised media. | T50–T53 | Completed |
+
+## Post-hackathon backlog — do not do before submission
+
+Tasks T1–T54 are complete. The only remaining product track explicitly planned by the PRD is the `Unknown hospital patient` journey; it must not delay deployment, the video, or the Devpost submission.
+
+| ID | Task | Deliverable / definition of done | Dependencies | Status |
+|---|---|---|---|---|
+| T55 | Define the unknown-patient case | Dedicated entity, validation, and drafts restricted to an approved hospital representative; no contact or media is public by default. | T41, T43 | Deferred until after submission |
+| T56 | Build hospital reporting | Mobile English form, server validation, protected media storage, and draft resumption for the hospital representative. | T55 | Deferred until after submission |
+| T57 | Apply review, publication, and expiry | Safe structured review, country-wide targeted publication, 72-hour expiry, reasoned hospital renewal, and audit trail. | T45, T49, T56 | Deferred until after submission |
+| T58 | Adapt delivery, details, and sharing | Preferences, notifications, feed, detail, sheet, and sharing follow strengthened minimisation rules for unknown patients. | T24, T34, T54, T57 | Deferred until after submission |
+| T59 | Test the unknown-patient journey | E2E tests cover hospital permissions, privacy, country-wide targeting, expiry, renewal, and safe sharing. | T58 | Deferred until after submission |
 
 ## Critical path
 
