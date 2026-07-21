@@ -68,6 +68,7 @@ class AlertSheetContractTestCase(unittest.TestCase):
             self.assertEqual(sheet["source"], ALERT_SHEET_SOURCE)
             self.assertIn("Cameroon", sheet["approximate_location"])
             self.assertEqual(sheet["expires_at"] is not None, alert_type == AlertType.ROAD_ACCIDENT)
+            self.assertIsNone(sheet["public_media"])
             self.assertEqual(validate_alert_sheet(sheet), sheet)
 
     def test_private_details_and_original_media_never_enter_the_contract(self) -> None:
@@ -102,6 +103,22 @@ class AlertSheetContractTestCase(unittest.TestCase):
         self.assertNotIn("12 Avenue des Nations", road_sheet)
         self.assertNotIn("11.502", road_sheet)
         self.assertNotIn("road_accident/private/collision.png", road_sheet)
+        self.assertIsNone(build_alert_sheet(road)["public_media"])
+
+    def test_explicit_authorisation_adds_safe_media_metadata_without_a_file_path(self) -> None:
+        alert = self.published_alert(AlertType.MISSING_PERSON, title="Find Amadou")
+        db.session.add(MissingPersonDetails(
+            alert=alert,
+            photo_path="missing_person/private/amadou.png",
+            public_media_authorized=True,
+        ))
+        db.session.commit()
+        sheet = build_alert_sheet(alert)
+        self.assertEqual(sheet["public_media"], {
+            "kind": "identification_photo",
+            "alt": "Approved identification photo for Find Amadou",
+        })
+        self.assertNotIn("missing_person/private/amadou.png", json.dumps(sheet))
 
     def test_unsafe_public_text_is_blocked_and_unsafe_zone_falls_back_to_region(self) -> None:
         phone_summary = self.published_alert(

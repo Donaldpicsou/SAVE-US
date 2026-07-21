@@ -31,6 +31,7 @@ def render_alert_sheet_pdf(
     *,
     generated_at: datetime | None = None,
     logo_path: str | Path | None = None,
+    public_image_path: str | Path | None = None,
 ) -> bytes:
     """Render one A4 PDF from a validated, public-safe alert-sheet payload."""
     sheet = validate_alert_sheet(sheet)
@@ -67,6 +68,11 @@ def render_alert_sheet_pdf(
     story.append(Spacer(1, 2 * mm))
     story.append(Paragraph(_escape(sheet["title"]), styles["title"]))
     story.append(Spacer(1, 4 * mm))
+    if sheet["public_media"] and public_image_path and Path(public_image_path).is_file():
+        # This path is a server-created JPEG derivative, never the original upload.
+        image = Image(str(public_image_path), width=120 * mm, height=92 * mm, kind="proportional")
+        image.hAlign = "CENTER"
+        story.extend([image, Spacer(1, 5 * mm)])
     story.append(Paragraph(_escape(sheet["summary"]), styles["summary"]))
     story.append(Spacer(1, 7 * mm))
 

@@ -47,7 +47,7 @@ Les informations critiques circulent souvent tardivement, de manière dispersée
 - Catalogue complet des pays et subdivisions CEMAC fourni par le porteur du projet.
 - Fil d’alertes géociblé et recherche simple par nom/statut.
 - Déclarations complètes de disparition, enlèvement présumé et accident routier ; le parcours de patient hospitalier inconnu est différé.
-- Analyse IA, doublon, modération minimale, génération de fiche et partage.
+- Analyse IA, doublon, modération minimale, génération de fiche et partage avec dérivés sûrs de photos d’identification sur autorisation pour les disparitions et enlèvements.
 - Administration restreinte : vérification hospitalière privée, demandes motivées d’accès modérateur et gestion des rôles, règles de sûreté bornées, journal d’audit et tableau opérationnel agrégé avec boîte de travail privée et compteurs d’action.
 - Statuts d’alerte, signalement d’erreur/fausse alerte et retrait motivé par le déclarant.
 - E-mail de démo et centre de notifications in-app.
@@ -119,7 +119,7 @@ L’IA ne contacte jamais une autorité et ne prétend jamais confirmer un fait.
 1. **Onboarding** — Amina crée un compte avec un numéro camerounais simulé, sélectionne Cameroon et Centre, puis active les alertes Missing person et Suspected abduction.
 2. **Report missing person** — Une famille renseigne les informations requises et téléverse une photo.
 3. **AI review** — SAVE-US affiche les données extraites, détecte l’absence éventuelle d’information, compare les alertes existantes et présente les deux scores.
-4. **Publish** — Si les contrôles passent, l’alerte est publiée pour Centre. Une fiche PDF et un lien de partage sont créés.
+4. **Publish** — Si les contrôles passent, l’alerte est publiée pour Centre. Une fiche PDF et un lien de partage sont créés ; la photo d’identification n’est incluse que si le déclarant autorise explicitement son dérivé public sûr.
 5. **Receive and share** — Amina voit l’alerte dans son fil, reçoit un e-mail de démo, marque l’alerte comme vue et l’ouvre dans WhatsApp avec l’attribution SAVE-US.
 6. **Close the loop** — Le déclarant peut signaler « Found » ou retirer l’alerte avec justification ; le statut public est mis à jour.
 
@@ -143,6 +143,8 @@ L’IA ne contacte jamais une autorité et ne prétend jamais confirmer un fait.
 - Ne pas afficher le numéro familial : afficher un bouton WhatsApp/« Contact family » qui ouvre un lien contrôlé.
 - Ne pas afficher une adresse exacte ni les coordonnées GPS précises au public ; arrondir la position ou montrer seulement la région/zone. Les coordonnées précises restent réservées au déclarant et aux modérateurs.
 - Pour les mineurs et les patients inconnus, limiter les informations à celles indispensables à l’identification ; utiliser une photo uniquement lorsque sa publication est justifiée.
+- Les photos d’identification de disparition et d’enlèvement exigent une autorisation explicite du déclarant avant d’apparaître dans une fiche, un PDF ou une page de partage sécurisée. SAVE-US utilise un dérivé redimensionné sans métadonnées, jamais le fichier original ; l’autorisation peut être retirée tant que le rapport est un brouillon.
+- Les médias d’accident routier restent exclus du partage externe par défaut, même après leur workflow de modération privé. Les médias de patients inconnus restent différés et privés par défaut.
 - Désactiver les commentaires publics. Les utilisateurs peuvent partager, marquer une alerte vue et signaler une erreur avec justificatif.
 - Exiger un motif pour tout retrait. Conserver un journal d’audit non public : auteur, dates, score, décision et justification.
 
@@ -153,7 +155,7 @@ L’IA ne contacte jamais une autorité et ne prétend jamais confirmer un fait.
 | User | id, téléphone vérifié, rôle, pays, région principale, statut de contribution |
 | AlertPreference | user_id, catégories actives, régions suivies, e-mail activé |
 | Alert | id, type, statut, pays, région, zone approximative, auteur, dates, expiration, contenu public |
-| MissingPersonDetails | nom, âge, sexe, photo, dernier lieu vu, date, vêtements, contact privé, circonstances |
+| MissingPersonDetails | nom, âge, sexe, photo privée, autorisation explicite de média public, dernier lieu vu, date, vêtements, contact privé, circonstances |
 | AIReview | alert_id, résumé, données manquantes, doublons, confidence_score, fraud_risk_score, décision, motifs |
 | Media | alert_id, chemin privé, type, résultat de modération, version publique éventuelle |
 | Notification | destinataire, alerte, canal, statut de livraison/lecture |
@@ -236,6 +238,7 @@ Le logo fourni est l’autorité visuelle. L’interface doit évoquer protectio
 - Une alerte publiée de disparition n’est distribuée qu’aux utilisateurs éligibles du même pays et des régions suivies.
 - Le numéro familial et la position exacte ne sont jamais rendus publics.
 - Le lien de partage inclut l’attribution SAVE-US.
+- Une fiche, un PDF ou une page de partage sécurisée ne peut inclure qu’un dérivé de photo d’identification explicitement autorisé et sans métadonnées pour une disparition ou un enlèvement ; les médias d’accident et les originaux restent exclus.
 - Une alerte peut être signalée, retirée avec motif, marquée « found » et expirer selon sa catégorie.
 - Les actions administratives sensibles nécessitent un motif, sont auditées et restent réservées aux administrateurs.
 - Les administrateurs reçoivent des notifications in-app privées pour les vérifications hospitalières et demandes d’accès modérateur en attente ; l’espace de travail et la navigation n’affichent que des compteurs agrégés, retirés dès qu’une décision est enregistrée.

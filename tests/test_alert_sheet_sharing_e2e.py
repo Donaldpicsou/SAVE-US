@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+import tempfile
 import unittest
 from urllib.parse import parse_qs, quote, urlparse
 
+from PIL import Image
 from pypdf import PdfReader
 
 from app import create_app
@@ -25,7 +27,8 @@ class AlertSheetSharingEndToEndTestCase(unittest.TestCase):
     )
 
     def setUp(self) -> None:
-        self.app = create_app({"TESTING": True, "SECRET_KEY": "test-secret", "SQLALCHEMY_DATABASE_URI": "sqlite://"})
+        self.upload_directory = tempfile.TemporaryDirectory()
+        self.app = create_app({"TESTING": True, "SECRET_KEY": "test-secret", "SQLALCHEMY_DATABASE_URI": "sqlite://", "UPLOAD_FOLDER": self.upload_directory.name})
         self.context = self.app.app_context()
         self.context.push()
         db.create_all()
@@ -56,6 +59,7 @@ class AlertSheetSharingEndToEndTestCase(unittest.TestCase):
         db.session.remove()
         db.drop_all()
         self.context.pop()
+        self.upload_directory.cleanup()
 
     def sign_in_as(self, user: User) -> None:
         with self.client.session_transaction() as browser_session:
@@ -140,6 +144,46 @@ class AlertSheetSharingEndToEndTestCase(unittest.TestCase):
         with self.client.session_transaction() as browser_session:
             browser_session.clear()
         self.assertEqual(self.client.get(secure_path).status_code, 404)
+
+    def test_explicitly_authorised_identification_photo_uses_a_safe_derivative_everywhere(self) -> None:
+        original = Path(self.app.config["UPLOAD_FOLDER"]) / self.private_values[3]
+        original.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (1800, 1200), color=(220, 90, 30)).save(original, format="PNG")
+        self.alert.missing_person_details.public_media_authorized = True
+        db.session.commit()
+
+        sheet = self.client.get(f"/alerts/{self.alert.id}/sheet")
+        self.assertEqual(sheet.status_code, 200)
+        self.assertIn(f'/alerts/{self.alert.id}/sheet-image'.encode(), sheet.data)
+        self.assertNotIn(self.private_values[3].encode(), sheet.data)
+
+        pdf = self.client.get(f"/alerts/{self.alert.id}/sheet.pdf")
+        self.assertEqual(pdf.status_code, 200)
+        self.assertIn(b"/Subtype /Image", pdf.data)
+
+        issued = self.client.post(f"/alerts/{self.alert.id}/share-links").get_json()
+        secure_path = urlparse(issued["url"]).path
+        with self.client.session_transaction() as browser_session:
+            browser_session.clear()
+        shared_page = self.client.get(secure_path)
+        self.assertEqual(shared_page.status_code, 200)
+        self.assertIn(f'{secure_path}/image'.encode(), shared_page.data)
+        self.assertIn(b'property="og:image"', shared_page.data)
+        self.assertNotIn(self.private_values[3].encode(), shared_page.data)
+
+        derivative = self.client.get(f"{secure_path}/image")
+        self.assertEqual(derivative.status_code, 200)
+        self.assertEqual(derivative.mimetype, "image/jpeg")
+        image = Image.open(BytesIO(derivative.data))
+        self.assertEqual(image.format, "JPEG")
+        self.assertFalse(image.getexif())
+
+        link = db.session.scalar(db.select(AlertShareLink).where(AlertShareLink.alert_id == self.alert.id))
+        self.sign_in_as(self.reporter)
+        self.assertEqual(self.client.post(f"/alerts/{self.alert.id}/share-links/{link.id}/revoke").status_code, 204)
+        with self.client.session_transaction() as browser_session:
+            browser_session.clear()
+        self.assertEqual(self.client.get(f"{secure_path}/image").status_code, 404)
 
 
 if __name__ == "__main__":

@@ -55,8 +55,8 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 
 - Responsive SAVE-US visual identity, shared navigation, footer, notification menu, and account menu.
 - Home dashboard, full alert feed, alert details, notification centre, and reporter workspace.
-- Authorised English alert sheets: branded A4-printable HTML and server-generated PDF from one public-safe contract.
-- Secure alert sharing from the detail page: copy-link, Web Share with clipboard fallback, and a prefilled WhatsApp message containing `Source: SAVE-US` and an opaque URL.
+- Authorised English alert sheets: branded A4-printable HTML and server-generated PDF from one public-safe contract. Missing-person and abduction identification photos appear only after explicit reporter authorisation, as a resized metadata-free derivative.
+- Secure alert sharing from the detail page: copy-link, Web Share with clipboard fallback, and a prefilled WhatsApp message containing `Source: SAVE-US` and an opaque URL. The secure share page supplies an approved photo preview for supported social networks when one is authorised.
 - Opaque share links are revocable, expire within seven days (or sooner with the alert), and stop working when an alert is withdrawn, rejected, or expired.
 - CEMAC reference data and seeded demo users.
 - Automated tests for reporting, AI contracts, targeting, notifications, protected media, moderation, sheets, sharing, and end-to-end journeys.
@@ -68,7 +68,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 - The `Unknown hospital patient` alert type exists in the domain model and preferences. Hospital-verification requests and administrator approval are implemented, but the dedicated patient-reporting, renewal, and publication journey is not yet implemented.
 - Payments, Mobile Money, authority integrations, real-time maps, native mobile apps, and public comments are out of scope.
 - AI output assists first-line review; it does not establish facts or contact authorities.
-- External sharing never includes the original uploaded photo. A future public-media feature would require explicit moderation approval and a derived public asset; it is not part of this MVP.
+- External sharing never includes the original uploaded photo. An explicitly authorised missing-person or abduction identification photo is transformed into a resized, metadata-free JPEG derivative for the sheet, PDF, and secure share page. Road-accident media remains excluded from external sharing by default.
 
 ## Technology and architecture
 
@@ -82,7 +82,7 @@ SAVE-US is a Flask application with a deliberately small, testable architecture:
 | Media | Private local storage outside `static/`, with server-side validation |
 | AI review | OpenAI Responses API with GPT-5.6 and structured output validation |
 | AI resilience | Deterministic, transparent demo fallback when an API key or API response is unavailable |
-| Alert sheets and sharing | Versioned public-safe contract, A4 HTML, server-side PDF, opaque revocable/expiring share links |
+| Alert sheets and sharing | Versioned public-safe contract, A4 HTML, server-side PDF, opt-in metadata-free photo derivatives, opaque revocable/expiring share links |
 | Tests | Python `unittest` suite |
 
 ### High-level flow
@@ -101,13 +101,14 @@ Verified reporter
 SAVE-US is intentionally designed around data minimisation and accountable decisions.
 
 - **Protected media:** uploaded photos are stored privately and are served only to the reporter, eligible recipient, or authorised moderator. Unauthorised media requests return `404`; responses are private and non-cacheable.
+- **Authorised share photos:** only missing-person or abduction identification photos with explicit reporter permission may appear externally. SAVE-US creates a resized JPEG derivative without EXIF metadata; its token-bound route stops working when sharing is revoked or the alert is withdrawn, rejected, or expires. Road-accident media is never externally shared by default.
 - **No public private contacts:** family and reporter contact fields never appear in public alert content.
 - **Approximate public location:** public alerts use an approximate area or region; precise street addresses and GPS coordinates remain private.
 - **Preference-based targeting:** recipients must have a verified phone, matching country, enabled category, and—where relevant—matching or followed region.
 - **Human safeguards:** high-risk, incomplete, duplicate, or sensitive reports can be routed to a moderator.
 - **Audit trail:** reasoned closure, moderation, hospital-verification, moderator-role, and safety-rule actions retain accountable private audit metadata. Administrators can search a minimised view without exposing private report content.
 - **Media safety:** potentially graphic, invalid, or uncertain road-accident media is blocked or sent to moderation rather than being automatically published.
-- **Safe external sharing:** printable sheets, PDFs, and external links consume only the public-safe alert-sheet contract. They exclude original media, private contacts, exact addresses/GPS, private circumstances, and internal moderation reasons. Shared-link responses are non-cacheable and links can be revoked.
+- **Safe external sharing:** printable sheets, PDFs, and external links consume only the public-safe alert-sheet contract. They exclude original media, private contacts, exact addresses/GPS, private circumstances, and internal moderation reasons. A permitted identification-photo derivative is the sole exception; shared-link responses are non-cacheable and links can be revoked.
 
 ## Quick start
 

@@ -14,7 +14,7 @@ from .alert_sheet_contract import AlertSheetSafetyError, build_alert_sheet
 from .alert_sheet_pdf import render_alert_sheet_pdf
 from .ai_service import review_missing_person_alert, review_suspected_abduction_alert
 from .cemac import load_cemac_data
-from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
+from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, public_share_image_path, store_alert_photo, store_missing_person_photo
 from .notification_service import (
     queue_administrator_request_notifications,
     queue_closure_notifications,
@@ -381,6 +381,8 @@ def dashboard():
         recent_alerts=feed_items[:3],
         alert_count=len(feed_items),
         coverage_regions=coverage_regions,
+        live_status_url=url_for("main.live_status"),
+        live_alert_latest_id=feed_items[0]["id"] if feed_items else "",
     )
 
 
@@ -1033,7 +1035,56 @@ def alerts():
         filters=ALERT_FEED_FILTERS,
         selected_type=selected_type,
         search=search,
+        alert_count=len(feed_items),
+        live_status_url=url_for("main.live_status", type=selected_type, q=search),
+        live_alert_latest_id=feed_items[0]["id"] if feed_items else "",
     )
+
+
+@bp.get("/live-status")
+@login_required
+def live_status():
+    """Return a small, private, no-cache snapshot for in-page polling.
+
+    The browser only receives its own notification preview, its eligible alert
+    count, and role-appropriate work counters. It never receives private report
+    fields, contacts, or precise locations through this endpoint.
+    """
+    selected_type = request.args.get("type", "").strip()
+    if selected_type not in {item[0] for item in ALERT_FEED_FILTERS}:
+        selected_type = ""
+    search = request.args.get("q", "").strip()
+    feed_items = targeted_alert_feed(g.current_user, selected_type=selected_type, search=search)
+    notification_count = db.session.scalar(
+        db.select(db.func.count(Notification.id)).where(
+            Notification.recipient_id == g.current_user.id,
+            Notification.is_read.is_(False),
+        )
+    ) or 0
+    staff_workload = {"moderation_queue": 0, "hospital_requests": 0, "moderator_requests": 0, "administration": 0}
+    if g.current_user.role in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}:
+        staff_workload["moderation_queue"] = pending_moderation_decision_count()
+    if g.current_user.role == UserRole.ADMINISTRATOR:
+        staff_workload["hospital_requests"] = db.session.scalar(
+            db.select(db.func.count(HospitalVerificationRequest.id)).where(
+                HospitalVerificationRequest.status == HospitalVerificationStatus.PENDING
+            )
+        ) or 0
+        staff_workload["moderator_requests"] = db.session.scalar(
+            db.select(db.func.count(ModeratorAccessRequest.id)).where(
+                ModeratorAccessRequest.status == ModeratorAccessRequestStatus.PENDING
+            )
+        ) or 0
+        staff_workload["administration"] = staff_workload["hospital_requests"] + staff_workload["moderator_requests"]
+    response = jsonify(
+        notification_count=notification_count,
+        notification_items=notification_views_for_user(g.current_user, limit=4),
+        staff_workload=staff_workload,
+        alert_count=len(feed_items),
+        latest_alert_id=feed_items[0]["id"] if feed_items else "",
+    )
+    response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    return response
 
 
 @bp.get("/alerts/<alert_id>")
@@ -1081,6 +1132,11 @@ def alert_sheet(alert_id: str):
         "alert_sheet.html",
         sheet=sheet,
         generated_at=datetime.now(timezone.utc),
+        public_media_url=(
+            url_for("main.alert_sheet_public_media", alert_id=stored_alert.id)
+            if sheet["public_media"] and public_share_image_path(current_app.config["UPLOAD_FOLDER"], stored_alert)
+            else None
+        ),
     )
 
 
@@ -1095,7 +1151,12 @@ def alert_sheet_pdf(alert_id: str):
         generated_at = datetime.now(timezone.utc)
         sheet = build_alert_sheet(stored_alert, generated_at=generated_at)
         logo_path = Path(current_app.static_folder) / "images" / "save-us-logo.png"
-        pdf = render_alert_sheet_pdf(sheet, generated_at=generated_at, logo_path=logo_path)
+        pdf = render_alert_sheet_pdf(
+            sheet,
+            generated_at=generated_at,
+            logo_path=logo_path,
+            public_image_path=public_share_image_path(current_app.config["UPLOAD_FOLDER"], stored_alert),
+        )
     except AlertSheetSafetyError:
         abort(404)
     category_name = stored_alert.alert_type.value.replace("_", "-")
@@ -1171,13 +1232,55 @@ def public_share_link(token: str):
     except AlertSheetSafetyError:
         abort(404)
     response = current_app.make_response(
-        render_template("shared_alert.html", sheet=sheet, generated_at=generated_at)
+        render_template(
+            "shared_alert.html",
+            sheet=sheet,
+            generated_at=generated_at,
+            public_media_url=(
+                url_for("main.public_share_image", token=link.token, _external=True)
+                if sheet["public_media"] and public_share_image_path(current_app.config["UPLOAD_FOLDER"], link.alert)
+                else None
+            ),
+        )
     )
     # Tokens may be forwarded; do not let browsers, proxies, or referrers
     # retain them beyond the intentional recipient.
     response.headers["Cache-Control"] = "private, no-store, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@bp.get("/s/<token>/image")
+def public_share_image(token: str):
+    """Serve only an authorised, metadata-free derivative through a live token."""
+    link = db.session.scalar(db.select(AlertShareLink).where(AlertShareLink.token == token))
+    if link is None or not is_share_link_active(link):
+        abort(404)
+    image_path = public_share_image_path(current_app.config["UPLOAD_FOLDER"], link.alert)
+    if image_path is None:
+        abort(404)
+    response = send_file(image_path, mimetype="image/jpeg", conditional=False, max_age=0)
+    response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@bp.get("/alerts/<alert_id>/sheet-image")
+@login_required
+def alert_sheet_public_media(alert_id: str):
+    """Serve the same safe derivative to an authorised printable-sheet viewer."""
+    stored_alert = db.session.get(Alert, alert_id)
+    if stored_alert is None or not may_access_alert(g.current_user, stored_alert):
+        abort(404)
+    image_path = public_share_image_path(current_app.config["UPLOAD_FOLDER"], stored_alert)
+    if image_path is None:
+        abort(404)
+    response = send_file(image_path, mimetype="image/jpeg", conditional=False, max_age=0)
+    response.headers["Cache-Control"] = "private, no-store, max-age=0"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
@@ -1478,6 +1581,8 @@ def parse_missing_person_form() -> tuple[dict[str, object | None], dict[str, str
         "clothing_description": request.form.get("clothing_description", "").strip() or None,
         "private_family_contact": request.form.get("private_family_contact", "").strip() or None,
         "circumstances": request.form.get("circumstances", "").strip() or None,
+        # Consent is optional and can be withdrawn while a report remains a draft.
+        "public_media_authorized": request.form.get("public_media_authorized") == "on",
         "age": None,
         "last_seen_at": None,
     }
@@ -1526,6 +1631,8 @@ def parse_suspected_abduction_form() -> tuple[dict[str, object | None], dict[str
         "circumstances": request.form.get("circumstances", "").strip() or None,
         "private_contact": request.form.get("private_contact", "").strip() or None,
         "abduction_at": None,
+        # A photo never becomes externally shareable unless the reporter opts in.
+        "public_media_authorized": request.form.get("public_media_authorized") == "on",
     }
     errors: dict[str, str] = {}
     if selected_country not in regions_by_country:
@@ -1621,6 +1728,7 @@ def report_form_values(
         values = {field: "" for field in (
             "name", "age", "sex", "last_seen_at", "last_seen_location",
             "approximate_zone", "clothing_description", "private_family_contact", "circumstances",
+            "public_media_authorized",
         )}
         values["country"] = default_country
         values["region"] = default_region
@@ -1637,6 +1745,7 @@ def report_form_values(
         "circumstances": details.circumstances or "",
         "country": details.alert.country or default_country,
         "region": details.alert.region or default_region,
+        "public_media_authorized": details.public_media_authorized,
     }
 
 
@@ -1657,6 +1766,7 @@ def abduction_form_values(
             "description": "",
             "circumstances": "",
             "private_contact": "",
+            "public_media_authorized": False,
         }
     return {
         "title": details.alert.title or "",
@@ -1667,6 +1777,7 @@ def abduction_form_values(
         "description": details.description or "",
         "circumstances": details.circumstances or "",
         "private_contact": details.private_contact or "",
+        "public_media_authorized": details.public_media_authorized,
     }
 
 

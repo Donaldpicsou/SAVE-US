@@ -66,6 +66,12 @@ class HospitalVerificationWorkflowTestCase(unittest.TestCase):
         self.assertIn(b"already awaiting review", response.data)
         self.assertEqual(db.session.scalar(db.select(db.func.count(HospitalVerificationRequest.id))), 1)
 
+    def test_request_page_keeps_profile_and_dashboard_navigation_after_submission(self) -> None:
+        self.submit_request()
+        page = self.client.get("/hospital-verification/request?submitted=1")
+        self.assertIn(b'href="/account">Profile &amp; account', page.data)
+        self.assertIn(b'href="/dashboard">Back to dashboard', page.data)
+
     def test_request_rejects_an_invalid_institution_contact_phone(self) -> None:
         self.sign_in_as(self.applicant)
         response = self.client.post(

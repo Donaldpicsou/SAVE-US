@@ -18,6 +18,7 @@
       .sheet-header { align-items:center; border-bottom:4px solid var(--orange); display:flex; gap:1rem; justify-content:space-between; padding-bottom:1rem; }
       .brand { align-items:center; display:flex; gap:.8rem; }.brand img { height:55px; object-fit:cover; object-position:center 25%; width:66px; }.brand strong,.brand small { display:block; }.brand strong { color:var(--navy); font-size:1.55rem; letter-spacing:.02em; }.brand small { color:var(--muted); font-size:.67rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
       .sheet-status { background:#e3f5e6; border-radius:999px; color:#17642a; font-size:.72rem; font-weight:900; letter-spacing:.06em; padding:.55rem .7rem; text-transform:uppercase; }
+      .approved-photo { display:block; height:auto; margin:1.2rem auto 1.5rem; max-height:104mm; max-width:100%; object-fit:contain; }
       .category { color:var(--blue); font-size:.78rem; font-weight:900; letter-spacing:.1em; margin:1.65rem 0 .55rem; text-transform:uppercase; }
       h1 { color:var(--navy); font-size:2.35rem; letter-spacing:-.035em; line-height:1.08; margin:0 0 1.1rem; overflow-wrap:anywhere; }
       .summary { border-left:5px solid var(--blue); font-size:1.18rem; line-height:1.65; margin:1.25rem 0 1.6rem; padding:0 0 0 1rem; }
@@ -39,6 +40,7 @@
       </header>
       <p class="category">{{ sheet.category_label }}</p>
       <h1 id="sheet-title">{{ sheet.title }}</h1>
+      {% if public_media_url %}<img class="approved-photo" src="{{ public_media_url }}" alt="{{ sheet.public_media.alt }}">{% endif %}
       <p class="summary">{{ sheet.summary }}</p>
       <section class="meta-grid" aria-label="Public alert information">
         <article class="meta"><span>Approximate area</span><strong>{{ sheet.approximate_location }}</strong></article>

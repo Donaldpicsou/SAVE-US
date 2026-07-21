@@ -333,6 +333,7 @@ class MissingPersonDetails(db.Model):
     age: Mapped[int | None] = mapped_column()
     sex: Mapped[str | None] = mapped_column(String(16))
     photo_path: Mapped[str | None] = mapped_column(String(500))
+    public_media_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_seen_location: Mapped[str | None] = mapped_column(String(255))
     clothing_description: Mapped[str | None] = mapped_column(Text)
@@ -407,6 +408,7 @@ class SuspectedAbductionDetails(db.Model):
         nullable=False,
     )
     photo_path: Mapped[str | None] = mapped_column(String(500))
+    public_media_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     abduction_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     description: Mapped[str | None] = mapped_column(Text)
     circumstances: Mapped[str | None] = mapped_column(Text)

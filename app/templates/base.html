@@ -18,7 +18,7 @@
     <script src="{{ url_for('static', filename='js/alert-share.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/report-wizard.js') }}" defer></script>
   </head>
-  <body>
+  <body data-live-status-url="{{ live_status_url|default('', true) }}" data-live-alert-count="{{ alert_count|default('', true) }}" data-live-alert-latest-id="{{ live_alert_latest_id|default('', true) }}">
     <!-- Global header: brand, primary navigation, location, and account actions. -->
     <header class="site-header">
       <a class="brand" href="{{ url_for('main.home') }}" aria-label="SAVE-US home">
@@ -37,7 +37,7 @@
         <div id="notification-menu" class="notification-menu" data-popover hidden>
           {% if is_authenticated %}
             <!-- Citizen alerts and private staff work items share this personal notification centre. -->
-            <div class="notification-menu-heading"><div><strong>{{ notification_count }} unread notification{{ '' if notification_count == 1 else 's' }}</strong><small>{{ current_user.primary_region or 'All regions' }} · {{ current_user.country }} · alerts follow your preferences; staff items are private</small></div><span class="notification-count">{{ notification_count }}</span></div>
+            <div class="notification-menu-heading"><div><strong data-notification-heading>{{ notification_count }} unread notification{{ '' if notification_count == 1 else 's' }}</strong><small>{{ current_user.primary_region or 'All regions' }} · {{ current_user.country }} · alerts follow your preferences; staff items are private</small></div><span class="notification-count" data-notification-count>{{ notification_count }}</span></div>
             <div class="notification-preview-list">
               {% for item in notification_items %}
                 <a class="notification-preview {{ 'is-read' if item.is_read else 'is-unread' }}" href="{{ item.open_url }}">{% if item.photo_url %}<img class="notification-preview-image" src="{{ item.photo_url }}" alt="" loading="lazy">{% else %}<span class="notification-type-dot {{ item.type_value }}"></span>{% endif %}<span><strong>{{ item.title }}</strong><small>{{ item.body }} · {{ item.location }} · {{ item.created_label }}</small></span></a>
@@ -82,8 +82,8 @@
             <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">{{ icons.icon('alert') }} <span>Alerts</span></a>
             <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} <span>Report</span></a>
             <a class="{{ 'active' if active_page == 'reports' else '' }}" href="{{ url_for('main.my_reports') }}">{{ icons.icon('folder') }} <span>My reports</span></a>
-            {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span>{% if staff_workload.moderation_queue %}<b class="sidebar-badge" aria-label="{{ staff_workload.moderation_queue }} pending moderation decisions">{{ staff_workload.moderation_queue }}</b>{% endif %}</a>{% endif %}
-            {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }} <span>Administration</span>{% if staff_workload.administration %}<b class="sidebar-badge" aria-label="{{ staff_workload.administration }} administrative requests awaiting review">{{ staff_workload.administration }}</b>{% endif %}</a>{% endif %}
+            {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span><b class="sidebar-badge" data-staff-counter="moderation_queue" aria-label="{{ staff_workload.moderation_queue }} pending moderation decisions" {% if not staff_workload.moderation_queue %}hidden{% endif %}>{{ staff_workload.moderation_queue }}</b></a>{% endif %}
+            {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }} <span>Administration</span><b class="sidebar-badge" data-staff-counter="administration" aria-label="{{ staff_workload.administration }} administrative requests awaiting review" {% if not staff_workload.administration %}hidden{% endif %}>{{ staff_workload.administration }}</b></a>{% endif %}
           </nav>
           <a class="sidebar-settings {{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }} <span>Settings</span></a>
           <a class="emergency-button" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} Emergency report</a>
@@ -93,6 +93,14 @@
       <!-- Page-specific content is rendered here. -->
       <main class="site-main">{% block content %}{% endblock %}</main>
     </div>
+
+    {% if live_status_url|default('', true) %}
+      <!-- Polling announces new eligible alerts without moving a reader's current position. -->
+      <aside class="live-update-banner" data-live-update-banner hidden aria-live="polite">
+        <span>New eligible alerts are available.</span>
+        <button type="button" data-live-update-action>Show alerts</button>
+      </aside>
+    {% endif %}
 
     {% if app_shell %}
       <!-- Mobile navigation for product pages. -->

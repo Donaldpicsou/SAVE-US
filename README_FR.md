@@ -50,8 +50,8 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 
 - Identité visuelle SAVE-US responsive, navigation partagée, footer, menus de notifications et de compte.
 - Tableau de bord, fil d’alertes, détail, centre de notifications et espace déclarant.
-- Fiches d’alerte anglaises autorisées : HTML A4 imprimable aux couleurs SAVE-US et PDF généré côté serveur depuis un même contrat public sûr.
-- Partage sécurisé depuis le détail : copie de lien, Web Share avec repli vers le presse-papiers et message WhatsApp prérempli contenant `Source: SAVE-US` et une URL opaque.
+- Fiches d’alerte anglaises autorisées : HTML A4 imprimable aux couleurs SAVE-US et PDF généré côté serveur depuis un même contrat public sûr. Les photos d’identification de disparition ou d’enlèvement n’y apparaissent qu’après autorisation explicite du déclarant, sous forme de dérivé redimensionné sans métadonnées.
+- Partage sécurisé depuis le détail : copie de lien, Web Share avec repli vers le presse-papiers et message WhatsApp prérempli contenant `Source: SAVE-US` et une URL opaque. La page sécurisée fournit un aperçu photo autorisé aux réseaux compatibles.
 - Les liens opaques sont révocables, expirent au plus tard après sept jours (ou avec l’alerte) et cessent de fonctionner si l’alerte est retirée, rejetée ou expirée.
 - Données CEMAC et utilisateurs démo préchargés.
 - Tests automatisés couvrant signalements, contrats IA, ciblage, notifications, médias protégés, modération, fiches, partage et parcours de bout en bout.
@@ -63,7 +63,7 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 - Le type `Unknown hospital patient` existe dans le modèle métier et les préférences. Les demandes de vérification hospitalière et leur approbation par un administrateur sont implémentées, mais le signalement patient, son renouvellement et sa publication dédiés ne le sont pas encore.
 - Paiements, Mobile Money, intégrations avec les autorités, carte temps réel, applications mobiles natives et commentaires publics sont hors périmètre.
 - L’IA assiste la revue de première ligne ; elle n’établit pas les faits et ne contacte pas les autorités.
-- Le partage externe n’inclut jamais la photo originale téléversée. Une future publication de média exigerait une approbation explicite de modération et un dérivé public ; elle n’est pas incluse dans ce MVP.
+- Le partage externe n’inclut jamais la photo originale téléversée. Une photo d’identification de disparition ou d’enlèvement explicitement autorisée est transformée en dérivé JPEG redimensionné sans métadonnées pour la fiche, le PDF et la page sécurisée. Les médias d’accident restent exclus du partage externe par défaut.
 
 ## Technologies et architecture
 
@@ -77,7 +77,7 @@ SAVE-US utilise une architecture Flask volontairement légère et testable :
 | Médias | Stockage local privé hors de `static/`, validé côté serveur |
 | Revue IA | OpenAI Responses API, GPT-5.6 et validation de sortie structurée |
 | Résilience IA | Repli démo déterministe et transparent sans clé API ou en cas d’échec |
-| Fiches et partage | Contrat public sûr versionné, HTML A4, PDF côté serveur et liens opaques révocables/expirables |
+| Fiches et partage | Contrat public sûr versionné, HTML A4, PDF côté serveur, dérivés photo opt-in sans métadonnées et liens opaques révocables/expirables |
 | Tests | Suite Python `unittest` |
 
 ### Flux général
@@ -94,13 +94,14 @@ Déclarant vérifié
 ## Choix de confidentialité et de sûreté
 
 - **Médias protégés :** photos privées, accessibles uniquement au déclarant, au destinataire éligible ou au modérateur autorisé. Les requêtes non autorisées reçoivent `404`, avec réponses non cacheables.
+- **Photos partageables autorisées :** seules les photos d’identification de disparition ou d’enlèvement avec autorisation explicite du déclarant peuvent apparaître à l’extérieur. SAVE-US crée un dérivé JPEG redimensionné sans métadonnées ; sa route liée au jeton cesse de fonctionner lors de la révocation, du retrait, du rejet ou de l’expiration. Les médias d’accident ne sont jamais partagés extérieurement par défaut.
 - **Aucun contact privé public :** les coordonnées de la famille et du déclarant ne figurent jamais dans une alerte publique.
 - **Localisation publique approximative :** une zone ou région approximative est affichée ; adresses précises et coordonnées GPS restent privées.
 - **Ciblage par préférences :** un destinataire doit avoir un téléphone vérifié, le bon pays, la catégorie active et, si nécessaire, la région correspondante ou suivie.
 - **Garanties humaines :** les dossiers à risque, incomplets, en doublon ou sensibles peuvent être envoyés à un modérateur.
 - **Piste d’audit :** clôtures, décisions de modération, vérifications hospitalières, changements de rôle et règles de sûreté conservent des métadonnées responsables privées. Les administrateurs disposent d’une vue minimisée sans contenu privé de signalement.
 - **Sûreté média :** les médias d’accident invalides, graphiques ou incertains sont bloqués ou modérés avant toute publication.
-- **Partage externe sûr :** les fiches imprimables, PDF et liens externes ne consomment que le contrat public sûr. Ils excluent média original, contacts privés, adresse/GPS précis, circonstances privées et motifs internes de modération. Les réponses de lien ne sont pas mises en cache et les liens sont révocables.
+- **Partage externe sûr :** les fiches imprimables, PDF et liens externes ne consomment que le contrat public sûr. Ils excluent média original, contacts privés, adresse/GPS précis, circonstances privées et motifs internes de modération. Un dérivé de photo d’identification autorisé est la seule exception ; les réponses de lien ne sont pas mises en cache et les liens sont révocables.
 
 ## Installation rapide
 

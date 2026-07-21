@@ -13,9 +13,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .models import Alert, AlertStatus, AlertType
+from .media import authorised_public_media_source
 
 
-ALERT_SHEET_SCHEMA_VERSION = "save-us.alert-sheet.v1"
+ALERT_SHEET_SCHEMA_VERSION = "save-us.alert-sheet.v2"
 ALERT_SHEET_SOURCE = "Source: SAVE-US"
 
 # Phone-like sequences, latitude/longitude pairs, and conventional numbered
@@ -46,6 +47,7 @@ ALERT_SHEET_SCHEMA: dict[str, Any] = {
         "safety_guidance",
         "expires_at",
         "expires_label",
+        "public_media",
         "source",
     ],
     "properties": {
@@ -63,6 +65,13 @@ ALERT_SHEET_SCHEMA: dict[str, Any] = {
         "safety_guidance": {"type": "string"},
         "expires_at": {"type": ["string", "null"], "format": "date-time"},
         "expires_label": {"type": ["string", "null"]},
+        "public_media": {
+            "type": ["object", "null"],
+            "properties": {
+                "kind": {"const": "identification_photo"},
+                "alt": {"type": "string", "maxLength": 240},
+            },
+        },
         "source": {"const": ALERT_SHEET_SOURCE},
     },
 }
@@ -75,9 +84,10 @@ class AlertSheetSafetyError(ValueError):
 def build_alert_sheet(alert: Alert, *, generated_at: datetime | None = None) -> dict[str, Any]:
     """Build the only allowed public payload for a printable or shareable sheet.
 
-    This function deliberately uses only public alert columns. It never reads
-    detailed report entities, private contacts, manual accident locations,
+    This function never exports private contacts, manual accident locations,
     coordinates, internal reasons, audit records, or original media paths.
+    An explicitly authorised missing-person or abduction identification photo
+    is represented only by safe metadata; its derived URL is attached later.
     """
     if alert.status != AlertStatus.PUBLISHED:
         raise AlertSheetSafetyError("Only published alerts can have an alert sheet.")
@@ -113,6 +123,11 @@ def build_alert_sheet(alert: Alert, *, generated_at: datetime | None = None) -> 
         "safety_guidance": presentation["safety_guidance"],
         "expires_at": expires_at.isoformat() if expires_at else None,
         "expires_label": expires_at.strftime("Expires %d %b %Y · %H:%M UTC") if expires_at else None,
+        "public_media": (
+            {"kind": "identification_photo", "alt": f"Approved identification photo for {title}"}
+            if authorised_public_media_source(alert)
+            else None
+        ),
         "source": ALERT_SHEET_SOURCE,
     }
 
@@ -145,6 +160,15 @@ def validate_alert_sheet(payload: Mapping[str, Any]) -> dict[str, Any]:
     for field in ("expires_at", "expires_label"):
         if payload[field] is not None and (not isinstance(payload[field], str) or not payload[field].strip()):
             raise AlertSheetSafetyError(f"Alert-sheet {field} is invalid.")
+    public_media = payload["public_media"]
+    if public_media is not None:
+        if not isinstance(public_media, Mapping) or set(public_media) != {"kind", "alt"}:
+            raise AlertSheetSafetyError("Alert-sheet public media is invalid.")
+        if public_media["kind"] != "identification_photo":
+            raise AlertSheetSafetyError("Alert-sheet public media kind is invalid.")
+        if not isinstance(public_media["alt"], str):
+            raise AlertSheetSafetyError("Alert-sheet public media alt text is invalid.")
+        _validate_public_text(public_media["alt"], "public media alt text", maximum=240)
     return dict(payload)
 
 

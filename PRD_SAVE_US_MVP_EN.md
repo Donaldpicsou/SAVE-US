@@ -49,7 +49,7 @@ Critical information often arrives late, is fragmented, and lacks a consistent v
 - Full CEMAC country/subdivision catalogue supplied by the project owner.
 - Geo-targeted alert feed and simple search by name/status.
 - Complete missing-person, suspected-abduction, and road-accident reporting flows; the unknown-hospital-patient journey is deferred.
-- AI review, duplicate detection, lightweight moderation, alert-sheet generation, and sharing.
+- AI review, duplicate detection, lightweight moderation, alert-sheet generation, and sharing with opt-in safe identification-photo derivatives for missing-person and abduction alerts.
 - Restricted administration: private hospital verification, reasoned moderator-access requests and role management, bounded safety rules, audit log, and an aggregate operational dashboard with a private work inbox and action counters.
 - Alert status, false-alert/error reporting, and reporter-initiated withdrawal with a reason.
 - Demo email and in-app notification centre.
@@ -121,7 +121,7 @@ AI never contacts an authority and never claims to verify facts. Blocked cases, 
 1. **Onboarding** — Amina creates an account using a simulated Cameroonian phone number, selects Cameroon and Centre, and enables Missing person and Suspected abduction alerts.
 2. **Report missing person** — A family provides required information and uploads a photo.
 3. **AI review** — SAVE-US displays extracted data, highlights missing information if any, compares active alerts, and shows both scores.
-4. **Publish** — If all checks pass, the alert is published to Centre. A PDF sheet and sharing link are generated.
+4. **Publish** — If all checks pass, the alert is published to Centre. A PDF sheet and sharing link are generated; an identification photo is included only when the reporter explicitly authorises its safe public derivative.
 5. **Receive and share** — Amina sees the alert in her feed, receives a demo email, marks it as seen, and opens a prefilled WhatsApp share with SAVE-US attribution.
 6. **Close the loop** — The reporter can mark the person as found or withdraw the alert with a reason; the public status updates.
 
@@ -145,6 +145,8 @@ AI never contacts an authority and never claims to verify facts. Blocked cases, 
 - Do not display the family phone number; offer a controlled WhatsApp/“Contact family” action instead.
 - Do not publish a precise street address or exact GPS coordinates. Show an approximate area or region publicly; retain precise data for the reporter and moderators only.
 - For minors and unknown patients, expose only what is necessary for identification; use a photo only when publication is justified.
+- Missing-person and abduction identification photos require explicit reporter authorisation before appearing in a sheet, PDF, or secure share page. SAVE-US uses a resized metadata-free derivative, never the original upload; authorisation can be withdrawn while the report is a draft.
+- Road-accident media remains excluded from external sharing by default, even after its private moderation workflow. Unknown-patient media remains deferred and private by default.
 - Disable public comments. Users can share, mark an alert as seen, and report an error with evidence.
 - Require a reason before withdrawal. Keep a non-public audit log containing author, dates, scores, decision, and justification.
 
@@ -155,7 +157,7 @@ AI never contacts an authority and never claims to verify facts. Blocked cases, 
 | User | id, verified phone, role, country, primary region, contribution status |
 | AlertPreference | user_id, enabled categories, followed regions, email enabled |
 | Alert | id, type, status, country, region, approximate zone, reporter, dates, expiry, public content |
-| MissingPersonDetails | name, age, sex, photo, last seen, date, clothing, private contact, circumstances |
+| MissingPersonDetails | name, age, sex, private photo, explicit public-media authorisation, last seen, date, clothing, private contact, circumstances |
 | AIReview | alert_id, summary, missing data, duplicate candidates, confidence_score, fraud_risk_score, decision, reasons |
 | Media | alert_id, private path, type, moderation result, optional public rendition |
 | Notification | recipient, alert, channel, delivery/read status |
@@ -238,6 +240,7 @@ The supplied logo is the visual authority. The interface should convey protectio
 - A published missing-person alert is delivered only to eligible users in the same country and followed regions.
 - The family phone number and precise location are never publicly exposed.
 - The share link includes SAVE-US attribution.
+- A sheet, PDF, or secure share page may include only an explicitly authorised, metadata-free identification-photo derivative for a missing-person or abduction alert; road-accident and original media remain excluded.
 - An alert can be reported, withdrawn with a reason, marked “found”, and expired according to its category.
 - Sensitive administration actions require a reason, are audited, and remain administrator-only.
 - Administrators receive private in-app notifications for pending hospital-verification and moderator-access requests; the workspace and navigation show only aggregate pending counts and clear them once the underlying request is decided.

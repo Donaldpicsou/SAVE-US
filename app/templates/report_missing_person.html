@@ -25,6 +25,7 @@
           <label class="upload-zone" for="missing-person-photo"><strong>⇧</strong><span>Click to upload or drag and drop</span><small>PNG, JPG or GIF · max. 5 MB</small><input id="missing-person-photo" data-report-photo name="photo" type="file" accept="image/png,image/jpeg,image/gif"></label>{% if errors.photo %}<small class="field-error">{{ errors.photo }}</small>{% endif %}
           <!-- Existing photos remain private and are previewed through an owner-only route. -->
           <div class="photo-selection" data-photo-selection {{ "" if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "hidden" }} aria-live="polite"><img data-photo-preview src="{{ url_for('main.missing_person_photo_preview', alert_id=draft.id) if draft and draft.missing_person_details and draft.missing_person_details.photo_path else '' }}" alt="Selected photo preview" {{ "" if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "hidden" }}><span><strong data-photo-status>{{ "Photo saved securely" if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "Photo added" }}</strong><small data-photo-name>{{ "Replace the photo by selecting another image." if draft and draft.missing_person_details and draft.missing_person_details.photo_path else "" }}</small></span></div>
+          <label class="public-media-consent"><input name="public_media_authorized" type="checkbox" {{ "checked" if values.public_media_authorized else "" }}> <span><strong>Allow this identification photo to be included in public SAVE-US sharing.</strong><small>Only an optimised copy without metadata may appear in an alert sheet, PDF, or secure share page. The original stays private. You can withdraw permission while this report is a draft.</small></span></label>
         </section>
 
         <!-- Step 2: incident location is independent from the reporter's profile and drives regional targeting. -->
@@ -55,7 +56,7 @@
         </div>
       </form>
       <!-- Contextual privacy and data-quality guidance. -->
-      <aside class="report-help"><span>✦</span><h2>Why accurate data matters</h2><p>SAVE-US checks the information provided and active alerts before an alert is shared.</p><ul><li>Clear photos help identification.</li><li>Accurate age and location improve targeting.</li><li>Private contact details are never displayed publicly.</li></ul></aside>
+      <aside class="report-help"><span>✦</span><h2>Why accurate data matters</h2><p>SAVE-US checks the information provided and active alerts before an alert is shared.</p><ul><li>Clear photos help identification when explicitly authorised.</li><li>Accurate age and location improve targeting.</li><li>Private contact details are never displayed publicly.</li></ul></aside>
     </div>
   </section>
 {% endblock %}

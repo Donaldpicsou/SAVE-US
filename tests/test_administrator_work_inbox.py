@@ -101,6 +101,12 @@ class AdministratorWorkInboxTestCase(unittest.TestCase):
         )
         self.assertIsNotNone(applicant_notification)
 
+    def test_moderator_request_page_keeps_profile_and_dashboard_navigation(self) -> None:
+        self.sign_in_as(self.applicant)
+        page = self.client.get("/moderator-access/request")
+        self.assertIn(b'href="/account">Profile &amp; account', page.data)
+        self.assertIn(b'href="/dashboard">Back to dashboard', page.data)
+
     def test_staff_counters_exclude_resolved_administration_requests(self) -> None:
         request = ModeratorAccessRequest(
             submitted_by=self.applicant,
@@ -112,7 +118,8 @@ class AdministratorWorkInboxTestCase(unittest.TestCase):
         self.sign_in_as(self.admin)
         page = self.client.get("/admin")
         self.assertIn(b"0 administrative requests awaiting review", page.data)
-        self.assertNotIn(b"Administration</span><b class=\"sidebar-badge\"", page.data)
+        self.assertIn(b'data-staff-counter="administration"', page.data)
+        self.assertIn(b'data-staff-counter="administration" aria-label="0 administrative requests awaiting review" hidden', page.data)
 
 
 if __name__ == "__main__":
