@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .extensions import db
-from .administration import record_administration_audit
+from .administration import configured_safety_rule_values, ensure_default_safety_rules, record_administration_audit
 from .alert_sheet_contract import AlertSheetSafetyError, build_alert_sheet
 from .alert_sheet_pdf import render_alert_sheet_pdf
 from .ai_service import review_missing_person_alert, review_suspected_abduction_alert
@@ -45,6 +45,9 @@ from .models import (
     ReportAction,
     RoadAccidentDetails,
     RoadAccidentMediaReview,
+    SAFETY_RULE_SPECS,
+    SafetyRule,
+    SafetyRuleKey,
     SuspectedAbductionDetails,
     User,
     UserRole,
@@ -393,6 +396,65 @@ def update_moderator_role(user_id: int):
     )
     db.session.commit()
     return redirect(url_for("main.administrator_moderators", message="Moderator access updated.", **redirect_args))
+
+
+@bp.route("/admin/safety-rules", methods=("GET", "POST"))
+@administrator_required
+def administrator_safety_rules():
+    """Edit only bounded future-facing safety thresholds with a reasoned audit."""
+    rules = ensure_default_safety_rules()
+    if request.method == "POST":
+        reason = request.form.get("reason", "").strip()
+        proposed: dict[SafetyRuleKey, int] = {}
+        errors: list[str] = []
+        for rule in rules:
+            raw_value = request.form.get(f"rule_{rule.key.value}", "").strip()
+            try:
+                value = int(raw_value)
+            except ValueError:
+                errors.append(f"{rule.key.value.replace('_', ' ')} must be a whole number.")
+                continue
+            specification = SAFETY_RULE_SPECS[rule.key]
+            if not specification["minimum"] <= value <= specification["maximum"]:
+                errors.append(
+                    f"{rule.key.value.replace('_', ' ')} must be between {specification['minimum']} and {specification['maximum']}."
+                )
+            else:
+                proposed[rule.key] = value
+        changed_rules = [rule for rule in rules if proposed.get(rule.key) != rule.value]
+        if changed_rules and not reason:
+            errors.append("A reason is required for every safety-rule change.")
+        if errors:
+            return render_template(
+                "admin_safety_rules.html",
+                active_page="admin",
+                app_shell=True,
+                rules=rules,
+                specifications=SAFETY_RULE_SPECS,
+                error=" ".join(errors),
+            )
+        for rule in changed_rules:
+            prior_value = {"key": rule.key.value, "value": rule.value}
+            rule.value = proposed[rule.key]
+            record_administration_audit(
+                actor_id=g.current_user.id,
+                action="safety_rule_updated",
+                reason=reason,
+                prior_value=prior_value,
+                new_value={"key": rule.key.value, "value": rule.value},
+            )
+        db.session.commit()
+        message = "Safety rules saved. They apply to future decisions only." if changed_rules else "No safety-rule values changed."
+        return redirect(url_for("main.administrator_safety_rules", message=message))
+    db.session.commit()  # persist missing safe defaults for newly initialised local databases.
+    return render_template(
+        "admin_safety_rules.html",
+        active_page="admin",
+        app_shell=True,
+        rules=rules,
+        specifications=SAFETY_RULE_SPECS,
+        message=request.args.get("message"),
+    )
 
 
 @bp.route("/hospital-verification/request", methods=("GET", "POST"))
@@ -1327,7 +1389,7 @@ def report_suspected_abduction():
                     delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
                 if not errors:
                     review = persist_ai_review(draft, review_suspected_abduction_alert(draft))
-                    apply_publication_decision(draft, review)
+                    apply_publication_decision(draft, review, safety_rules=configured_safety_rule_values())
                     queue_review_outcome_notifications(draft)
                     db.session.commit()
                     return redirect(url_for("main.abduction_report_submitted", alert_id=draft.id))
@@ -1451,7 +1513,7 @@ def report_road_accident():
                             timeout=current_app.config["OPENAI_TIMEOUT_SECONDS"],
                         ),
                     )
-                    apply_road_accident_publication(draft)
+                    apply_road_accident_publication(draft, safety_rules=configured_safety_rule_values())
                     if draft.status in {AlertStatus.PUBLISHED, AlertStatus.NEEDS_MODERATION}:
                         queue_review_outcome_notifications(draft)
                 db.session.commit()
@@ -1620,7 +1682,7 @@ def report_missing_person():
                     delete_private_media(current_app.config["UPLOAD_FOLDER"], replaced_photo_path)
                 if not errors:
                     review = persist_ai_review(draft, review_missing_person_alert(draft))
-                    apply_publication_decision(draft, review)
+                    apply_publication_decision(draft, review, safety_rules=configured_safety_rule_values())
                     queue_review_outcome_notifications(draft)
                     db.session.commit()
                     return redirect(url_for("main.report_reviewing", alert_id=draft.id))
@@ -1689,7 +1751,11 @@ def ai_review(alert_id: str):
         app_shell=True,
         alert=alert,
         review=review,
-        publication=decide_publication(review),
+        publication=decide_publication(
+            review,
+            minimum_confidence=configured_safety_rule_values()[SafetyRuleKey.MINIMUM_PUBLICATION_CONFIDENCE],
+            maximum_fraud_risk=configured_safety_rule_values()[SafetyRuleKey.MAXIMUM_PUBLICATION_FRAUD_RISK],
+        ),
     )
 
 
@@ -1707,7 +1773,11 @@ def suspected_abduction_ai_review(alert_id: str):
         app_shell=True,
         alert=alert,
         review=review,
-        publication=decide_publication(review),
+        publication=decide_publication(
+            review,
+            minimum_confidence=configured_safety_rule_values()[SafetyRuleKey.MINIMUM_PUBLICATION_CONFIDENCE],
+            maximum_fraud_risk=configured_safety_rule_values()[SafetyRuleKey.MAXIMUM_PUBLICATION_FRAUD_RISK],
+        ),
         report_form_url=url_for("main.report_suspected_abduction", draft=alert.id),
     )
 
@@ -1926,7 +1996,7 @@ def moderate_alert(alert_id: str):
             media_review.status = "clear"
             media_review.reason = f"Human moderator approved this media. {reason}"
             media_review.source = "human_moderator"
-            publication = apply_road_accident_publication(alert)
+            publication = apply_road_accident_publication(alert, safety_rules=configured_safety_rule_values())
             if not publication.is_published:
                 return redirect(url_for("main.moderator_review_alert", alert_id=alert.id, error=publication.reason))
         else:

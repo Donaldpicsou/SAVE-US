@@ -149,7 +149,7 @@ flowchart LR
 | T42 | Build administrator access and navigation | The `/admin` area and its navigation are restricted to administrators; moderators retain only the moderation workspace. | T41 | Completed |
 | T43 | Build hospital verification | Administrators can review private verification requests, approve or reject them with a mandatory reason, and grant the hospital-representative role only after approval. | T41, T42 | Completed |
 | T44 | Build moderator management | Administrators can search users and grant or revoke the moderator role with an audit reason; safeguards prevent accidental loss of the last administrator or self-lockout. | T41, T42 | Complete |
-| T45 | Build safety-rule management | Administrators can edit bounded confidence, fraud-risk, and category-expiry settings; changes are audited and affect only future decisions. | T41, T42 | Planned |
+| T45 | Build safety-rule management | Administrators can edit bounded confidence, fraud-risk, and category-expiry settings; changes are audited and affect only future decisions. | T41, T42 | Complete |
 | T46 | Build the administration audit log | A restricted, searchable audit view filters administrator and moderator actions by actor, action, report/user, and date, without exposing private data outside authorised screens. | T43, T44, T45 | Planned |
 | T47 | Build the administrator dashboard | A safe operational dashboard presents moderation volumes and delay, active/pending/expired alerts, pending hospital verification, and moderator activity. | T46 | Planned |
 | T48 | Test the administration workflow | Authorisation, role changes, hospital verification, rule boundaries, audit entries, and the administrator demo journey are covered by automated end-to-end tests. | T43–T47 | Planned |

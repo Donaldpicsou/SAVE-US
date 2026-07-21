@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Safety rules · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- T45 administrator-only bounded rules. Existing alerts retain their stored status and expiry. -->
+  <section class="simple-page safety-rules-page">
+    <p class="eyebrow">Administrator access</p>
+    <h1>Safety rules</h1>
+    <p class="lead">These bounded settings apply only when SAVE-US makes a future publication or expiry decision. They never rewrite a previously published alert or its expiry time.</p>
+    {% if error %}<p class="verification-status-card report-status rejected" role="alert">{{ error }}</p>{% endif %}
+    {% if message %}<p class="verification-success" role="status">{{ message }}</p>{% endif %}
+    <form class="safety-rules-form" method="post">
+      {% for rule in rules %}
+        {% set specification = specifications[rule.key] %}
+        <fieldset><legend>{{ rule.key.value.replace('_', ' ')|title }}</legend><p>{{ 'Minimum AI confidence required before a reviewed missing-person or suspected-abduction alert can publish.' if rule.key.value == 'minimum_publication_confidence' else 'Fraud-risk score at or above this value sends a reviewed alert to moderation.' if rule.key.value == 'maximum_publication_fraud_risk' else 'How long a newly published regional road-accident alert remains visible.' if rule.key.value == 'road_accident_expiry_hours' else 'Reserved expiry duration for future unknown-patient alerts.' }}</p><label for="rule-{{ rule.key.value }}">Value <small>Allowed range: {{ specification.minimum }}–{{ specification.maximum }}{{ ' hours' if 'expiry' in rule.key.value else ' / 100' }}</small></label><input id="rule-{{ rule.key.value }}" name="rule_{{ rule.key.value }}" type="number" min="{{ specification.minimum }}" max="{{ specification.maximum }}" step="1" required value="{{ rule.value }}">{% if 'expiry' in rule.key.value %}<small class="form-field-note">Hours</small>{% endif %}</fieldset>
+      {% endfor %}
+      <label for="safety-rule-reason">Audit reason <textarea id="safety-rule-reason" name="reason" rows="3" maxlength="2000" placeholder="Explain why these settings need to change. Required only when a value changes."></textarea></label>
+      <p class="form-field-note">Values outside their allowed ranges are rejected on the server. An audit entry is stored for each changed rule.</p>
+      <button class="button primary" type="submit">Save safety rules</button>
+    </form>
+  </section>
+{% endblock %}

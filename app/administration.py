@@ -21,6 +21,17 @@ def ensure_default_safety_rules() -> list[SafetyRule]:
     return rules
 
 
+def configured_safety_rule_values() -> dict[SafetyRuleKey, int]:
+    """Return persisted rule values, falling back to bounded defaults if needed.
+
+    This helper is used only when a new decision is made.  Published alerts keep
+    their persisted status and expiry timestamp, so a later rule change cannot
+    rewrite history.
+    """
+    rules = ensure_default_safety_rules()
+    return {rule.key: rule.value for rule in rules}
+
+
 def record_administration_audit(
     *,
     actor_id: int,
@@ -50,4 +61,4 @@ def record_administration_audit(
     return entry
 
 
-__all__ = ["ensure_default_safety_rules", "record_administration_audit"]
+__all__ = ["configured_safety_rule_values", "ensure_default_safety_rules", "record_administration_audit"]

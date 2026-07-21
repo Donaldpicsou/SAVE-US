@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from .extensions import db
-from .models import AIReview, Alert, AlertStatus, AlertType, User, utc_now
+from .models import AIReview, Alert, AlertStatus, AlertType, SafetyRuleKey, User, utc_now
 from .notification_service import queue_expiry_notifications
 from .road_media_moderation import MEDIA_STATUS_BLOCKED, MEDIA_STATUS_CLEAR, MEDIA_STATUS_NEEDS_MODERATION
 from .targeting import eligible_recipients
@@ -29,19 +29,24 @@ class PublicationDecision:
         return self.status == AlertStatus.PUBLISHED
 
 
-def decide_publication(review: AIReview) -> PublicationDecision:
+def decide_publication(
+    review: AIReview,
+    *,
+    minimum_confidence: int = MINIMUM_PUBLICATION_CONFIDENCE,
+    maximum_fraud_risk: int = MAXIMUM_PUBLICATION_FRAUD_RISK,
+) -> PublicationDecision:
     """Apply the PRD thresholds and safety blocks to a validated review.
 
     A fraud risk of 80 or more prevents publication.  A confidence score below
     80 also needs human review.  Possible duplicates and missing data are
     additional explicit safety conditions from the PRD, even when scores pass.
     """
-    if review.fraud_risk_score >= MAXIMUM_PUBLICATION_FRAUD_RISK:
+    if review.fraud_risk_score >= maximum_fraud_risk:
         return PublicationDecision(
             AlertStatus.NEEDS_MODERATION,
             "Publication is blocked because the fraud-risk score requires moderator review.",
         )
-    if review.confidence_score < MINIMUM_PUBLICATION_CONFIDENCE:
+    if review.confidence_score < minimum_confidence:
         return PublicationDecision(
             AlertStatus.NEEDS_MODERATION,
             "Publication is paused because the confidence score is below the required threshold.",
@@ -62,9 +67,19 @@ def decide_publication(review: AIReview) -> PublicationDecision:
     )
 
 
-def apply_publication_decision(alert: Alert, review: AIReview) -> PublicationDecision:
+def apply_publication_decision(
+    alert: Alert,
+    review: AIReview,
+    *,
+    safety_rules: dict[SafetyRuleKey, int] | None = None,
+) -> PublicationDecision:
     """Persist the publication state and expose a summary only for public alerts."""
-    decision = decide_publication(review)
+    rules = safety_rules or {}
+    decision = decide_publication(
+        review,
+        minimum_confidence=rules.get(SafetyRuleKey.MINIMUM_PUBLICATION_CONFIDENCE, MINIMUM_PUBLICATION_CONFIDENCE),
+        maximum_fraud_risk=rules.get(SafetyRuleKey.MAXIMUM_PUBLICATION_FRAUD_RISK, MAXIMUM_PUBLICATION_FRAUD_RISK),
+    )
     alert.status = decision.status
     if decision.is_published:
         alert.published_at = utc_now()
@@ -75,7 +90,11 @@ def apply_publication_decision(alert: Alert, review: AIReview) -> PublicationDec
     return decision
 
 
-def apply_road_accident_publication(alert: Alert) -> PublicationDecision:
+def apply_road_accident_publication(
+    alert: Alert,
+    *,
+    safety_rules: dict[SafetyRuleKey, int] | None = None,
+) -> PublicationDecision:
     """Publish a complete, media-safe road accident to its affected region for 24 hours."""
     if alert.alert_type != AlertType.ROAD_ACCIDENT:
         raise ValueError("Road-accident publication only accepts road-accident alerts.")
@@ -100,11 +119,13 @@ def apply_road_accident_publication(alert: Alert) -> PublicationDecision:
     published_at = utc_now()
     alert.status = AlertStatus.PUBLISHED
     alert.published_at = published_at
-    alert.expires_at = published_at + timedelta(hours=ROAD_ACCIDENT_EXPIRY_HOURS)
+    rules = safety_rules or {}
+    expiry_hours = rules.get(SafetyRuleKey.ROAD_ACCIDENT_EXPIRY_HOURS, ROAD_ACCIDENT_EXPIRY_HOURS)
+    alert.expires_at = published_at + timedelta(hours=expiry_hours)
     # The private manual location and optional coordinates never become public summary content.
     location = alert.approximate_zone or alert.region or alert.country
     alert.public_summary = f"A serious road accident was reported near {location}. Please use caution and contact emergency services if needed."
-    return PublicationDecision(AlertStatus.PUBLISHED, "This road accident was published to eligible users in the affected region for 24 hours.")
+    return PublicationDecision(AlertStatus.PUBLISHED, f"This road accident was published to eligible users in the affected region for {expiry_hours} hours.")
 
 
 def expire_due_road_accidents() -> list[Alert]:
