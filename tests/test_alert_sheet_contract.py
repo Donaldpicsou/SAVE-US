@@ -196,6 +196,9 @@ class AlertSheetRouteTestCase(unittest.TestCase):
         self.assertNotIn(b"missing_person/private/amadou.png", response.data)
         detail = self.client.get(f"/alerts/{self.alert.id}")
         self.assertIn(f"/alerts/{self.alert.id}/sheet".encode(), detail.data)
+        self.assertIn(f"/alerts/{self.alert.id}/share-links".encode(), detail.data)
+        self.assertIn(b"Copy secure link", detail.data)
+        self.assertIn(b"WhatsApp", detail.data)
 
         pdf = self.client.get(f"/alerts/{self.alert.id}/sheet.pdf")
         self.assertEqual(pdf.status_code, 200)

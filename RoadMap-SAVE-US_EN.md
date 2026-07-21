@@ -157,7 +157,7 @@ flowchart LR
 | T50 | Build the printable HTML alert sheet | Published alerts have an authorised A4-friendly English sheet with SAVE-US branding, print styles, generation date, and a working Print action. | T49 | Completed |
 | T51 | Generate the server-side PDF alert sheet | The same authorised public-safe sheet can be downloaded as a PDF with a consistent English filename and private, non-cacheable response headers. | T49 | Completed |
 | T52 | Build secure share links | Opaque, revocable and expiring share links expose only approved public-safe content and stop working when their alert is withdrawn, rejected, or expired. Shared media is absent unless explicitly approved for public sharing. | T49 | Completed |
-| T53 | Build sharing actions | Alert detail provides copy-link, mobile Web Share fallback, and a prefilled WhatsApp share containing `Source: SAVE-US` and the secure URL. | T50, T51, T52 | Planned |
+| T53 | Build sharing actions | Alert detail provides copy-link, mobile Web Share fallback, and a prefilled WhatsApp share containing `Source: SAVE-US` and the secure URL. | T50, T51, T52 | Completed |
 | T54 | Test alert-sheet and sharing safety | Automated end-to-end tests cover printable HTML, PDF, English content, attribution, WhatsApp payload, link revocation, and the absence of private data or unauthorised media. | T50–T53 | Planned |
 
 ## Critical path

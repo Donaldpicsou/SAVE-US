@@ -17,7 +17,18 @@
       {% if alert.photo_url %}<img class="alert-detail-photo" src="{{ alert.photo_url }}" alt="Photo of {{ alert.title }}">{% endif %}
       <p class="lead">{{ alert.summary if alert.summary is defined else alert.description }}</p>
       <!-- Safe actions: no direct family phone number or precise GPS coordinates. -->
-      <div class="button-row"><button class="button emergency" type="button">{{ alert.primary_action_label }}</button><a class="button secondary" href="{{ url_for('main.alert_sheet', alert_id=alert.id) }}">Print alert sheet</a><button class="button secondary" type="button">Share alert</button></div>
+      <div class="button-row"><button class="button emergency" type="button">{{ alert.primary_action_label }}</button><a class="button secondary" href="{{ url_for('main.alert_sheet', alert_id=alert.id) }}">Print alert sheet</a></div>
+      <!-- T53 sharing controls request an opaque T52 URL only after an intentional user action. -->
+      <section class="alert-share-actions" data-alert-share data-share-endpoint="{{ url_for('main.create_alert_share_link', alert_id=alert.id) }}" data-alert-title="{{ alert.title }}" aria-label="Share this alert safely">
+        <h2>Share this alert</h2>
+        <p>Only the public-safe alert summary is shared. Photos and private report details remain protected.</p>
+        <div class="button-row">
+          <button class="button secondary" type="button" data-share-action="copy">Copy secure link</button>
+          <button class="button secondary" type="button" data-share-action="web-share">Share alert</button>
+          <button class="button secondary" type="button" data-share-action="whatsapp">WhatsApp</button>
+        </div>
+        <p class="share-status" data-share-status aria-live="polite" hidden></p>
+      </section>
       <p class="alert-detail-note"><strong>{{ alert.safety_label }}.</strong> {{ alert.safety_note }}</p>
     </article>
   </section>
