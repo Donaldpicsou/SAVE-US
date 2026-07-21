@@ -20,9 +20,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   controls.forEach((container) => {
     const endpoint = container.dataset.shareEndpoint;
-    const title = container.dataset.alertTitle || "SAVE-US alert";
     const status = container.querySelector("[data-share-status]");
-    let secureUrl = null;
+    let sharePayload = null;
 
     const showStatus = (message, isError = false) => {
       status.hidden = false;
@@ -30,8 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
       status.classList.toggle("is-error", isError);
     };
 
-    const getSecureUrl = async () => {
-      if (secureUrl) return secureUrl;
+    const getSharePayload = async () => {
+      if (sharePayload) return sharePayload;
       showStatus("Preparing a secure share link…");
       const response = await fetch(endpoint, {
         method: "POST",
@@ -40,33 +39,36 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       if (!response.ok) throw new Error("The alert can no longer be shared.");
       const payload = await response.json();
-      if (!payload.url) throw new Error("A secure share link could not be created.");
-      secureUrl = payload.url;
-      return secureUrl;
+      if (!payload.url || !payload.share_text || !payload.whatsapp_text) {
+        throw new Error("A secure share message could not be created.");
+      }
+      sharePayload = payload;
+      return sharePayload;
     };
 
-    const shareText = (url) => `Source: SAVE-US — ${title}\n${url}`;
-    const action = async (callback) => {
+    const action = async (callback, onError) => {
       try {
-        const url = await getSecureUrl();
-        await callback(url);
+        const payload = await getSharePayload();
+        await callback(payload);
       } catch (error) {
+        if (onError) onError();
         showStatus(error.message || "Sharing is currently unavailable.", true);
       }
     };
 
     container.querySelector('[data-share-action="copy"]').addEventListener("click", () => {
-      action(async (url) => {
-        await copyText(url);
+      action(async (payload) => {
+        await copyText(payload.url);
         showStatus("Secure link copied. It contains only the approved public alert information.");
       });
     });
 
     container.querySelector('[data-share-action="web-share"]').addEventListener("click", () => {
-      action(async (url) => {
+      action(async (payload) => {
         if (navigator.share) {
           try {
-            await navigator.share({ title: "SAVE-US alert", text: `Source: SAVE-US — ${title}`, url });
+            // Keep the URL in the formatted text: some share targets otherwise keep only `url`.
+            await navigator.share({ title: payload.share_title, text: payload.share_text });
             showStatus("Share options opened.");
             return;
           } catch (error) {
@@ -76,15 +78,28 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
         }
-        await copyText(url);
-        showStatus("Sharing is not supported on this device. The secure link was copied instead.");
+        await copyText(payload.share_text);
+        showStatus("Sharing is not supported on this device. The safe incident message was copied instead.");
       });
     });
 
     container.querySelector('[data-share-action="whatsapp"]').addEventListener("click", () => {
-      action(async (url) => {
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText(url))}`;
-        window.location.assign(whatsappUrl);
+      // Open synchronously to avoid popup blockers, then navigate only that new tab.
+      const whatsappWindow = window.open("about:blank", "_blank");
+      action(async (payload) => {
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(payload.whatsapp_text)}`;
+        if (whatsappWindow) {
+          whatsappWindow.opener = null;
+          whatsappWindow.location.replace(whatsappUrl);
+          return;
+        }
+        const fallbackWindow = window.open(whatsappUrl, "_blank", "noopener");
+        if (!fallbackWindow) {
+          await copyText(payload.whatsapp_text);
+          showStatus("WhatsApp could not open in a new tab. The safe incident message was copied instead.");
+        }
+      }, () => {
+        if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
       });
     });
   });

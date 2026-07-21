@@ -200,6 +200,12 @@ class AlertSheetRouteTestCase(unittest.TestCase):
         self.assertIn(b"Copy secure link", detail.data)
         self.assertIn(b"WhatsApp", detail.data)
 
+        share_payload = self.client.post(f"/alerts/{self.alert.id}/share-links").get_json()
+        self.assertIn("*SAVE-US Emergency Alert*", share_payload["whatsapp_text"])
+        self.assertIn("*Category:* Missing person", share_payload["whatsapp_text"])
+        self.assertIn("*Approximate area:* Mfoundi district", share_payload["whatsapp_text"])
+        self.assertNotIn("+237 692 333 444", share_payload["whatsapp_text"])
+
         pdf = self.client.get(f"/alerts/{self.alert.id}/sheet.pdf")
         self.assertEqual(pdf.status_code, 200)
         self.assertEqual(pdf.mimetype, "application/pdf")

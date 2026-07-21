@@ -26,7 +26,7 @@ from .road_media_moderation import (
     MEDIA_STATUS_NEEDS_MODERATION,
     review_road_accident_media,
 )
-from .share_links import create_or_get_active_share_link, is_share_link_active, revoke_share_link
+from .share_links import build_public_share_message, create_or_get_active_share_link, is_share_link_active, revoke_share_link
 from .targeting import eligible_recipients, user_receives_alert
 from .models import (
     AIReview,
@@ -390,14 +390,19 @@ def create_alert_share_link(alert_id: str):
         abort(404)
     try:
         # Validate the same T49 representation before any public URL exists.
-        build_alert_sheet(stored_alert, generated_at=datetime.now(timezone.utc))
+        sheet = build_alert_sheet(stored_alert, generated_at=datetime.now(timezone.utc))
         link = create_or_get_active_share_link(stored_alert, created_by_id=g.current_user.id)
     except (AlertSheetSafetyError, ValueError):
         abort(404)
+    public_url = url_for("main.public_share_link", token=link.token, _external=True)
+    share_text = build_public_share_message(sheet, public_url=public_url)
     return jsonify(
         {
-            "url": url_for("main.public_share_link", token=link.token, _external=True),
+            "url": public_url,
             "expires_at": link.expires_at.isoformat(),
+            "share_title": "SAVE-US Emergency Alert",
+            "share_text": share_text,
+            "whatsapp_text": share_text,
         }
     )
 

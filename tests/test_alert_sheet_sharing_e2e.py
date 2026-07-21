@@ -87,7 +87,8 @@ class AlertSheetSharingEndToEndTestCase(unittest.TestCase):
         # Share URL: opaque, anonymous, and rendered with no original media.
         issued = self.client.post(f"/alerts/{self.alert.id}/share-links")
         self.assertEqual(issued.status_code, 200)
-        secure_url = issued.get_json()["url"]
+        share_payload = issued.get_json()
+        secure_url = share_payload["url"]
         secure_path = urlparse(secure_url).path
         self.assertRegex(secure_path, r"^/s/[A-Za-z0-9_-]{30,}$")
         self.assertNotIn(self.alert.id, secure_path)
@@ -103,14 +104,33 @@ class AlertSheetSharingEndToEndTestCase(unittest.TestCase):
         self.assertNotIn(b"<img", shared_page.data)
         self.assert_no_private_values(shared_page.data)
 
-        # WhatsApp payload: attribution, public title, and opaque URL only.
+        # WhatsApp payload: the complete public incident summary and opaque URL only.
         script = (Path(self.app.static_folder) / "js" / "alert-share.js").read_text(encoding="utf-8")
-        self.assertIn("Source: SAVE-US — ${title}", script)
-        self.assertIn("https://wa.me/?text=${encodeURIComponent(shareText(url))}", script)
-        whatsapp_url = f"https://wa.me/?text={quote(f'Source: SAVE-US — {self.alert.title}\n{secure_url}', safe='')}"
+        self.assertIn('window.open("about:blank", "_blank")', script)
+        self.assertIn("https://wa.me/?text=${encodeURIComponent(payload.whatsapp_text)}", script)
+        self.assertIn("*SAVE-US Emergency Alert*", share_payload["whatsapp_text"])
+        self.assertIn("*Category:* Missing person", share_payload["whatsapp_text"])
+        self.assertIn(f"*Alert:* {self.alert.title}", share_payload["whatsapp_text"])
+        self.assertIn(f"*Summary:*\n{self.alert.public_summary}", share_payload["whatsapp_text"])
+        self.assertIn("*Approximate area:* Mfoundi district · Centre · Cameroon", share_payload["whatsapp_text"])
+        self.assertIn(f"*Secure link:* {secure_url}", share_payload["whatsapp_text"])
+        whatsapp_url = f"https://wa.me/?text={quote(share_payload['whatsapp_text'], safe='')}"
         whatsapp_payload = parse_qs(urlparse(whatsapp_url).query)["text"][0]
-        self.assertEqual(whatsapp_payload, f"Source: SAVE-US — {self.alert.title}\n{secure_url}")
+        self.assertEqual(whatsapp_payload, share_payload["whatsapp_text"])
+        self.assertIn(secure_url, whatsapp_payload)
         self.assert_no_private_values(whatsapp_payload)
+
+        # Dynamic values cannot inject WhatsApp emphasis, strike-through, or code styling.
+        self.alert.title = "Help *locate* _Amadou_"
+        self.alert.public_summary = "Do not ~alter~ `this` report."
+        db.session.commit()
+        self.sign_in_as(self.reporter)
+        sanitised_payload = self.client.post(f"/alerts/{self.alert.id}/share-links").get_json()["whatsapp_text"]
+        self.assertIn("*Alert:* Help locate Amadou", sanitised_payload)
+        self.assertIn("*Summary:*\nDo not alter this report.", sanitised_payload)
+        self.assertNotIn("*locate*", sanitised_payload)
+        self.assertNotIn("~alter~", sanitised_payload)
+        self.assertNotIn("`this`", sanitised_payload)
 
         # Revocation: the formerly valid anonymous link is immediately unavailable.
         self.sign_in_as(self.reporter)

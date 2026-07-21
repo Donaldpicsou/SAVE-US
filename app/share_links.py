@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+import re
 from datetime import datetime, timedelta, timezone
 
 from .extensions import db
@@ -10,6 +11,7 @@ from .models import Alert, AlertShareLink, AlertStatus, utc_now
 
 
 DEFAULT_SHARE_LINK_TTL = timedelta(days=7)
+WHATSAPP_MARKDOWN_PATTERN = re.compile(r"[*_~`]")
 
 
 def create_or_get_active_share_link(alert: Alert, *, created_by_id: int, now: datetime | None = None) -> AlertShareLink:
@@ -67,12 +69,48 @@ def revoke_share_link(link: AlertShareLink, *, now: datetime | None = None) -> N
         db.session.commit()
 
 
+def build_public_share_message(sheet: dict[str, object], *, public_url: str) -> str:
+    """Format a readable WhatsApp/Web Share message from T49-safe fields only.
+
+    Markdown styling belongs only to fixed labels. Dynamic alert values have
+    WhatsApp formatting characters removed so user-provided text cannot alter
+    the intended message or hide safety-relevant content.
+    """
+    if not public_url:
+        raise ValueError("A public share URL is required.")
+    category = _whatsapp_plain_text(str(sheet["category_label"]))
+    title = _whatsapp_plain_text(str(sheet["title"]))
+    summary = _whatsapp_plain_text(str(sheet["summary"]))
+    approximate_location = _whatsapp_plain_text(str(sheet["approximate_location"]))
+    return "\n".join(
+        (
+            "*SAVE-US Emergency Alert*",
+            "",
+            f"*Category:* {category}",
+            f"*Alert:* {title}",
+            f"*Approximate area:* {approximate_location}",
+            "",
+            "*Summary:*",
+            summary,
+            "",
+            "*Source:* SAVE-US",
+            f"*Secure link:* {public_url}",
+        )
+    )
+
+
+def _whatsapp_plain_text(value: str) -> str:
+    """Keep dynamic public data readable without allowing WhatsApp markup."""
+    return WHATSAPP_MARKDOWN_PATTERN.sub("", " ".join(value.split())).strip()
+
+
 def _normalise_datetime(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 __all__ = [
     "DEFAULT_SHARE_LINK_TTL",
+    "build_public_share_message",
     "create_or_get_active_share_link",
     "is_share_link_active",
     "revoke_share_link",
