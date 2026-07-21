@@ -12,6 +12,7 @@
       <article><h2>Hospital verification</h2><p>Review private institution requests and record a reasoned approval or rejection.</p><a class="button secondary" href="{{ url_for('main.administrator_hospital_verifications') }}">Review requests</a></article>
       <article><h2>Moderator management</h2><p>Grant or remove moderator access with safeguards and an immutable audit reason.</p><a class="button secondary" href="{{ url_for('main.administrator_moderators') }}">Manage moderators</a></article>
       <article><h2>Safety rules</h2><p>Set bounded thresholds for future publication and expiry decisions; every change is audited.</p><a class="button secondary" href="{{ url_for('main.administrator_safety_rules') }}">Manage safety rules</a></article>
+      <article><h2>Audit log</h2><p>Review private, minimised administrator and moderator actions with accountable reasons.</p><a class="button secondary" href="{{ url_for('main.administrator_audit_log') }}">Open audit log</a></article>
     </section>
     <p class="admin-home-note">Moderators use the separate <a href="{{ url_for('main.moderator_queue') }}">Moderator queue</a>; it is not an administration area.</p>
   </section>

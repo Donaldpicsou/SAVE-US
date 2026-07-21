@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Administration audit log · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- T46 administrator-only, privacy-minimised staff audit history. -->
+  <section class="simple-page audit-log-page">
+    <p class="eyebrow">Administrator access</p>
+    <h1>Administration audit log</h1>
+    <p class="lead">This restricted history combines administration changes and moderator decisions. It shows accountable reasons without exposing private contacts, exact locations, media, or report contents.</p>
+    {% if error %}<p class="verification-status-card report-status rejected" role="alert">{{ error }}</p>{% endif %}
+    <form class="audit-filter-form" method="get">
+      <label>Author<select name="actor"><option value="">All staff</option>{% for user in staff %}<option value="{{ user.id }}" {{ 'selected' if filters.actor == user.id|string else '' }}>{{ user.display_name or ('Account #' ~ user.id) }} · {{ user.role.value|title }}</option>{% endfor %}</select></label>
+      <label>Action<select name="action"><option value="">All actions</option>{% for action in actions %}<option value="{{ action }}" {{ 'selected' if filters.action == action else '' }}>{{ action.replace('_', ' ')|title }}</option>{% endfor %}</select></label>
+      <label>Report or account<input name="subject" value="{{ filters.subject }}" placeholder="Report ID, title, or account"></label>
+      <label>From<input name="from" type="date" value="{{ filters.from }}"></label>
+      <label>To<input name="to" type="date" value="{{ filters.to }}"></label>
+      <div><button class="button primary" type="submit">Apply filters</button><a href="{{ url_for('main.administrator_audit_log') }}">Clear</a></div>
+    </form>
+    <section class="audit-record-list" aria-label="Administration and moderation audit records">
+      {% for record in records %}
+        <article class="audit-record"><header><div><span class="report-status {{ 'approved' if record.source == 'Administration' else 'pending' }}">{{ record.source }}</span><h2>{{ record.action.replace('_', ' ')|title }}</h2></div><time datetime="{{ record.created_at.isoformat() }}">{{ record.created_at.strftime('%d %b %Y · %H:%M UTC') }}</time></header><dl><div><dt>Author</dt><dd>{{ record.actor }}</dd></div><div><dt>Target</dt><dd>{{ record.target }}</dd></div><div class="audit-reason"><dt>Recorded reason</dt><dd>{{ record.reason }}</dd></div></dl></article>
+      {% else %}<article class="my-reports-empty"><span>✓</span><h2>No matching audit records</h2><p>Try clearing a filter or broaden the date range.</p></article>{% endfor %}
+    </section>
+  </section>
+{% endblock %}

@@ -457,6 +457,112 @@ def administrator_safety_rules():
     )
 
 
+@bp.get("/admin/audit-log")
+@administrator_required
+def administrator_audit_log():
+    """Show a privacy-minimised, administrator-only record of staff actions."""
+    actor_id = request.args.get("actor", "").strip()
+    selected_action = request.args.get("action", "").strip()
+    subject = request.args.get("subject", "").strip().lower()
+    date_from = request.args.get("from", "").strip()
+    date_to = request.args.get("to", "").strip()
+    error = None
+    try:
+        start = datetime.strptime(date_from, "%Y-%m-%d") if date_from else None
+        # Use the next day as an exclusive bound, retaining all times on date_to.
+        end = datetime.strptime(date_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999) if date_to else None
+    except ValueError:
+        start = end = None
+        error = "Use YYYY-MM-DD for audit dates."
+
+    admin_query = db.select(AdministrationAuditEntry).order_by(AdministrationAuditEntry.created_at.desc()).limit(200)
+    moderation_query = (
+        db.select(ReportAction)
+        .where(ReportAction.action.like("moderator_%"))
+        .order_by(ReportAction.created_at.desc())
+        .limit(200)
+    )
+    if actor_id.isdigit():
+        admin_query = admin_query.where(AdministrationAuditEntry.actor_id == int(actor_id))
+        moderation_query = moderation_query.where(ReportAction.actor_id == int(actor_id))
+    if start:
+        admin_query = admin_query.where(AdministrationAuditEntry.created_at >= start)
+        moderation_query = moderation_query.where(ReportAction.created_at >= start)
+    if end:
+        admin_query = admin_query.where(AdministrationAuditEntry.created_at <= end)
+        moderation_query = moderation_query.where(ReportAction.created_at <= end)
+
+    administration_entries = db.session.scalars(admin_query).all()
+    moderation_entries = db.session.scalars(moderation_query).all()
+    actor_ids = {entry.actor_id for entry in administration_entries} | {entry.actor_id for entry in moderation_entries}
+    target_ids = {entry.target_user_id for entry in administration_entries if entry.target_user_id}
+    users = db.session.scalars(db.select(User).where(User.id.in_(actor_ids | target_ids))).all() if actor_ids or target_ids else []
+    users_by_id = {user.id: user for user in users}
+    alert_ids = {entry.alert_id for entry in administration_entries if entry.alert_id} | {entry.alert_id for entry in moderation_entries}
+    alerts = db.session.scalars(db.select(Alert).where(Alert.id.in_(alert_ids))).all() if alert_ids else []
+    alerts_by_id = {alert.id: alert for alert in alerts}
+
+    def account_label(user_id: int | None) -> str:
+        user = users_by_id.get(user_id) if user_id else None
+        return user.display_name if user and user.display_name else f"Account #{user_id}" if user_id else "Removed account"
+
+    records = []
+    for entry in administration_entries:
+        if entry.target_user_id:
+            target = f"Account #{entry.target_user_id}"
+            subject_terms = f"{target} {account_label(entry.target_user_id)}"
+        elif entry.alert_id:
+            alert = alerts_by_id.get(entry.alert_id)
+            target = f"Report #{entry.alert_id[:8]}"
+            subject_terms = f"{target} {entry.alert_id} {alert.title if alert else ''}"
+        elif entry.hospital_verification_request_id:
+            target = f"Institution request #{entry.hospital_verification_request_id[:8]}"
+            subject_terms = f"{target} {entry.hospital_verification_request_id}"
+        else:
+            target, subject_terms = "Platform setting", "platform setting"
+        records.append({
+            "created_at": entry.created_at,
+            "actor": account_label(entry.actor_id),
+            "actor_terms": f"{account_label(entry.actor_id)} {users_by_id.get(entry.actor_id).phone_number if entry.actor_id in users_by_id else ''}",
+            "action": entry.action,
+            "source": "Administration",
+            "target": target,
+            "reason": entry.reason,
+            "subject_terms": subject_terms,
+        })
+    for entry in moderation_entries:
+        alert = alerts_by_id.get(entry.alert_id)
+        records.append({
+            "created_at": entry.created_at,
+            "actor": account_label(entry.actor_id),
+            "actor_terms": f"{account_label(entry.actor_id)} {users_by_id.get(entry.actor_id).phone_number if entry.actor_id in users_by_id else ''}",
+            "action": entry.action,
+            "source": "Moderation",
+            "target": f"Report #{entry.alert_id[:8]}",
+            "reason": entry.reason,
+            "subject_terms": f"{entry.alert_id} {alert.title if alert else ''}",
+        })
+    available_actions = sorted({entry.action for entry in administration_entries} | {entry.action for entry in moderation_entries})
+    if selected_action:
+        records = [record for record in records if record["action"] == selected_action]
+    if subject:
+        records = [record for record in records if subject in record["subject_terms"].lower()]
+    records.sort(key=lambda record: record["created_at"], reverse=True)
+    staff = db.session.scalars(
+        db.select(User).where(User.role.in_([UserRole.ADMINISTRATOR, UserRole.MODERATOR])).order_by(User.display_name, User.id)
+    ).all()
+    return render_template(
+        "admin_audit_log.html",
+        active_page="admin",
+        app_shell=True,
+        records=records,
+        staff=staff,
+        actions=available_actions,
+        filters={"actor": actor_id, "action": selected_action, "subject": request.args.get("subject", ""), "from": date_from, "to": date_to},
+        error=error,
+    )
+
+
 @bp.route("/hospital-verification/request", methods=("GET", "POST"))
 @login_required
 def request_hospital_verification():
