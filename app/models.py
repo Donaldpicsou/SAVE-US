@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, Float, JSON, Boolean, DateTime, Enum as SqlEnum, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, Float, JSON, Boolean, DateTime, Enum as SqlEnum, ForeignKey, Index, String, Text, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .extensions import db
@@ -30,6 +30,31 @@ class UserRole(str, Enum):
     HOSPITAL_REPRESENTATIVE = "hospital_representative"
     MODERATOR = "moderator"
     ADMINISTRATOR = "administrator"
+
+
+class HospitalVerificationStatus(str, Enum):
+    """Private lifecycle for an institution's verification request."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class SafetyRuleKey(str, Enum):
+    """The small, bounded configuration surface administrators may later edit."""
+
+    MINIMUM_PUBLICATION_CONFIDENCE = "minimum_publication_confidence"
+    MAXIMUM_PUBLICATION_FRAUD_RISK = "maximum_publication_fraud_risk"
+    ROAD_ACCIDENT_EXPIRY_HOURS = "road_accident_expiry_hours"
+    UNKNOWN_HOSPITAL_PATIENT_EXPIRY_HOURS = "unknown_hospital_patient_expiry_hours"
+
+
+SAFETY_RULE_SPECS: dict[SafetyRuleKey, dict[str, int]] = {
+    SafetyRuleKey.MINIMUM_PUBLICATION_CONFIDENCE: {"default": 80, "minimum": 50, "maximum": 100},
+    SafetyRuleKey.MAXIMUM_PUBLICATION_FRAUD_RISK: {"default": 80, "minimum": 5, "maximum": 80},
+    SafetyRuleKey.ROAD_ACCIDENT_EXPIRY_HOURS: {"default": 24, "minimum": 1, "maximum": 72},
+    SafetyRuleKey.UNKNOWN_HOSPITAL_PATIENT_EXPIRY_HOURS: {"default": 72, "minimum": 1, "maximum": 72},
+}
 
 
 class AlertType(str, Enum):
@@ -106,6 +131,18 @@ class User(db.Model):
     created_share_links: Mapped[list["AlertShareLink"]] = relationship(
         back_populates="created_by",
         foreign_keys="AlertShareLink.created_by_id",
+    )
+    hospital_verification_requests: Mapped[list["HospitalVerificationRequest"]] = relationship(
+        back_populates="submitted_by",
+        foreign_keys="HospitalVerificationRequest.submitted_by_id",
+    )
+    reviewed_hospital_verification_requests: Mapped[list["HospitalVerificationRequest"]] = relationship(
+        back_populates="reviewed_by",
+        foreign_keys="HospitalVerificationRequest.reviewed_by_id",
+    )
+    administration_audit_entries: Mapped[list["AdministrationAuditEntry"]] = relationship(
+        back_populates="actor",
+        foreign_keys="AdministrationAuditEntry.actor_id",
     )
 
     def __repr__(self) -> str:
@@ -219,6 +256,10 @@ class Alert(db.Model):
         back_populates="alert",
         cascade="all, delete-orphan",
         order_by="AlertShareLink.created_at.desc()",
+    )
+    administration_audit_entries: Mapped[list["AdministrationAuditEntry"]] = relationship(
+        back_populates="alert",
+        foreign_keys="AdministrationAuditEntry.alert_id",
     )
 
     def __repr__(self) -> str:
@@ -580,6 +621,178 @@ class ReportAction(db.Model):
         return f"<ReportAction alert_id={self.alert_id} action={self.action}>"
 
 
+class HospitalVerificationRequest(db.Model):
+    """Private request for a health institution to become a verified publisher.
+
+    T41 stores only references to supporting documents, never the documents in
+    public media storage. T43 will provide the administrator decision flow.
+    """
+
+    __tablename__ = "hospital_verification_requests"
+    __table_args__ = (
+        Index("ix_hospital_verification_requests_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    submitted_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    hospital_name: Mapped[str] = mapped_column(String(180), nullable=False)
+    country: Mapped[str] = mapped_column(String(80), nullable=False)
+    region: Mapped[str] = mapped_column(String(120), nullable=False)
+    contact_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    contact_phone: Mapped[str] = mapped_column(String(32), nullable=False)
+    supporting_document_reference: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[HospitalVerificationStatus] = mapped_column(
+        SqlEnum(HospitalVerificationStatus, native_enum=False, length=32),
+        nullable=False,
+        default=HospitalVerificationStatus.PENDING,
+        index=True,
+    )
+    reviewed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    submitted_by: Mapped[User] = relationship(
+        back_populates="hospital_verification_requests", foreign_keys=[submitted_by_id]
+    )
+    reviewed_by: Mapped[User | None] = relationship(
+        back_populates="reviewed_hospital_verification_requests", foreign_keys=[reviewed_by_id]
+    )
+    administration_audit_entries: Mapped[list["AdministrationAuditEntry"]] = relationship(
+        back_populates="hospital_verification_request",
+        foreign_keys="AdministrationAuditEntry.hospital_verification_request_id",
+    )
+
+    def submission_validation_errors(self) -> dict[str, str]:
+        """Validate the private fields required before an institution applies."""
+        errors: dict[str, str] = {}
+        for field, label, minimum, maximum in (
+            ("hospital_name", "Hospital name", 3, 180),
+            ("country", "Country", 2, 80),
+            ("region", "Region", 2, 120),
+            ("contact_name", "Contact name", 2, 120),
+            ("contact_phone", "Contact phone", 7, 32),
+            ("supporting_document_reference", "Supporting-document reference", 3, 500),
+        ):
+            value = getattr(self, field)
+            if not isinstance(value, str) or not minimum <= len(value.strip()) <= maximum:
+                errors[field] = f"{label} is required and must be between {minimum} and {maximum} characters."
+        return errors
+
+    def decision_validation_errors(self) -> dict[str, str]:
+        """Require an accountable reviewer and reason for any final decision."""
+        errors = self.submission_validation_errors()
+        if self.status in {HospitalVerificationStatus.APPROVED, HospitalVerificationStatus.REJECTED}:
+            if self.reviewed_by_id is None:
+                errors["reviewed_by_id"] = "A reviewer is required for a final verification decision."
+            if self.reviewed_at is None:
+                errors["reviewed_at"] = "A review timestamp is required for a final verification decision."
+            if not self.decision_reason or not self.decision_reason.strip():
+                errors["decision_reason"] = "A decision reason is required."
+        return errors
+
+    def __repr__(self) -> str:
+        return f"<HospitalVerificationRequest {self.id} status={self.status.value}>"
+
+
+class SafetyRule(db.Model):
+    """A bounded, future-facing administration setting with a safe default."""
+
+    __tablename__ = "safety_rules"
+    __table_args__ = (CheckConstraint("value >= 0 AND value <= 720", name="ck_safety_rules_value_range"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[SafetyRuleKey] = mapped_column(
+        SqlEnum(SafetyRuleKey, native_enum=False, length=64), unique=True, nullable=False
+    )
+    value: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    @property
+    def specification(self) -> dict[str, int]:
+        return SAFETY_RULE_SPECS[self.key]
+
+    def validation_errors(self) -> dict[str, str]:
+        """Reject thresholds and expiry values outside their safety envelope."""
+        errors: dict[str, str] = {}
+        try:
+            specification = SAFETY_RULE_SPECS[self.key]
+        except (KeyError, TypeError):
+            errors["key"] = "Safety rule key is not supported."
+            return errors
+        if isinstance(self.value, bool) or not isinstance(self.value, int):
+            errors["value"] = "Safety-rule value must be a whole number."
+        elif not specification["minimum"] <= self.value <= specification["maximum"]:
+            errors["value"] = (
+                f"{self.key.value} must be between {specification['minimum']} and {specification['maximum']}."
+            )
+        return errors
+
+    def __repr__(self) -> str:
+        return f"<SafetyRule {self.key.value}={self.value}>"
+
+
+class AdministrationAuditEntry(db.Model):
+    """Immutable private audit metadata for administrator and moderator actions."""
+
+    __tablename__ = "administration_audit_entries"
+    __table_args__ = (
+        Index("ix_administration_audit_actor_created", "actor_id", "created_at"),
+        Index("ix_administration_audit_action_created", "action", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(80), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    prior_value: Mapped[dict | list | str | int | float | bool | None] = mapped_column(JSON)
+    new_value: Mapped[dict | list | str | int | float | bool | None] = mapped_column(JSON)
+    target_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    alert_id: Mapped[str | None] = mapped_column(ForeignKey("alerts.id", ondelete="SET NULL"), index=True)
+    hospital_verification_request_id: Mapped[str | None] = mapped_column(
+        ForeignKey("hospital_verification_requests.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    actor: Mapped[User] = relationship(back_populates="administration_audit_entries", foreign_keys=[actor_id])
+    alert: Mapped[Alert | None] = relationship(back_populates="administration_audit_entries", foreign_keys=[alert_id])
+    hospital_verification_request: Mapped[HospitalVerificationRequest | None] = relationship(
+        back_populates="administration_audit_entries", foreign_keys=[hospital_verification_request_id]
+    )
+
+    def validation_errors(self) -> dict[str, str]:
+        """Ensure every immutable entry remains attributable and explainable."""
+        errors: dict[str, str] = {}
+        if self.actor_id is None:
+            errors["actor_id"] = "An audit actor is required."
+        if not self.action or not self.action.replace("_", "").replace("-", "").isalnum() or len(self.action) > 80:
+            errors["action"] = "Audit action must be a short machine-readable value."
+        if not self.reason or not self.reason.strip() or len(self.reason.strip()) > 2000:
+            errors["reason"] = "Audit reason is required and must not exceed 2000 characters."
+        return errors
+
+    def __repr__(self) -> str:
+        return f"<AdministrationAuditEntry {self.id} action={self.action}>"
+
+
+@event.listens_for(AdministrationAuditEntry, "before_update")
+def prevent_administration_audit_update(*_args) -> None:
+    """Defend audit entries against ORM mutation after they are written."""
+    raise ValueError("Administration audit entries are immutable.")
+
+
+@event.listens_for(AdministrationAuditEntry, "before_delete")
+def prevent_administration_audit_delete(*_args) -> None:
+    """Defend audit entries against ORM deletion after they are written."""
+    raise ValueError("Administration audit entries are immutable.")
+
+
 class Notification(db.Model):
     """A private in-app notification with optional simulated e-mail delivery state."""
 
@@ -616,12 +829,18 @@ __all__ = [
     "AlertStatus",
     "AlertType",
     "AIReview",
+    "AdministrationAuditEntry",
+    "HospitalVerificationRequest",
+    "HospitalVerificationStatus",
     "MissingPersonDetails",
     "MissingPersonSex",
     "Notification",
     "ReportAction",
     "RoadAccidentDetails",
     "RoadAccidentMediaReview",
+    "SAFETY_RULE_SPECS",
+    "SafetyRule",
+    "SafetyRuleKey",
     "SuspectedAbductionDetails",
     "User",
     "UserRole",
