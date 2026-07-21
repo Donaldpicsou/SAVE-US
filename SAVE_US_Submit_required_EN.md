@@ -11,25 +11,9 @@ This checklist prioritises the work that most improves SAVE-US’s OpenAI Build 
 
 ## Priority 0 — Required before submission
 
-### 1. Create a complete README and add a license
+### 1. Maintain the README and license — Completed
 
-Create `README.md` before publishing the final submission. It must include:
-
-- Project purpose and the CEMAC problem addressed.
-- Main working features and known MVP limits.
-- Installation instructions: Python environment, dependencies, database migration, demo data, and local launch command.
-- Demo access instructions, including the simulated OTP flow and the demo OTP code `123456`.
-- Test command: `.venv/bin/python -m unittest discover -s tests -q`.
-- Architecture summary: Flask, SQLite, SQLAlchemy, private media storage, OpenAI Responses API, deterministic fallback.
-- Security and privacy choices: protected media, no public private contacts, approximate public location only, targeted alerts, and audit trail.
-- A **“Built with Codex and GPT-5.6”** section explaining:
-  - where Codex accelerated implementation, testing, visual integration, and documentation;
-  - which product, engineering, and safety decisions were made deliberately by the team;
-  - how GPT-5.6 is used for structured server-side review and accident-media moderation;
-  - how the deterministic fallback keeps the demo runnable without an API key.
-- A clear distinction between work created or meaningfully extended during the hackathon and any earlier work.
-
-Add an appropriate open-source license to the public repository.
+`README.md`, `README_FR.md`, and the MIT `LICENSE` are present and now document the working alert-sheet and sharing flow, including A4 HTML, server-side PDF, opaque links, WhatsApp/Web Share actions, privacy boundaries, demo access, installation, and tests. Keep these files aligned with any further MVP change before submission.
 
 ### 2. Provide a working demo for judges
 
@@ -58,35 +42,26 @@ Suggested 2:50 video structure:
 4. **1:35–2:00 — Targeting and moderation**
    Show an eligible recipient’s notification/feed and a moderator decision with audit reason.
 5. **2:00–2:20 — Shareable alert sheet**
-   Demonstrate the printable/PDF sheet and safe WhatsApp sharing with `Source: SAVE-US` once implemented.
+   Demonstrate the printable HTML/PDF sheet and safe WhatsApp sharing with `Source: SAVE-US`; explain that the link is opaque, revocable, and contains no original media.
 6. **2:20–2:40 — Multi-event rules**
    Contrast a country-wide suspected abduction with a regional road accident and its expiry.
 7. **2:40–2:50 — Codex contribution and impact**
    State how Codex accelerated the MVP and why the approach can scale responsibly across CEMAC.
 
-## Priority 1 — Complete the key unfinished PRD promise
+## Completed PRD promise — Alert sheet, PDF, and secure sharing (T49–T54)
 
-### 4. Deliver alert sheet, PDF, and sharing (Roadmap T49–T54)
+T49–T54 are complete. Published alerts now provide a branded A4 printable HTML sheet, a server-generated PDF, and detail-page sharing actions. The external URL is opaque, revocable, expires after at most seven days or with the alert, and fails after withdrawal, rejection, or expiry. Automated E2E coverage checks HTML, extracted PDF text, English attribution, WhatsApp payload, revocation, and media/privacy exclusion.
 
-The current alert-detail buttons are not functional. Complete the sharing branch in this order:
-
-- **T49:** Define a single English public-safe alert-sheet contract.
-- **T50:** Build a branded A4 printable HTML sheet.
-- **T51:** Generate a server-side PDF from the same safe content.
-- **T52:** Create opaque, revocable, expiring secure share links.
-- **T53:** Add copy-link, Web Share fallback, and prefilled WhatsApp sharing with `Source: SAVE-US`.
-- **T54:** Test printing, PDF output, English text, attribution, revoked links, and exclusion of private data.
-
-The sheet and external share link must never expose:
+The implemented sheet and external share link never expose:
 
 - private family or reporter contact details;
 - exact street address or GPS coordinates;
 - private circumstances or internal moderation reasons;
 - original uploaded media.
 
-Any externally shareable photo must require explicit moderation approval and should be a separate derivative rather than the original private upload.
+Any future externally shareable photo must require explicit moderation approval and should be a separate derivative rather than the original private upload. The current MVP shares no incident media externally.
 
-## Priority 2 — Strengthen the technical demonstration
+## Priority 1 — Strengthen the technical demonstration
 
 ### 5. Demonstrate real OpenAI use
 
@@ -103,7 +78,7 @@ Any externally shareable photo must require explicit moderation approval and sho
 - Keep the primary video journey focused on one strong missing-person case, then briefly show abduction and road-accident targeting.
 - Do not claim that the unknown-hospital-patient journey is complete until its dedicated form and verification workflow exist.
 
-## Priority 3 — Devpost presentation and evidence
+## Priority 2 — Devpost presentation and evidence
 
 ### 7. Prepare the Devpost page
 
@@ -141,4 +116,4 @@ The following work is valuable but should not delay the items above:
 - [ ] Devpost description and testing instructions are in English.
 - [ ] Code repository URL, YouTube URL, and Codex `/feedback` session ID are added to Devpost.
 - [ ] No API key, real personal data, or unlicensed asset is included.
-- [ ] Printable/PDF/share flow works, or any unfinished capability is honestly identified as roadmap work.
+- [x] Printable/PDF/share flow works and is covered by automated end-to-end safety tests.

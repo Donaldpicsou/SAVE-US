@@ -54,8 +54,11 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 
 - Responsive SAVE-US visual identity, shared navigation, footer, notification menu, and account menu.
 - Home dashboard, full alert feed, alert details, notification centre, and reporter workspace.
+- Authorised English alert sheets: branded A4-printable HTML and server-generated PDF from one public-safe contract.
+- Secure alert sharing from the detail page: copy-link, Web Share with clipboard fallback, and a prefilled WhatsApp message containing `Source: SAVE-US` and an opaque URL.
+- Opaque share links are revocable, expire within seven days (or sooner with the alert), and stop working when an alert is withdrawn, rejected, or expired.
 - CEMAC reference data and seeded demo users.
-- Automated tests for reporting, AI contracts, targeting, notifications, protected media, moderation, and end-to-end journeys.
+- Automated tests for reporting, AI contracts, targeting, notifications, protected media, moderation, sheets, sharing, and end-to-end journeys.
 
 ## Known MVP limits
 
@@ -64,7 +67,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 - The `Unknown hospital patient` alert type exists in the domain model and preferences, but its dedicated reporting and institutional-verification journey is not yet implemented.
 - Payments, Mobile Money, authority integrations, real-time maps, native mobile apps, and public comments are out of scope.
 - AI output assists first-line review; it does not establish facts or contact authorities.
-- Printable/PDF alert sheets and secure external sharing links are planned roadmap work (T49–T54).
+- External sharing never includes the original uploaded photo. A future public-media feature would require explicit moderation approval and a derived public asset; it is not part of this MVP.
 
 ## Technology and architecture
 
@@ -78,6 +81,7 @@ SAVE-US is a Flask application with a deliberately small, testable architecture:
 | Media | Private local storage outside `static/`, with server-side validation |
 | AI review | OpenAI Responses API with GPT-5.6 and structured output validation |
 | AI resilience | Deterministic, transparent demo fallback when an API key or API response is unavailable |
+| Alert sheets and sharing | Versioned public-safe contract, A4 HTML, server-side PDF, opaque revocable/expiring share links |
 | Tests | Python `unittest` suite |
 
 ### High-level flow
@@ -102,6 +106,7 @@ SAVE-US is intentionally designed around data minimisation and accountable decis
 - **Human safeguards:** high-risk, incomplete, duplicate, or sensitive reports can be routed to a moderator.
 - **Audit trail:** reasoned closure and moderation actions record the actor, date, action, and justification privately.
 - **Media safety:** potentially graphic, invalid, or uncertain road-accident media is blocked or sent to moderation rather than being automatically published.
+- **Safe external sharing:** printable sheets, PDFs, and external links consume only the public-safe alert-sheet contract. They exclude original media, private contacts, exact addresses/GPS, private circumstances, and internal moderation reasons. Shared-link responses are non-cacheable and links can be revoked.
 
 ## Quick start
 
@@ -202,7 +207,7 @@ Run the complete automated test suite from the repository root:
 .venv/bin/python -m unittest discover -s tests -q
 ```
 
-The suite covers model validation, OpenAI contract validation, deterministic fallback, targeted delivery, protected media access, reporting flows, moderation decisions, and Cameroon/Centre end-to-end demonstration journeys.
+The suite covers model validation, OpenAI contract validation, deterministic fallback, targeted delivery, protected media access, reporting flows, moderation decisions, Cameroon/Centre end-to-end journeys, and sheet/sharing safety. The final sharing E2E test extracts the generated PDF text and verifies English attribution, WhatsApp payload construction, link revocation, and the absence of private data or unapproved media.
 
 ## Built with Codex and GPT-5.6
 
@@ -216,6 +221,7 @@ Codex helped accelerate:
 - the Stitch-derived visual integration, responsive shared shell, navigation, notification menus, and accessibility-oriented interaction refinements;
 - reporting workflows, validation rules, protected media handling, CEMAC data seeding, targeting logic, and moderation workspace;
 - regression tests and end-to-end scenario coverage;
+- public-safe A4/PDF alert-sheet delivery, opaque share links, and safe sharing controls;
 - PRD, roadmap, submission checklist, and repository documentation.
 
 ### Deliberate team decisions
@@ -240,7 +246,7 @@ If no API key is configured, the OpenAI package is unavailable, a request fails,
 
 ## Hackathon provenance
 
-The repository’s dated commit history records the project work completed during the hackathon submission period, including the PRD, English PRD, roadmap, Flask MVP, reporting flows, structured GPT-5.6 review, road-media moderation, targeting, notification centre, multi-event end-to-end tests, and human moderation workflow.
+The repository’s dated commit history records the project work completed during the hackathon submission period, including the PRD, English PRD, roadmap, Flask MVP, reporting flows, structured GPT-5.6 review, road-media moderation, targeting, notification centre, multi-event end-to-end tests, human moderation workflow, and public-safe alert sheets and sharing.
 
 SAVE-US is original work created and meaningfully extended for OpenAI Build Week 2026. Any open-source dependencies are used under their respective licences. The repository does not include an OpenAI API key or other production credential.
 
@@ -253,7 +259,7 @@ Near-term planned work is documented in:
 - [English submission priorities](SAVE_US_Submit_required_EN.md)
 - [French submission priorities](SAVE_US_Submit_required.md)
 
-Priority next steps are printable/PDF alert sheets and secure sharing (T49–T54), followed by administration dashboards and hospital-verification workflow (T41–T48).
+The next planned product work is the administration dashboards and hospital-verification workflow (T41–T48), followed by the dedicated unknown-hospital-patient reporting journey.
 
 ## License
 

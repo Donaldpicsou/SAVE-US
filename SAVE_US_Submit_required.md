@@ -11,25 +11,9 @@ Cette checklist priorise le travail qui renforcera le plus la soumission SAVE-US
 
 ## Priorité 0 — Obligatoire avant la soumission
 
-### 1. Créer un README complet et ajouter une licence
+### 1. Maintenir les README et la licence — Terminé
 
-Créer `README.md` avant la soumission finale. Il doit inclure :
-
-- L’objectif du projet et le problème CEMAC traité.
-- Les fonctionnalités principales effectives et les limites connues du MVP.
-- Les instructions d’installation : environnement Python, dépendances, migration, données démo et commande de lancement local.
-- Les instructions d’accès à la démo, y compris l’OTP simulé et le code `123456`.
-- La commande de test : `.venv/bin/python -m unittest discover -s tests -q`.
-- Un résumé de l’architecture : Flask, SQLite, SQLAlchemy, stockage média privé, OpenAI Responses API et repli déterministe.
-- Les choix de sécurité et confidentialité : médias protégés, absence de contacts privés publics, localisation approximative, alertes ciblées et piste d’audit.
-- Une section **« Built with Codex and GPT-5.6 »** expliquant :
-  - où Codex a accéléré l’implémentation, les tests, l’intégration visuelle et la documentation ;
-  - quelles décisions produit, techniques et de sûreté ont été prises délibérément par l’équipe ;
-  - comment GPT-5.6 est utilisé pour les revues structurées côté serveur et la modération des médias d’accident ;
-  - comment le repli déterministe maintient la démo disponible sans clé API.
-- Une distinction claire entre le travail créé ou significativement étendu pendant le hackathon et tout travail antérieur.
-
-Ajouter une licence open source adaptée au dépôt public.
+`README.md`, `README_FR.md` et la licence MIT sont présents. Ils documentent maintenant le flux effectif de fiches et de partage : HTML A4, PDF côté serveur, liens opaques, actions WhatsApp/Web Share, limites de confidentialité, accès démo, installation et tests. Les maintenir à jour avant toute soumission si le MVP évolue.
 
 ### 2. Fournir une démo utilisable par les juges
 
@@ -58,35 +42,26 @@ Structure vidéo suggérée, en 2 min 50 :
 4. **1:35–2:00 — Ciblage et modération**
    Montrer la notification/le fil d’un destinataire éligible et une décision modérateur avec motif d’audit.
 5. **2:00–2:20 — Fiche d’alerte partageable**
-   Montrer la fiche imprimable/PDF et le partage WhatsApp sûr avec `Source: SAVE-US`, une fois implémentés.
+   Montrer la fiche HTML/PDF imprimable et le partage WhatsApp sûr avec `Source: SAVE-US` ; expliquer que le lien est opaque, révocable et ne contient aucun média original.
 6. **2:20–2:40 — Règles multi-événements**
    Comparer un enlèvement national à un accident routier régional et son expiration.
 7. **2:40–2:50 — Contribution Codex et impact**
    Expliquer comment Codex a accéléré le MVP et pourquoi l’approche peut s’étendre de manière responsable dans la CEMAC.
 
-## Priorité 1 — Achever la promesse PRD principale encore incomplète
+## Promesse PRD terminée — Fiche, PDF et partage sécurisé (T49–T54)
 
-### 4. Livrer la fiche d’alerte, le PDF et le partage (roadmap T49–T54)
+T49–T54 sont terminées. Les alertes publiées disposent désormais d’une fiche HTML A4 aux couleurs SAVE-US, d’un PDF côté serveur et d’actions de partage depuis le détail. L’URL externe est opaque, révocable, expire au plus tard après sept jours ou avec l’alerte, et cesse de fonctionner après retrait, rejet ou expiration. Les tests E2E contrôlent HTML, texte extrait du PDF, attribution anglaise, charge utile WhatsApp, révocation et exclusion des médias/données privés.
 
-Les boutons du détail d’alerte ne sont pas encore fonctionnels. Réaliser cette branche dans l’ordre suivant :
-
-- **T49 :** définir un contrat unique de fiche d’alerte anglaise, publique et sûre.
-- **T50 :** construire une fiche HTML A4 imprimable et aux couleurs SAVE-US.
-- **T51 :** générer un PDF côté serveur depuis le même contenu sûr.
-- **T52 :** créer des liens de partage opaques, révocables et expirables.
-- **T53 :** ajouter copie du lien, repli Web Share et partage WhatsApp prérempli avec `Source: SAVE-US`.
-- **T54 :** tester impression, PDF, texte anglais, attribution, liens révoqués et exclusion des données privées.
-
-La fiche et le lien de partage externe ne doivent jamais exposer :
+La fiche et le lien de partage externe mis en œuvre n’exposent jamais :
 
 - les contacts privés de la famille ou du déclarant ;
 - une adresse précise ou des coordonnées GPS ;
 - les circonstances privées ou motifs internes de modération ;
 - le média original téléversé.
 
-Toute photo partageable à l’extérieur exige une approbation explicite de modération et devrait être une copie dérivée, non le média privé d’origine.
+Toute future photo partageable à l’extérieur exigera une approbation explicite de modération et devra être une copie dérivée, non le média privé d’origine. Le MVP actuel ne partage aucun média d’incident à l’extérieur.
 
-## Priorité 2 — Renforcer la démonstration technique
+## Priorité 1 — Renforcer la démonstration technique
 
 ### 5. Démontrer un usage réel d’OpenAI
 
@@ -103,7 +78,7 @@ Toute photo partageable à l’extérieur exige une approbation explicite de mod
 - Conserver un parcours vidéo principal centré sur une disparition, puis montrer brièvement les ciblages enlèvement et accident.
 - Ne pas présenter le parcours « Unknown hospital patient » comme terminé avant son formulaire dédié et son workflow de vérification.
 
-## Priorité 3 — Présentation Devpost et preuves
+## Priorité 2 — Présentation Devpost et preuves
 
 ### 7. Préparer la page Devpost
 
@@ -141,4 +116,4 @@ Ces travaux sont utiles mais ne doivent pas retarder les éléments ci-dessus :
 - [ ] Description Devpost et instructions de test en anglais.
 - [ ] URL dépôt, URL YouTube et Session ID Codex `/feedback` ajoutés sur Devpost.
 - [ ] Aucune clé API, donnée personnelle réelle ou ressource non licenciée.
-- [ ] Flux fiche imprimable/PDF/partage fonctionnel, ou fonctionnalité incomplète déclarée honnêtement comme roadmap.
+- [x] Flux fiche imprimable/PDF/partage fonctionnel et couvert par des tests E2E de sûreté.

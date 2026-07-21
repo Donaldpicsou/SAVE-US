@@ -49,8 +49,11 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 
 - Identité visuelle SAVE-US responsive, navigation partagée, footer, menus de notifications et de compte.
 - Tableau de bord, fil d’alertes, détail, centre de notifications et espace déclarant.
+- Fiches d’alerte anglaises autorisées : HTML A4 imprimable aux couleurs SAVE-US et PDF généré côté serveur depuis un même contrat public sûr.
+- Partage sécurisé depuis le détail : copie de lien, Web Share avec repli vers le presse-papiers et message WhatsApp prérempli contenant `Source: SAVE-US` et une URL opaque.
+- Les liens opaques sont révocables, expirent au plus tard après sept jours (ou avec l’alerte) et cessent de fonctionner si l’alerte est retirée, rejetée ou expirée.
 - Données CEMAC et utilisateurs démo préchargés.
-- Tests automatisés couvrant signalements, contrats IA, ciblage, notifications, médias protégés, modération et parcours de bout en bout.
+- Tests automatisés couvrant signalements, contrats IA, ciblage, notifications, médias protégés, modération, fiches, partage et parcours de bout en bout.
 
 ## Limites connues du MVP
 
@@ -59,7 +62,7 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 - Le type `Unknown hospital patient` existe dans le modèle métier et les préférences, mais son parcours de signalement dédié et sa vérification institutionnelle ne sont pas encore implémentés.
 - Paiements, Mobile Money, intégrations avec les autorités, carte temps réel, applications mobiles natives et commentaires publics sont hors périmètre.
 - L’IA assiste la revue de première ligne ; elle n’établit pas les faits et ne contacte pas les autorités.
-- Les fiches d’alerte imprimables/PDF et liens externes sécurisés sont planifiés dans la roadmap (T49–T54).
+- Le partage externe n’inclut jamais la photo originale téléversée. Une future publication de média exigerait une approbation explicite de modération et un dérivé public ; elle n’est pas incluse dans ce MVP.
 
 ## Technologies et architecture
 
@@ -73,6 +76,7 @@ SAVE-US utilise une architecture Flask volontairement légère et testable :
 | Médias | Stockage local privé hors de `static/`, validé côté serveur |
 | Revue IA | OpenAI Responses API, GPT-5.6 et validation de sortie structurée |
 | Résilience IA | Repli démo déterministe et transparent sans clé API ou en cas d’échec |
+| Fiches et partage | Contrat public sûr versionné, HTML A4, PDF côté serveur et liens opaques révocables/expirables |
 | Tests | Suite Python `unittest` |
 
 ### Flux général
@@ -95,6 +99,7 @@ Déclarant vérifié
 - **Garanties humaines :** les dossiers à risque, incomplets, en doublon ou sensibles peuvent être envoyés à un modérateur.
 - **Piste d’audit :** toute clôture ou décision de modération motivée conserve auteur, date, action et justification en privé.
 - **Sûreté média :** les médias d’accident invalides, graphiques ou incertains sont bloqués ou modérés avant toute publication.
+- **Partage externe sûr :** les fiches imprimables, PDF et liens externes ne consomment que le contrat public sûr. Ils excluent média original, contacts privés, adresse/GPS précis, circonstances privées et motifs internes de modération. Les réponses de lien ne sont pas mises en cache et les liens sont révocables.
 
 ## Installation rapide
 
@@ -195,7 +200,7 @@ Lancer l’ensemble des tests automatisés depuis la racine du dépôt :
 .venv/bin/python -m unittest discover -s tests -q
 ```
 
-La suite couvre validations métier, contrats OpenAI, repli déterministe, diffusion ciblée, accès média protégé, formulaires, décisions de modération et parcours démo Cameroun/Centre.
+La suite couvre validations métier, contrats OpenAI, repli déterministe, diffusion ciblée, accès média protégé, formulaires, décisions de modération, parcours démo Cameroun/Centre et sûreté des fiches/partages. Le test E2E final extrait le texte du PDF, puis vérifie attribution anglaise, charge utile WhatsApp, révocation et absence de données privées ou média non autorisé.
 
 ## Built with Codex and GPT-5.6
 
@@ -209,6 +214,7 @@ Codex a accéléré :
 - l’intégration visuelle issue de Stitch, le shell responsive, la navigation, les menus de notification et les raffinements d’interaction ;
 - les parcours de signalement, règles de validation, médias protégés, données CEMAC, logique de ciblage et espace de modération ;
 - les tests de régression et scénarios de bout en bout ;
+- les fiches publiques sûres A4/PDF, liens opaques et contrôles de partage sûrs ;
 - le PRD, la roadmap, la checklist de soumission et la documentation du dépôt.
 
 ### Décisions délibérées de l’équipe
@@ -233,7 +239,7 @@ Sans clé API, si le package OpenAI est indisponible, si l’appel échoue ou si
 
 ## Traçabilité hackathon
 
-L’historique daté des commits du dépôt conserve le travail réalisé pendant la période de soumission : PRD, version anglaise, roadmap, MVP Flask, formulaires, revue structurée GPT-5.6, modération des médias, ciblage, centre de notifications, tests multi-événements et workflow de modération humaine.
+L’historique daté des commits du dépôt conserve le travail réalisé pendant la période de soumission : PRD, version anglaise, roadmap, MVP Flask, formulaires, revue structurée GPT-5.6, modération des médias, ciblage, centre de notifications, tests multi-événements, workflow de modération humaine, fiches d’alerte publiques sûres et partage.
 
 SAVE-US est un travail original créé et significativement étendu pour OpenAI Build Week 2026. Les dépendances open source sont utilisées selon leurs licences respectives. Le dépôt ne contient aucune clé OpenAI ni autre identifiant de production.
 
@@ -246,7 +252,7 @@ Les prochaines étapes sont documentées dans :
 - [Priorités de soumission anglaises](SAVE_US_Submit_required_EN.md)
 - [Priorités de soumission françaises](SAVE_US_Submit_required.md)
 
-Les priorités suivantes sont fiches imprimables/PDF et partage sécurisé (T49–T54), puis tableaux de bord administrateur et vérification hospitalière (T41–T48).
+Les prochaines évolutions produit prévues sont les tableaux de bord administrateur et le workflow de vérification hospitalière (T41–T48), puis le parcours dédié aux patients hospitaliers inconnus.
 
 ## Licence
 
