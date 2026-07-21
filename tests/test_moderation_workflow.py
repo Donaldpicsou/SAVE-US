@@ -196,6 +196,48 @@ class ModerationWorkflowTestCase(unittest.TestCase):
             "withdrawn",
         )
 
+    def test_queue_badge_and_dashboard_action_count_match_only_reviewable_reports(self) -> None:
+        ai_review_only = Alert(
+            reporter=self.reporter,
+            alert_type=AlertType.MISSING_PERSON,
+            status=AlertStatus.AI_REVIEW,
+            title="Still being reviewed by AI",
+            country="Cameroon",
+            region="Centre",
+        )
+        needs_moderation = Alert(
+            reporter=self.reporter,
+            alert_type=AlertType.MISSING_PERSON,
+            status=AlertStatus.NEEDS_MODERATION,
+            title="Human decision needed",
+            country="Cameroon",
+            region="Centre",
+        )
+        published_abduction = Alert(
+            reporter=self.reporter,
+            alert_type=AlertType.SUSPECTED_ABDUCTION,
+            status=AlertStatus.PUBLISHED,
+            title="Post-publication safety review",
+            country="Cameroon",
+            region="Centre",
+        )
+        db.session.add_all([ai_review_only, needs_moderation, published_abduction])
+        db.session.commit()
+
+        self.sign_in_as(self.moderator)
+        queue = self.client.get("/moderator")
+        self.assertIn(b"2 pending moderation decisions", queue.data)
+        self.assertIn(b"Human decision needed", queue.data)
+        self.assertIn(b"Post-publication safety review", queue.data)
+        self.assertNotIn(b"Still being reviewed by AI", queue.data)
+        self.assertIn(b'aria-label="2 pending moderation decisions"', queue.data)
+
+        needs_moderation.status = AlertStatus.REJECTED
+        db.session.commit()
+        updated_queue = self.client.get("/moderator")
+        self.assertIn(b"1 pending moderation decision", updated_queue.data)
+        self.assertIn(b'aria-label="1 pending moderation decisions"', updated_queue.data)
+
 
 if __name__ == "__main__":
     unittest.main()

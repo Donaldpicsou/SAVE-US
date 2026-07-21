@@ -6,9 +6,9 @@
   <!-- Location onboarding: country and primary region determine alert targeting. -->
   <section class="onboarding-page">
     <article class="onboarding-card">
-      <!-- Progress indicator; alert preferences are delivered in roadmap task T9. -->
-      <div class="onboarding-progress"><span class="active">1</span><i></i><span>2</span></div>
-      <p class="eyebrow">{{ "Update location" if is_profile_update else "Step 1 of 2 · Location" }}</p>
+      <!-- The name is captured first; location determines targeted delivery. -->
+      <div class="onboarding-progress"><span>1</span><i></i><span class="active">2</span><i></i><span>3</span></div>
+      <p class="eyebrow">{{ "Update location" if is_profile_update else "Step 2 of 3 · Location" }}</p>
       <h1>Where should SAVE-US protect you?</h1>
       <p class="lead">Choose your country and primary region. This helps SAVE-US send relevant alerts to the right community.</p>
       {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}

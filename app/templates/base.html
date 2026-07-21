@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/preferences.css') }}">
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/phone-input.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/alert-share.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/report-wizard.js') }}" defer></script>
   </head>
@@ -81,7 +82,7 @@
             <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">{{ icons.icon('alert') }} <span>Alerts</span></a>
             <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} <span>Report</span></a>
             <a class="{{ 'active' if active_page == 'reports' else '' }}" href="{{ url_for('main.my_reports') }}">{{ icons.icon('folder') }} <span>My reports</span></a>
-            {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span>{% if staff_workload.moderation_queue %}<b class="sidebar-badge" aria-label="{{ staff_workload.moderation_queue }} reports awaiting moderation">{{ staff_workload.moderation_queue }}</b>{% endif %}</a>{% endif %}
+            {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span>{% if staff_workload.moderation_queue %}<b class="sidebar-badge" aria-label="{{ staff_workload.moderation_queue }} pending moderation decisions">{{ staff_workload.moderation_queue }}</b>{% endif %}</a>{% endif %}
             {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }} <span>Administration</span>{% if staff_workload.administration %}<b class="sidebar-badge" aria-label="{{ staff_workload.administration }} administrative requests awaiting review">{{ staff_workload.administration }}</b>{% endif %}</a>{% endif %}
           </nav>
           <a class="sidebar-settings {{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }} <span>Settings</span></a>

@@ -11,13 +11,13 @@
       <h1>Welcome to SAVE-US</h1>
       <p class="lead">Sign in with a CEMAC phone number to access emergency alerts for your country and regions.</p>
       {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
-      <!-- Phone number is stored temporarily in the session until OTP verification. -->
+      <!-- Country and national number are recomposed server-side into one normalised E.164 value. -->
       <form method="post" class="auth-form">
-        <label>CEMAC phone number<input name="phone_number" type="tel" value="{{ phone_number }}" placeholder="+237 612 345 678" pattern="\+?(235|236|237|240|241|242)[0-9\s-]+" title="Use a phone number from Cameroon, CAR, Chad, Equatorial Guinea, Gabon, or Republic of the Congo." inputmode="tel" autocomplete="tel" required></label>
+        <label for="phone-number">CEMAC phone number<span class="phone-entry-row"><select id="phone-country-code" name="phone_country_code" aria-label="Country calling code" data-phone-country>{% for country in phone_countries %}<option value="{{ country.code }}" data-example="{{ country.example }}" {{ 'selected' if selected_country_code == country.code else '' }}>(+{{ country.code }}) {{ country.flag }}</option>{% endfor %}</select><input id="phone-number" name="phone_number" type="tel" value="{{ phone_number }}" placeholder="612 345 678" pattern="[+0-9\s-]+" title="Enter your national number. A full international CEMAC number may also be pasted." inputmode="tel" autocomplete="tel-national" data-phone-national required></span><small class="form-field-note">Choose the calling code, then enter the national number without it. You may also paste a full international CEMAC number.</small></label>
         <button class="button emergency" type="submit">Send verification code</button>
       </form>
-      <p class="demo-note"><strong>Hackathon demo:</strong> use the seeded phone <code>+237 612 345 678</code> and code <code>{{ demo_otp_code }}</code>.</p>
-      <a class="auth-secondary-link" href="{{ url_for('main.onboarding_location') }}">New to SAVE-US? Create an account</a>
+      <p class="demo-note"><strong>Hackathon demo:</strong> select <em>(+237) 🇨🇲</em>, enter <code>612 345 678</code>, then use code <code>{{ demo_otp_code }}</code>.</p>
+      <p class="auth-secondary-note">New numbers create a SAVE-US account after verification.</p>
     </article>
   </section>
 {% endblock %}

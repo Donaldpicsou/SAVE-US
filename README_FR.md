@@ -191,7 +191,7 @@ Comptes démo utiles :
 | Abonné régional | Jonas K. | `+237688445566` | Cameroun / Littoral |
 | Abonné CEMAC | Paul E. | `+24174001122` | Gabon / Estuaire |
 
-Pour vous connecter, saisir l’un de ces numéros puis `123456` sur la page OTP.
+Pour vous connecter, sélectionner l’indicatif correspondant, puis saisir la partie nationale du numéro sans celui-ci (par exemple, sélectionner **(+237) 🇨🇲** et saisir `612345678` pour Amina N.). Il est aussi possible de coller le numéro international complet. Saisir ensuite `123456` sur la page OTP, renseigner le nom d’affichage obligatoire, puis choisir le pays et la région principale.
 
 ## Tests
 

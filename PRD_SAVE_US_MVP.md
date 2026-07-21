@@ -43,7 +43,7 @@ Les informations critiques circulent souvent tardivement, de manière dispersée
 
 - Application web responsive en anglais.
 - Inscription par numéro de téléphone ; OTP simulé pour le hackathon.
-- Profil : pays, région principale, régions supplémentaires suivies, catégories d’alertes activées.
+- Nom d’affichage obligatoire respectueux de la vie privée, puis profil : pays, région principale, régions supplémentaires suivies, catégories d’alertes activées.
 - Catalogue complet des pays et subdivisions CEMAC fourni par le porteur du projet.
 - Fil d’alertes géociblé et recherche simple par nom/statut.
 - Déclarations complètes de disparition, enlèvement présumé et accident routier ; le parcours de patient hospitalier inconnu est différé.
@@ -88,7 +88,7 @@ L’expiration de 24 heures pour les accidents routiers est une décision de cad
 
 ## 7. Ciblage et préférences
 
-À l’inscription, l’utilisateur choisit un pays et une région principale. Il peut modifier ces choix, suivre des régions additionnelles et activer/désactiver chaque catégorie.
+À l’inscription, l’utilisateur choisit un nom d’affichage responsable obligatoire, puis un pays et une région principale. Il peut ensuite modifier son nom d’affichage, ces choix, suivre des régions additionnelles et activer/désactiver chaque catégorie.
 
 Règles de sélection d’un destinataire :
 
@@ -227,6 +227,7 @@ Le logo fourni est l’autorité visuelle. L’interface doit évoquer protectio
 
 ## 16. Critères d’acceptation
 
+- Un nouvel utilisateur ne peut pas finaliser son inscription sans un nom d’affichage de 2 à 120 caractères ; il peut ensuite le modifier dans Profile & account.
 - Un utilisateur peut choisir Cameroon/Centre, puis modifier son pays, sa région et ses préférences.
 - Une disparition ne peut pas être soumise sans les champs obligatoires.
 - Une soumission avec confidence score ≥ 80 et fraud-risk score < 80 peut être publiée.

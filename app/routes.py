@@ -73,6 +73,14 @@ CEMAC_PHONE_NUMBER_LENGTHS = {
     "241": 8,  # Gabon
     "242": 9,  # Republic of the Congo
 }
+CEMAC_PHONE_COUNTRIES = (
+    {"code": "237", "name": "Cameroon", "flag": "🇨🇲", "example": "612 345 678"},
+    {"code": "236", "name": "Central African Republic", "flag": "🇨🇫", "example": "12 34 56 78"},
+    {"code": "235", "name": "Chad", "flag": "🇹🇩", "example": "12 34 56 78"},
+    {"code": "240", "name": "Equatorial Guinea", "flag": "🇬🇶", "example": "123 456 789"},
+    {"code": "241", "name": "Gabon", "flag": "🇬🇦", "example": "74 00 11 22"},
+    {"code": "242", "name": "Republic of the Congo", "flag": "🇨🇬", "example": "12 34 56 789"},
+)
 
 INFORMATION_PAGES = {
     "about": ("About SAVE-US", "CEMAC Emergency Network", "A high-trust civic platform dedicated to humanitarian protection and rapid emergency coordination across Central Africa.", [("Our mission", "SAVE-US helps communities structure, review, and responsibly share critical alerts when every second matters."), ("Our role", "We support first-line information gathering and responsible community distribution. We do not replace emergency services or investigative authorities.")]),
@@ -169,9 +177,7 @@ def inject_shared_template_data() -> dict:
     )
     staff_workload = {"moderation_queue": 0, "hospital_requests": 0, "moderator_requests": 0, "administration": 0}
     if g.current_user and g.current_user.role in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}:
-        staff_workload["moderation_queue"] = db.session.scalar(
-            db.select(db.func.count(Alert.id)).where(Alert.status.in_([AlertStatus.AI_REVIEW, AlertStatus.NEEDS_MODERATION]))
-        ) or 0
+        staff_workload["moderation_queue"] = pending_moderation_decision_count()
     if g.current_user and g.current_user.role == UserRole.ADMINISTRATOR:
         staff_workload["hospital_requests"] = db.session.scalar(
             db.select(db.func.count(HospitalVerificationRequest.id)).where(
@@ -230,9 +236,49 @@ def administrator_required(view):
     return wrapped_view
 
 
+def moderation_queue_criterion():
+    """Return the one authoritative definition of a moderation decision awaiting action."""
+    return (Alert.status == AlertStatus.NEEDS_MODERATION) | (
+        (Alert.alert_type == AlertType.SUSPECTED_ABDUCTION) & (Alert.status == AlertStatus.PUBLISHED)
+    )
+
+
+def moderation_queue_statement():
+    """Build the exact report set displayed in the restricted moderator queue."""
+    return db.select(Alert).where(moderation_queue_criterion()).order_by(Alert.updated_at.desc())
+
+
+def pending_moderation_decision_count() -> int:
+    """Count only reports a moderator can actually decide on now."""
+    return db.session.scalar(db.select(db.func.count(Alert.id)).where(moderation_queue_criterion())) or 0
+
+
 def normalise_phone(phone_number: str) -> str:
     """Convert a display phone number into a simple E.164-like value."""
     return re.sub(r"[^\d+]", "", phone_number.strip())
+
+
+def normalise_sign_in_phone(phone_number: str, country_code: str | None) -> str:
+    """Store sign-in input as E.164 while allowing national entry or a pasted full number."""
+    normalised = normalise_phone(phone_number)
+    if normalised.startswith("+"):
+        return normalised
+    digits = normalised.replace("+", "")
+    selected_code = country_code if country_code in CEMAC_PHONE_NUMBER_LENGTHS else "237"
+    national_length = CEMAC_PHONE_NUMBER_LENGTHS[selected_code]
+    if digits.startswith(selected_code) and len(digits) == len(selected_code) + national_length:
+        return f"+{digits}"
+    if digits.startswith("0") and len(digits) == national_length + 1:
+        digits = digits[1:]
+    return f"+{selected_code}{digits}"
+
+
+def validate_display_name(value: str) -> tuple[str, str | None]:
+    """Normalise a public-facing profile name without requiring a legal identity."""
+    display_name = " ".join(value.split())
+    if not 2 <= len(display_name) <= 120:
+        return display_name, "Enter a display name between 2 and 120 characters."
+    return display_name, None
 
 
 def is_valid_cemac_phone(phone_number: str) -> bool:
@@ -266,8 +312,13 @@ def sign_in():
 
     error = None
     phone_number = ""
+    phone_input = ""
+    selected_country_code = request.form.get("phone_country_code", "237")
+    if selected_country_code not in CEMAC_PHONE_NUMBER_LENGTHS:
+        selected_country_code = "237"
     if request.method == "POST":
-        phone_number = normalise_phone(request.form.get("phone_number", ""))
+        phone_input = request.form.get("phone_number", "").strip()
+        phone_number = normalise_sign_in_phone(phone_input, selected_country_code)
         if not is_valid_cemac_phone(phone_number):
             error = "Enter a valid CEMAC phone number, for example +237 612 345 678 or +241 74 00 11 22."
         else:
@@ -276,7 +327,16 @@ def sign_in():
             session["otp_attempts"] = 0
             return redirect(url_for("main.verify_otp"))
 
-    return render_template("sign_in.html", active_page=None, app_shell=False, error=error, phone_number=phone_number, demo_otp_code=DEMO_OTP_CODE)
+    return render_template(
+        "sign_in.html",
+        active_page=None,
+        app_shell=False,
+        error=error,
+        phone_number=phone_input,
+        selected_country_code=selected_country_code,
+        phone_countries=CEMAC_PHONE_COUNTRIES,
+        demo_otp_code=DEMO_OTP_CODE,
+    )
 
 
 @bp.route("/verify-otp", methods=("GET", "POST"))
@@ -301,7 +361,7 @@ def verify_otp():
                 session["user_id"] = user.id
                 return redirect(safe_next_url(session.pop("login_next", None)))
             session["onboarding_phone"] = phone_number
-            return redirect(url_for("main.onboarding_location"))
+            return redirect(url_for("main.onboarding_profile"))
 
     return render_template("verify_otp.html", active_page=None, app_shell=False, error=error, phone_number=phone_number, demo_otp_code=DEMO_OTP_CODE)
 
@@ -358,7 +418,7 @@ def administrator_home():
         for action in moderation_actions
         if action.alert_id in alerts_by_id
     ]
-    pending_items = db.session.scalars(db.select(Alert).where(Alert.status.in_(pending_statuses))).all()
+    pending_items = db.session.scalars(moderation_queue_statement()).all()
     pending_ages = [max(0, (now.timestamp() - alert.created_at.timestamp()) / 3600) for alert in pending_items]
     pending_hospital_items = db.session.scalars(
         db.select(HospitalVerificationRequest).where(HospitalVerificationRequest.status == HospitalVerificationStatus.PENDING)
@@ -388,6 +448,7 @@ def administrator_home():
         metrics={
             "active_alerts": active_alerts or 0,
             "pending_alerts": pending_alerts or 0,
+            "pending_moderation_decisions": pending_moderation_decision_count(),
             "expired_alerts": expired_alerts or 0,
             "reports_created": reports_created or 0,
             "pending_hospital_requests": pending_hospital_requests or 0,
@@ -2222,14 +2283,7 @@ def close_report(alert_id: str):
 @moderator_required
 def moderator_queue():
     """Show moderation candidates plus published abductions for post-publication review."""
-    alerts = db.session.scalars(
-        db.select(Alert)
-        .where(
-            (Alert.status == AlertStatus.NEEDS_MODERATION)
-            | ((Alert.alert_type == AlertType.SUSPECTED_ABDUCTION) & (Alert.status == AlertStatus.PUBLISHED))
-        )
-        .order_by(Alert.updated_at.desc())
-    ).all()
+    alerts = db.session.scalars(moderation_queue_statement()).all()
     return render_template(
         "moderator_queue.html",
         active_page="moderator",
@@ -2454,6 +2508,8 @@ def onboarding_location():
 
     if user is None and pending_phone is None:
         return redirect(url_for("main.sign_in"))
+    if user is None and not session.get("onboarding_display_name"):
+        return redirect(url_for("main.onboarding_profile"))
 
     selected_country_code = request.form.get("country_code", "")
     selected_region = request.form.get("primary_region", "")
@@ -2470,6 +2526,7 @@ def onboarding_location():
             if user is None:
                 user = User(
                     phone_number=pending_phone,
+                    display_name=session["onboarding_display_name"],
                     is_phone_verified=True,
                     country=country["name"],
                     primary_region=selected_region,
@@ -2478,6 +2535,7 @@ def onboarding_location():
                 db.session.flush()
                 session["user_id"] = user.id
                 session.pop("onboarding_phone", None)
+                session.pop("onboarding_display_name", None)
             else:
                 user.country = country["name"]
                 user.primary_region = selected_region
@@ -2503,6 +2561,30 @@ def onboarding_location():
         selected_region=selected_region,
         error=error,
         is_profile_update=user is not None,
+    )
+
+
+@bp.route("/onboarding/profile", methods=("GET", "POST"))
+def onboarding_profile():
+    """Require a responsible display name before a newly verified number becomes an account."""
+    if g.current_user is not None:
+        return redirect(url_for("main.dashboard"))
+    if session.get("onboarding_phone") is None:
+        return redirect(url_for("main.sign_in"))
+
+    display_name = request.form.get("display_name", "")
+    error = None
+    if request.method == "POST":
+        display_name, error = validate_display_name(display_name)
+        if error is None:
+            session["onboarding_display_name"] = display_name
+            return redirect(url_for("main.onboarding_location"))
+    return render_template(
+        "onboarding_profile.html",
+        active_page=None,
+        app_shell=False,
+        display_name=display_name,
+        error=error,
     )
 
 
@@ -2594,10 +2676,18 @@ def open_notification(notification_id: str):
     )
 
 
-@bp.get("/account")
+@bp.route("/account", methods=("GET", "POST"))
 @login_required
 def account():
-    return render_template("account.html", active_page="settings", app_shell=True)
+    error = None
+    saved = request.args.get("saved") == "1"
+    if request.method == "POST":
+        display_name, error = validate_display_name(request.form.get("display_name", ""))
+        if error is None:
+            g.current_user.display_name = display_name
+            db.session.commit()
+            return redirect(url_for("main.account", saved="1"))
+    return render_template("account.html", active_page="settings", app_shell=True, error=error, saved=saved)
 
 
 @bp.post("/logout")

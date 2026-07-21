@@ -26,9 +26,17 @@ class OnboardingTestCase(unittest.TestCase):
         db.drop_all()
         self.context.pop()
 
-    def test_verified_new_phone_creates_location_profile(self) -> None:
+    def test_verified_new_phone_requires_display_name_before_creating_location_profile(self) -> None:
         self.client.post("/sign-in", data={"phone_number": "+237600000000"})
         response = self.client.post("/verify-otp", data={"otp_code": "123456"})
+        self.assertTrue(response.headers["Location"].endswith("/onboarding/profile"))
+
+        missing_name = self.client.post("/onboarding/profile", data={"display_name": " "})
+        self.assertEqual(missing_name.status_code, 200)
+        self.assertIn(b"display name between 2 and 120", missing_name.data)
+        self.assertIsNone(db.session.scalar(db.select(User).where(User.phone_number == "+237600000000")))
+
+        response = self.client.post("/onboarding/profile", data={"display_name": "  Amina   Community  "})
         self.assertTrue(response.headers["Location"].endswith("/onboarding/location"))
 
         response = self.client.post(
@@ -38,7 +46,7 @@ class OnboardingTestCase(unittest.TestCase):
         self.assertTrue(response.headers["Location"].endswith("/onboarding/preferences"))
 
         user = db.session.scalar(db.select(User).where(User.phone_number == "+237600000000"))
-        self.assertEqual((user.country, user.primary_region), ("Gabon", "Estuaire"))
+        self.assertEqual((user.display_name, user.country, user.primary_region), ("Amina Community", "Gabon", "Estuaire"))
         self.assertTrue(user.is_phone_verified)
 
         response = self.client.post(
@@ -60,6 +68,7 @@ class OnboardingTestCase(unittest.TestCase):
     def test_invalid_region_is_not_saved(self) -> None:
         with self.client.session_transaction() as browser_session:
             browser_session["onboarding_phone"] = "+237600000001"
+            browser_session["onboarding_display_name"] = "Valid Profile"
         response = self.client.post(
             "/onboarding/location",
             data={"country_code": "gabon", "primary_region": "Centre"},
@@ -69,6 +78,13 @@ class OnboardingTestCase(unittest.TestCase):
         self.assertIsNone(
             db.session.scalar(db.select(User).where(User.phone_number == "+237600000001"))
         )
+
+    def test_location_step_redirects_to_profile_when_name_has_not_been_collected(self) -> None:
+        with self.client.session_transaction() as browser_session:
+            browser_session["onboarding_phone"] = "+237600000002"
+        response = self.client.get("/onboarding/location")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/onboarding/profile"))
 
 
 if __name__ == "__main__":

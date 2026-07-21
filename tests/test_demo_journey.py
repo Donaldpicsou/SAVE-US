@@ -38,10 +38,12 @@ class CameroonCentreDemoJourneyTestCase(unittest.TestCase):
         return b"\x89PNG\r\n\x1a\n" + b"save-us-demo-journey-image"
 
     def test_new_cameroon_centre_user_can_publish_and_receive_a_missing_person_alert(self) -> None:
-        # 1. OTP signup and location onboarding.
+        # 1. OTP signup, required profile name, and location onboarding.
         response = self.client.post("/sign-in", data={"phone_number": "+237 699 000 000"})
         self.assertIn("/verify-otp", response.headers["Location"])
         response = self.client.post("/verify-otp", data={"otp_code": "123456"})
+        self.assertIn("/onboarding/profile", response.headers["Location"])
+        response = self.client.post("/onboarding/profile", data={"display_name": "Centre Community"})
         self.assertIn("/onboarding/location", response.headers["Location"])
         response = self.client.post(
             "/onboarding/location",
@@ -59,7 +61,7 @@ class CameroonCentreDemoJourneyTestCase(unittest.TestCase):
         )
         self.assertTrue(response.headers["Location"].endswith("/dashboard"))
         subscriber = db.session.scalar(db.select(User).where(User.phone_number == "+237699000000"))
-        self.assertEqual((subscriber.country, subscriber.primary_region), ("Cameroon", "Centre"))
+        self.assertEqual((subscriber.display_name, subscriber.country, subscriber.primary_region), ("Centre Community", "Cameroon", "Centre"))
         self.assertEqual(subscriber.alert_preference.enabled_categories, ["missing_person", "suspected_abduction"])
         self.assertTrue(subscriber.alert_preference.email_notifications_enabled)
 

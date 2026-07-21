@@ -198,7 +198,7 @@ Useful demo accounts:
 | Regional subscriber | Jonas K. | `+237688445566` | Cameroon / Littoral |
 | CEMAC subscriber | Paul E. | `+24174001122` | Gabon / Estuaire |
 
-To sign in, enter one of the numbers above, then enter `123456` on the OTP page.
+To sign in, select the matching calling code, then enter the national part of the number without it (for example, select **(+237) 🇨🇲** and enter `612345678` for Amina N.). You may also paste the complete international number. Then enter `123456` on the OTP page, provide the required display name, and choose the country and primary region.
 
 ## Testing
 

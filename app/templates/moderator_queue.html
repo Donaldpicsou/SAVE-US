@@ -5,7 +5,7 @@
 {% block content %}
   <!-- Internal queue: published abductions remain reviewable after country-wide release. -->
   <section class="my-reports-page">
-    <header class="my-reports-heading"><div><p class="eyebrow">Moderator access</p><h1>Moderator queue</h1><p>Review reports that require intervention and published suspected-abduction alerts retained for post-publication safety review.</p></div></header>
+    <header class="my-reports-heading"><div><p class="eyebrow">Moderator access</p><h1>Moderator queue</h1><p>{{ alerts|length }} pending moderation decision{{ '' if alerts|length == 1 else 's' }}. Review reports that require intervention and published suspected-abduction alerts retained for post-publication safety review.</p></div></header>
     <section class="my-reports-list">
       {% for alert in alerts %}
         <article class="my-report-card">

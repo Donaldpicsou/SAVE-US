@@ -45,7 +45,7 @@ Critical information often arrives late, is fragmented, and lacks a consistent v
 
 - Responsive English-language web application.
 - Phone-number sign-up with simulated OTP for the hackathon.
-- Profile with country, primary region, additional followed regions, and enabled alert categories.
+- A required privacy-respecting display name, then a profile with country, primary region, additional followed regions, and enabled alert categories.
 - Full CEMAC country/subdivision catalogue supplied by the project owner.
 - Geo-targeted alert feed and simple search by name/status.
 - Complete missing-person, suspected-abduction, and road-accident reporting flows; the unknown-hospital-patient journey is deferred.
@@ -90,7 +90,7 @@ The 24-hour road-accident expiration is an MVP scoping decision because no durat
 
 ## 7. Targeting and preferences
 
-During sign-up, a user selects one country and one primary region. They may later change both, follow extra regions, and enable or disable each alert category.
+During sign-up, a user chooses a required responsible display name, then selects one country and one primary region. They may later change the display name, country, and region, follow extra regions, and enable or disable each alert category.
 
 Recipient selection rules:
 
@@ -229,6 +229,7 @@ The supplied logo is the visual authority. The interface should convey protectio
 
 ## 16. Acceptance criteria
 
+- A new user cannot complete registration without a display name between 2 and 120 characters; they can later change it from Profile & account.
 - A user can choose Cameroon/Centre and later change country, region, and preferences.
 - A missing-person report cannot be submitted without required fields.
 - A report with confidence score ≥ 80 and fraud-risk score < 80 can be published.
