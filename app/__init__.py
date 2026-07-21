@@ -3,6 +3,7 @@
 import os
 
 import click
+from dotenv import load_dotenv
 from flask import Flask
 
 from .extensions import db, migrate
@@ -10,6 +11,11 @@ from .extensions import db, migrate
 
 def create_app(test_config: dict | None = None) -> Flask:
     """Create and configure the SAVE-US Flask application."""
+    # Local `.env` values make the documented demo setup work, while host-level
+    # variables always take precedence in deployment environments. Test
+    # configurations remain isolated from a developer's local credentials.
+    if test_config is None:
+        load_dotenv(override=False)
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY", "save-us-dev-only-secret"),

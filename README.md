@@ -142,6 +142,8 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+After dependencies are installed, SAVE-US automatically loads local `.env` values without overriding variables already configured by your operating system or hosting provider.
+
 Edit `.env` only if you want live AI review:
 
 ```dotenv
@@ -150,7 +152,7 @@ OPENAI_MODEL=gpt-5.6
 OPENAI_MEDIA_MODEL=gpt-5.6
 ```
 
-Never commit `.env` or an API key. Without `OPENAI_API_KEY`, SAVE-US uses its deterministic demo fallback.
+Never commit `.env` or an API key. In deployment, configure these values in the hosting provider’s secret-variable interface rather than shipping a `.env` file. Without `OPENAI_API_KEY`, SAVE-US uses its deterministic demo fallback.
 
 ### 3. Create and seed the database
 

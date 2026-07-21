@@ -135,6 +135,8 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+Après l’installation des dépendances, SAVE-US charge automatiquement les valeurs locales du fichier `.env`, sans écraser celles déjà définies par le système ou l’hébergeur.
+
 Modifier `.env` uniquement pour activer la revue IA réelle :
 
 ```dotenv
@@ -143,7 +145,7 @@ OPENAI_MODEL=gpt-5.6
 OPENAI_MEDIA_MODEL=gpt-5.6
 ```
 
-Ne jamais commiter `.env` ou une clé API. Sans `OPENAI_API_KEY`, SAVE-US utilise son repli démo déterministe.
+Ne jamais commiter `.env` ou une clé API. En déploiement, configurer ces valeurs dans l’interface de variables secrètes de l’hébergeur plutôt que de livrer un fichier `.env`. Sans `OPENAI_API_KEY`, SAVE-US utilise son repli démo déterministe.
 
 ### 3. Créer et peupler la base de données
 
