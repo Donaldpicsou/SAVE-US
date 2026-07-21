@@ -7,6 +7,7 @@ from functools import wraps
 from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .extensions import db
+from .alert_sheet_contract import AlertSheetSafetyError, build_alert_sheet
 from .ai_service import review_missing_person_alert, review_suspected_abduction_alert
 from .cemac import load_cemac_data
 from .media import PhotoUploadError, delete_private_media, image_metadata, private_media_path, store_alert_photo, store_missing_person_photo
@@ -312,6 +313,30 @@ def alert_detail(alert_id: str):
         )
 
     abort(404)
+
+
+@bp.get("/alerts/<alert_id>/sheet")
+@login_required
+def alert_sheet(alert_id: str):
+    """Render an authorised A4-friendly sheet from the T49 public-safe contract."""
+    stored_alert = db.session.get(Alert, alert_id)
+    if stored_alert is None or (
+        stored_alert.reporter_id != g.current_user.id
+        and g.current_user.role not in {UserRole.MODERATOR, UserRole.ADMINISTRATOR}
+        and not user_receives_alert(g.current_user, stored_alert)
+    ):
+        abort(404)
+    try:
+        sheet = build_alert_sheet(stored_alert, generated_at=datetime.now(timezone.utc))
+    except AlertSheetSafetyError:
+        # Do not generate a printable or externally shareable representation
+        # when a public field fails the contract's data-minimisation checks.
+        abort(404)
+    return render_template(
+        "alert_sheet.html",
+        sheet=sheet,
+        generated_at=datetime.now(timezone.utc),
+    )
 
 
 @bp.get("/alerts/<alert_id>/photo")

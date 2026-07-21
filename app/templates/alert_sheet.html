@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <!-- Standalone A4 sheet: it consumes only the T49 public-safe contract. -->
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ sheet.title }} · SAVE-US alert sheet</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+    <style>
+      :root { --navy:#003f70; --blue:#1284bd; --sky:#e8f5ff; --orange:#ff6a00; --ink:#0b2740; --muted:#506176; --line:#cbddea; }
+      * { box-sizing:border-box; }
+      body { background:#edf3f8; color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:2rem 1rem; }
+      .sheet-actions { display:flex; gap:.75rem; justify-content:center; margin:0 auto 1.25rem; max-width:210mm; }
+      .sheet-actions button,.sheet-actions a { background:var(--navy); border:0; border-radius:.55rem; color:#fff; cursor:pointer; font:inherit; font-weight:800; padding:.75rem 1rem; text-decoration:none; }
+      .sheet-actions a { background:#fff; border:1px solid var(--blue); color:var(--blue); }
+      .alert-sheet { background:#fff; box-shadow:0 14px 40px rgba(0,41,76,.15); margin:0 auto; max-width:210mm; min-height:297mm; padding:17mm; }
+      .sheet-header { align-items:center; border-bottom:4px solid var(--orange); display:flex; gap:1rem; justify-content:space-between; padding-bottom:1rem; }
+      .brand { align-items:center; display:flex; gap:.8rem; }.brand img { height:55px; object-fit:cover; object-position:center 25%; width:66px; }.brand strong,.brand small { display:block; }.brand strong { color:var(--navy); font-size:1.55rem; letter-spacing:.02em; }.brand small { color:var(--muted); font-size:.67rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+      .sheet-status { background:#e3f5e6; border-radius:999px; color:#17642a; font-size:.72rem; font-weight:900; letter-spacing:.06em; padding:.55rem .7rem; text-transform:uppercase; }
+      .category { color:var(--blue); font-size:.78rem; font-weight:900; letter-spacing:.1em; margin:1.65rem 0 .55rem; text-transform:uppercase; }
+      h1 { color:var(--navy); font-size:2.35rem; letter-spacing:-.035em; line-height:1.08; margin:0 0 1.1rem; overflow-wrap:anywhere; }
+      .summary { border-left:5px solid var(--blue); font-size:1.18rem; line-height:1.65; margin:1.25rem 0 1.6rem; padding:0 0 0 1rem; }
+      .meta-grid { display:grid; gap:.85rem; grid-template-columns:repeat(2,minmax(0,1fr)); margin:1.2rem 0; }.meta { background:var(--sky); border:1px solid #d5e7f3; border-radius:.65rem; padding:.9rem; }.meta span { color:var(--muted); display:block; font-size:.67rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }.meta strong { color:var(--navy); display:block; font-size:.95rem; line-height:1.45; margin-top:.35rem; }
+      .safety { background:#fff4e9; border:1px solid #f3c28b; border-radius:.7rem; margin-top:1.55rem; padding:1rem 1.1rem; }.safety h2 { color:#934000; font-size:.85rem; letter-spacing:.06em; margin:0 0 .45rem; text-transform:uppercase; }.safety p { line-height:1.55; margin:0; }
+      .sheet-footer { border-top:1px solid var(--line); color:var(--muted); display:flex; font-size:.75rem; justify-content:space-between; margin-top:2rem; padding-top:1rem; }.sheet-footer strong { color:var(--navy); }
+      @page { size:A4; margin:12mm; }
+      @media print { body { background:#fff; padding:0; }.sheet-actions { display:none; }.alert-sheet { box-shadow:none; margin:0; max-width:none; min-height:auto; padding:0; }.sheet-header { break-inside:avoid; }.safety,.meta { break-inside:avoid; } }
+      @media (max-width:560px) { body { padding:0; }.alert-sheet { min-height:100vh; padding:1.5rem; }.sheet-header { align-items:flex-start; flex-direction:column; }.meta-grid { grid-template-columns:1fr; }.sheet-footer { flex-direction:column; gap:.35rem; } h1 { font-size:2rem; } }
+    </style>
+  </head>
+  <body>
+    <!-- Screen-only controls; browser print dialog supports Save as PDF without exposing more data. -->
+    <div class="sheet-actions"><button type="button" onclick="window.print()">Print alert sheet</button><a href="{{ url_for('main.alert_detail', alert_id=sheet.alert_id) }}">Back to alert</a></div>
+    <main class="alert-sheet" aria-labelledby="sheet-title">
+      <header class="sheet-header">
+        <div class="brand"><img src="{{ url_for('static', filename='images/save-us-logo.png') }}" alt="SAVE-US logo"><span><strong>SAVE-US</strong><small>CEMAC Emergency Network</small></span></div>
+        <span class="sheet-status">{{ sheet.status }}</span>
+      </header>
+      <p class="category">{{ sheet.category_label }}</p>
+      <h1 id="sheet-title">{{ sheet.title }}</h1>
+      <p class="summary">{{ sheet.summary }}</p>
+      <section class="meta-grid" aria-label="Public alert information">
+        <article class="meta"><span>Approximate area</span><strong>{{ sheet.approximate_location }}</strong></article>
+        <article class="meta"><span>Coverage</span><strong>{{ sheet.coverage }}</strong></article>
+        <article class="meta"><span>Published</span><strong>{{ sheet.published_label }}</strong></article>
+        {% if sheet.expires_label %}<article class="meta"><span>Alert expiry</span><strong>{{ sheet.expires_label }}</strong></article>{% endif %}
+      </section>
+      <section class="safety"><h2>Safety guidance</h2><p>{{ sheet.safety_guidance }}</p></section>
+      <footer class="sheet-footer"><strong>{{ sheet.source }}</strong><span>Generated {{ generated_at.strftime('%d %b %Y · %H:%M UTC') }}</span></footer>
+    </main>
+  </body>
+</html>

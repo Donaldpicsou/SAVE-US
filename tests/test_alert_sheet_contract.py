@@ -13,7 +13,7 @@ from app.alert_sheet_contract import (
     validate_alert_sheet,
 )
 from app.extensions import db
-from app.models import Alert, AlertStatus, AlertType, MissingPersonDetails, RoadAccidentDetails, User, utc_now
+from app.models import Alert, AlertPreference, AlertStatus, AlertType, MissingPersonDetails, RoadAccidentDetails, User, utc_now
 
 
 class AlertSheetContractTestCase(unittest.TestCase):
@@ -135,6 +135,75 @@ class AlertSheetContractTestCase(unittest.TestCase):
         payload["source"] = "Source: somebody else"
         with self.assertRaisesRegex(AlertSheetSafetyError, "attribution"):
             validate_alert_sheet(payload)
+
+
+class AlertSheetRouteTestCase(unittest.TestCase):
+    """Exercise the authorised printable HTML delivery layer (T50)."""
+
+    def setUp(self) -> None:
+        self.app = create_app({"TESTING": True, "SECRET_KEY": "test-secret", "SQLALCHEMY_DATABASE_URI": "sqlite://"})
+        self.context = self.app.app_context()
+        self.context.push()
+        db.create_all()
+        self.reporter = User(phone_number="+237692000011", country="Cameroon", primary_region="Centre", is_phone_verified=True)
+        self.outsider = User(phone_number="+24174001000", country="Gabon", primary_region="Estuaire", is_phone_verified=True)
+        self.alert = Alert(
+            reporter=self.reporter,
+            alert_type=AlertType.MISSING_PERSON,
+            status=AlertStatus.PUBLISHED,
+            title="Find Amadou",
+            public_summary="A missing person alert was published for the Mfoundi district.",
+            country="Cameroon",
+            region="Centre",
+            approximate_zone="Mfoundi district",
+            published_at=utc_now(),
+        )
+        db.session.add_all([
+            self.reporter,
+            self.outsider,
+            self.alert,
+            AlertPreference(user=self.outsider, enabled_categories=["missing_person"]),
+            MissingPersonDetails(
+                alert=self.alert,
+                private_family_contact="+237 692 333 444",
+                last_seen_location="12 Rue de la Paix",
+                photo_path="missing_person/private/amadou.png",
+            ),
+        ])
+        db.session.commit()
+        self.client = self.app.test_client()
+
+    def tearDown(self) -> None:
+        db.session.remove()
+        db.drop_all()
+        self.context.pop()
+
+    def sign_in_as(self, user: User) -> None:
+        with self.client.session_transaction() as browser_session:
+            browser_session["user_id"] = user.id
+
+    def test_authorised_reporter_receives_a4_printable_sheet_and_detail_action(self) -> None:
+        self.sign_in_as(self.reporter)
+        response = self.client.get(f"/alerts/{self.alert.id}/sheet")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Print alert sheet", response.data)
+        self.assertIn(b"@page { size:A4", response.data)
+        self.assertIn(b"Generated ", response.data)
+        self.assertIn(b"Source: SAVE-US", response.data)
+        self.assertNotIn(b"+237 692 333 444", response.data)
+        self.assertNotIn(b"12 Rue de la Paix", response.data)
+        self.assertNotIn(b"missing_person/private/amadou.png", response.data)
+        detail = self.client.get(f"/alerts/{self.alert.id}")
+        self.assertIn(f"/alerts/{self.alert.id}/sheet".encode(), detail.data)
+
+    def test_unauthorised_or_unsafe_alert_sheets_are_not_generated(self) -> None:
+        self.sign_in_as(self.outsider)
+        self.assertEqual(self.client.get(f"/alerts/{self.alert.id}/sheet").status_code, 404)
+
+        self.sign_in_as(self.reporter)
+        self.alert.public_summary = "Call +237 692 333 444 immediately."
+        db.session.commit()
+        self.assertEqual(self.client.get(f"/alerts/{self.alert.id}/sheet").status_code, 404)
 
 
 if __name__ == "__main__":

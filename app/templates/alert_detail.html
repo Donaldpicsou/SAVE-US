@@ -17,7 +17,7 @@
       {% if alert.photo_url %}<img class="alert-detail-photo" src="{{ alert.photo_url }}" alt="Photo of {{ alert.title }}">{% endif %}
       <p class="lead">{{ alert.summary if alert.summary is defined else alert.description }}</p>
       <!-- Safe actions: no direct family phone number or precise GPS coordinates. -->
-      <div class="button-row"><button class="button emergency" type="button">{{ alert.primary_action_label }}</button><button class="button secondary" type="button">Share alert</button></div>
+      <div class="button-row"><button class="button emergency" type="button">{{ alert.primary_action_label }}</button><a class="button secondary" href="{{ url_for('main.alert_sheet', alert_id=alert.id) }}">Print alert sheet</a><button class="button secondary" type="button">Share alert</button></div>
       <p class="alert-detail-note"><strong>{{ alert.safety_label }}.</strong> {{ alert.safety_note }}</p>
     </article>
   </section>
