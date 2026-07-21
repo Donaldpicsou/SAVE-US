@@ -9,6 +9,7 @@ from pathlib import Path
 from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .extensions import db
+from .administration import record_administration_audit
 from .alert_sheet_contract import AlertSheetSafetyError, build_alert_sheet
 from .alert_sheet_pdf import render_alert_sheet_pdf
 from .ai_service import review_missing_person_alert, review_suspected_abduction_alert
@@ -35,6 +36,8 @@ from .models import (
     AlertPreference,
     AlertStatus,
     AlertType,
+    HospitalVerificationRequest,
+    HospitalVerificationStatus,
     MissingPersonDetails,
     MissingPersonSex,
     Notification,
@@ -297,6 +300,158 @@ def dashboard():
 def administrator_home():
     """Provide the restricted entry point for the staged T43–T47 tools."""
     return render_template("admin_home.html", active_page="admin", app_shell=True)
+
+
+@bp.route("/hospital-verification/request", methods=("GET", "POST"))
+@login_required
+def request_hospital_verification():
+    """Let a verified community account submit one private institution request."""
+    if g.current_user.role in {
+        UserRole.HOSPITAL_REPRESENTATIVE,
+        UserRole.MODERATOR,
+        UserRole.ADMINISTRATOR,
+    }:
+        abort(403)
+    existing_request = db.session.scalar(
+        db.select(HospitalVerificationRequest).where(
+            HospitalVerificationRequest.submitted_by_id == g.current_user.id,
+            HospitalVerificationRequest.status == HospitalVerificationStatus.PENDING,
+        )
+    )
+    form_values = {
+        "hospital_name": request.form.get("hospital_name", "").strip(),
+        "contact_name": request.form.get("contact_name", g.current_user.display_name or "").strip(),
+        "contact_phone": request.form.get("contact_phone", g.current_user.phone_number).strip(),
+        "supporting_document_reference": request.form.get("supporting_document_reference", "").strip(),
+    }
+    errors: dict[str, str] = {}
+    submitted = request.args.get("submitted") == "1"
+    if request.method == "POST":
+        if existing_request is not None:
+            errors["request"] = "A hospital-verification request is already awaiting review."
+        else:
+            contact_phone = normalise_phone(form_values["contact_phone"])
+            verification_request = HospitalVerificationRequest(
+                submitted_by_id=g.current_user.id,
+                hospital_name=form_values["hospital_name"],
+                country=g.current_user.country,
+                region=g.current_user.primary_region,
+                contact_name=form_values["contact_name"],
+                contact_phone=contact_phone,
+                supporting_document_reference=form_values["supporting_document_reference"],
+            )
+            errors = verification_request.submission_validation_errors()
+            if contact_phone and not is_valid_cemac_phone(contact_phone):
+                errors["contact_phone"] = "Enter a valid CEMAC institution contact phone number."
+            if not errors:
+                db.session.add(verification_request)
+                db.session.commit()
+                return redirect(url_for("main.request_hospital_verification", submitted="1"))
+    return render_template(
+        "hospital_verification_request.html",
+        active_page="settings",
+        app_shell=True,
+        form_values=form_values,
+        errors=errors,
+        existing_request=existing_request,
+        submitted=submitted,
+    )
+
+
+@bp.get("/admin/hospital-verifications")
+@administrator_required
+def administrator_hospital_verifications():
+    """List private institutional-verification requests for an administrator."""
+    selected_status = request.args.get("status", HospitalVerificationStatus.PENDING.value)
+    statuses = {status.value: status for status in HospitalVerificationStatus}
+    if selected_status not in statuses and selected_status != "all":
+        selected_status = HospitalVerificationStatus.PENDING.value
+    query = db.select(HospitalVerificationRequest).order_by(HospitalVerificationRequest.created_at.desc())
+    if selected_status != "all":
+        query = query.where(HospitalVerificationRequest.status == statuses[selected_status])
+    verification_requests = db.session.scalars(query).all()
+    return render_template(
+        "admin_hospital_verifications.html",
+        active_page="admin",
+        app_shell=True,
+        verification_requests=verification_requests,
+        selected_status=selected_status,
+        statuses=HospitalVerificationStatus,
+    )
+
+
+def private_hospital_verification_request(request_id: str) -> HospitalVerificationRequest:
+    """Resolve one request only for the administrator-only verification workflow."""
+    verification_request = db.session.get(HospitalVerificationRequest, request_id)
+    if verification_request is None:
+        abort(404)
+    return verification_request
+
+
+@bp.get("/admin/hospital-verifications/<request_id>")
+@administrator_required
+def administrator_hospital_verification_detail(request_id: str):
+    """Display the private evidence reference and decision history for one request."""
+    verification_request = private_hospital_verification_request(request_id)
+    return render_template(
+        "admin_hospital_verification_detail.html",
+        active_page="admin",
+        app_shell=True,
+        verification_request=verification_request,
+        error=request.args.get("error"),
+    )
+
+
+@bp.post("/admin/hospital-verifications/<request_id>/decision")
+@administrator_required
+def decide_hospital_verification(request_id: str):
+    """Approve or reject once, with a mandatory private reason and audit entry."""
+    verification_request = private_hospital_verification_request(request_id)
+    if verification_request.status != HospitalVerificationStatus.PENDING:
+        abort(409)
+    decision = request.form.get("decision", "").strip()
+    reason = request.form.get("reason", "").strip()
+    if decision not in {"approve", "reject"} or not reason:
+        return redirect(
+            url_for(
+                "main.administrator_hospital_verification_detail",
+                request_id=request_id,
+                error="Choose approve or reject and provide a decision reason.",
+            )
+        )
+
+    applicant = verification_request.submitted_by
+    prior_value = {"status": verification_request.status.value, "role": applicant.role.value}
+    verification_request.reviewed_by_id = g.current_user.id
+    verification_request.reviewed_at = datetime.now(timezone.utc)
+    verification_request.decision_reason = reason
+    if decision == "approve":
+        verification_request.status = HospitalVerificationStatus.APPROVED
+        applicant.role = UserRole.HOSPITAL_REPRESENTATIVE
+        action = "hospital_verification_approved"
+    else:
+        verification_request.status = HospitalVerificationStatus.REJECTED
+        action = "hospital_verification_rejected"
+    validation_errors = verification_request.decision_validation_errors()
+    if validation_errors:
+        return redirect(
+            url_for(
+                "main.administrator_hospital_verification_detail",
+                request_id=request_id,
+                error=next(iter(validation_errors.values())),
+            )
+        )
+    record_administration_audit(
+        actor_id=g.current_user.id,
+        action=action,
+        reason=reason,
+        prior_value=prior_value,
+        new_value={"status": verification_request.status.value, "role": applicant.role.value},
+        target_user_id=applicant.id,
+        hospital_verification_request_id=verification_request.id,
+    )
+    db.session.commit()
+    return redirect(url_for("main.administrator_hospital_verifications", status="all"))
 
 
 @bp.get("/alerts")

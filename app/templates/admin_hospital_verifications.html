@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Hospital verification requests · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Administrator-only request queue; all displayed evidence references are private. -->
+  <section class="my-reports-page hospital-verification-admin-page">
+    <header class="my-reports-heading"><div><p class="eyebrow">Administrator access</p><h1>Hospital verification</h1><p>Review private institution requests. Only an approved request may grant hospital-representative access.</p></div></header>
+    <nav class="verification-filter" aria-label="Verification status filters"><a class="{{ 'selected' if selected_status == 'pending' else '' }}" href="{{ url_for('main.administrator_hospital_verifications', status='pending') }}">Pending</a><a class="{{ 'selected' if selected_status == 'approved' else '' }}" href="{{ url_for('main.administrator_hospital_verifications', status='approved') }}">Approved</a><a class="{{ 'selected' if selected_status == 'rejected' else '' }}" href="{{ url_for('main.administrator_hospital_verifications', status='rejected') }}">Rejected</a><a class="{{ 'selected' if selected_status == 'all' else '' }}" href="{{ url_for('main.administrator_hospital_verifications', status='all') }}">All</a></nav>
+    <section class="my-reports-list">
+      {% for verification_request in verification_requests %}
+        <article class="my-report-card"><div class="my-report-avatar"><span aria-hidden="true">H</span></div><div class="my-report-content"><div class="my-report-top"><p class="critical-label">Private institution request</p><span class="report-status {{ verification_request.status.value }}">{{ verification_request.status.value|title }}</span></div><h2>{{ verification_request.hospital_name }}</h2><p class="my-report-location">{{ verification_request.region }} · {{ verification_request.country }}</p><p class="my-report-history">Submitted by {{ verification_request.contact_name }} · {{ verification_request.created_at.strftime('%d %b %Y') }}</p><div class="my-report-actions"><a class="button secondary" href="{{ url_for('main.administrator_hospital_verification_detail', request_id=verification_request.id) }}">Review private request</a></div></div></article>
+      {% else %}<article class="my-reports-empty"><span>✓</span><h2>No matching requests</h2><p>New private verification requests will appear here.</p></article>{% endfor %}
+    </section>
+  </section>
+{% endblock %}

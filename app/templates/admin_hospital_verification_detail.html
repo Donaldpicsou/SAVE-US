@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Review hospital verification · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Administrator-only evidence and decision view. It is never publicly routable. -->
+  <section class="report-page hospital-verification-detail-page">
+    <a class="back-link" href="{{ url_for('main.administrator_hospital_verifications') }}">← Back to requests</a>
+    <header class="report-heading"><div><p class="eyebrow">Private institution request</p><h1>{{ verification_request.hospital_name }}</h1><p class="lead">{{ verification_request.region }} · {{ verification_request.country }}</p></div><span class="report-status {{ verification_request.status.value }}">{{ verification_request.status.value|title }}</span></header>
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    <section class="verification-private-details"><h2>Private evidence</h2><dl><div><dt>Institution contact</dt><dd>{{ verification_request.contact_name }}</dd></div><div><dt>Contact phone</dt><dd>{{ verification_request.contact_phone }}</dd></div><div><dt>Supporting-document reference</dt><dd>{{ verification_request.supporting_document_reference }}</dd></div><div><dt>Submitted</dt><dd>{{ verification_request.created_at.strftime('%d %b %Y · %H:%M UTC') }}</dd></div></dl></section>
+    {% if verification_request.status.value == 'pending' %}
+      <form class="verification-decision-form" method="post" action="{{ url_for('main.decide_hospital_verification', request_id=verification_request.id) }}"><h2>Record verification decision</h2><label>Decision<select name="decision" required><option value="">Choose a decision</option><option value="approve">Approve and grant hospital representative role</option><option value="reject">Reject request</option></select></label><label>Reason<textarea name="reason" rows="4" required placeholder="Explain the evidence checked or why the request cannot be approved."></textarea></label><p>The decision, actor, prior value and new value become immutable private audit metadata.</p><div class="form-actions"><button class="button emergency" type="submit">Save decision</button></div></form>
+    {% else %}
+      <section class="verification-status-card"><h2>Decision recorded</h2><p>{{ verification_request.decision_reason }}</p><p>Reviewed by {{ verification_request.reviewed_by.display_name or verification_request.reviewed_by.phone_number }} on {{ verification_request.reviewed_at.strftime('%d %b %Y · %H:%M UTC') }}.</p></section>
+    {% endif %}
+  </section>
+{% endblock %}

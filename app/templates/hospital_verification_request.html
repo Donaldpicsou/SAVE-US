@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Hospital verification request · SAVE-US{% endblock %}
+
+{% block content %}
+  <!-- Private applicant form: document references are never displayed in public alerts. -->
+  <section class="report-page hospital-verification-page">
+    <header class="report-heading"><div><p class="eyebrow">Institution verification</p><h1>Request hospital verification</h1><p class="lead">Submit your institution details for private administrator review. Approval is required before unidentified-patient reporting becomes available.</p></div></header>
+    {% if submitted %}<p class="verification-success" role="status">Your request was submitted for private administrator review.</p>{% endif %}
+    {% if errors %}<p class="form-error" role="alert">{{ errors.values()|first }}</p>{% endif %}
+    {% if existing_request %}<article class="verification-status-card"><h2>Request awaiting review</h2><p>{{ existing_request.hospital_name }} · {{ existing_request.country }} / {{ existing_request.region }}</p><p>Your supporting-document reference remains private.</p></article>{% else %}
+      <form method="post" class="report-form" novalidate>
+        <section><h2>Institution details</h2><div class="form-grid"><label>Hospital name<input name="hospital_name" required value="{{ form_values.hospital_name }}"></label><label>Institution contact name<input name="contact_name" required value="{{ form_values.contact_name }}"></label><label>Contact phone<input name="contact_phone" required value="{{ form_values.contact_phone }}"></label><label>Registered area<input readonly value="{{ current_user.primary_region }} · {{ current_user.country }}"></label></div></section>
+        <section><h2>Private supporting evidence</h2><label>Supporting-document reference<input name="supporting_document_reference" required value="{{ form_values.supporting_document_reference }}" placeholder="Private registration or accreditation reference"></label><p class="form-field-note">This reference is visible only to SAVE-US administrators. Do not enter patient data.</p></section>
+        <div class="form-actions"><a class="button secondary" href="{{ url_for('main.account') }}">Cancel</a><button class="button emergency" type="submit">Submit verification request</button></div>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}
