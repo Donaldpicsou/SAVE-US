@@ -31,7 +31,7 @@
   </head>
   <body>
     <!-- Screen-only controls; browser print dialog supports Save as PDF without exposing more data. -->
-    <div class="sheet-actions"><button type="button" onclick="window.print()">Print alert sheet</button><a href="{{ url_for('main.alert_detail', alert_id=sheet.alert_id) }}">Back to alert</a></div>
+    <div class="sheet-actions"><button type="button" onclick="window.print()">Print alert sheet</button><a href="{{ url_for('main.alert_sheet_pdf', alert_id=sheet.alert_id) }}">Download PDF</a><a href="{{ url_for('main.alert_detail', alert_id=sheet.alert_id) }}">Back to alert</a></div>
     <main class="alert-sheet" aria-labelledby="sheet-title">
       <header class="sheet-header">
         <div class="brand"><img src="{{ url_for('static', filename='images/save-us-logo.png') }}" alt="SAVE-US logo"><span><strong>SAVE-US</strong><small>CEMAC Emergency Network</small></span></div>

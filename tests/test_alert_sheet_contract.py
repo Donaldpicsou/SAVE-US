@@ -196,9 +196,19 @@ class AlertSheetRouteTestCase(unittest.TestCase):
         detail = self.client.get(f"/alerts/{self.alert.id}")
         self.assertIn(f"/alerts/{self.alert.id}/sheet".encode(), detail.data)
 
+        pdf = self.client.get(f"/alerts/{self.alert.id}/sheet.pdf")
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf.mimetype, "application/pdf")
+        self.assertTrue(pdf.data.startswith(b"%PDF"))
+        self.assertIn(b"save-us-missing-person-alert-", pdf.headers["Content-Disposition"].encode())
+        self.assertEqual(pdf.headers["Cache-Control"], "private, no-store, max-age=0")
+        self.assertEqual(pdf.headers["X-Content-Type-Options"], "nosniff")
+        self.assertIn(b"Download PDF", response.data)
+
     def test_unauthorised_or_unsafe_alert_sheets_are_not_generated(self) -> None:
         self.sign_in_as(self.outsider)
         self.assertEqual(self.client.get(f"/alerts/{self.alert.id}/sheet").status_code, 404)
+        self.assertEqual(self.client.get(f"/alerts/{self.alert.id}/sheet.pdf").status_code, 404)
 
         self.sign_in_as(self.reporter)
         self.alert.public_summary = "Call +237 692 333 444 immediately."
