@@ -56,7 +56,7 @@ Structure vidéo suggérée, en 2 min 50 :
 
 ## Promesse PRD terminée — Fiche, PDF et partage sécurisé (T49–T54)
 
-T49–T54 sont terminées. Les alertes publiées disposent désormais d’une fiche HTML A4 aux couleurs SAVE-US, d’un PDF côté serveur et d’actions de partage depuis le détail. L’URL externe est opaque, révocable, expire au plus tard après sept jours ou avec l’alerte, et cesse de fonctionner après retrait, rejet ou expiration. Les tests E2E contrôlent HTML, texte extrait du PDF, attribution anglaise, charge utile WhatsApp, révocation et exclusion des médias/données privés.
+T49–T54 sont terminées. Les alertes publiées disposent désormais d’une fiche HTML A4 aux couleurs SAVE-US, d’un PDF côté serveur et d’actions de partage depuis le détail. L’URL externe est opaque, révocable, expire au plus tard après sept jours ou avec l’alerte, et cesse de fonctionner après retrait, rejet ou expiration. Une photo d’identification de disparition ou d’enlèvement peut apparaître seulement après autorisation explicite du déclarant, sous la forme d’un dérivé redimensionné sans métadonnées. Les tests E2E contrôlent HTML, texte extrait du PDF, attribution anglaise, charge utile WhatsApp, révocation, dérivé autorisé et exclusion des médias/données privés.
 
 La fiche et le lien de partage externe mis en œuvre n’exposent jamais :
 
@@ -65,7 +65,7 @@ La fiche et le lien de partage externe mis en œuvre n’exposent jamais :
 - les circonstances privées ou motifs internes de modération ;
 - le média original téléversé.
 
-Toute future photo partageable à l’extérieur exigera une approbation explicite de modération et devra être une copie dérivée, non le média privé d’origine. Le MVP actuel ne partage aucun média d’incident à l’extérieur.
+Les médias d’accident restent exclus du partage externe. Les photos d’identification de disparition ou d’enlèvement autorisées par le déclarant utilisent uniquement une copie dérivée, jamais le média privé d’origine.
 
 ## Promesse PRD terminée — Administration responsable (T41–T48)
 
@@ -125,5 +125,5 @@ Ces travaux sont utiles mais ne doivent pas retarder les éléments ci-dessus :
 - [ ] Description Devpost et instructions de test en anglais.
 - [ ] URL dépôt, URL YouTube et Session ID Codex `/feedback` ajoutés sur Devpost.
 - [ ] Aucune clé API, donnée personnelle réelle ou ressource non licenciée.
-- [x] Flux fiche imprimable/PDF/partage fonctionnel et couvert par des tests E2E de sûreté.
+- [x] Flux fiche imprimable/PDF/partage fonctionnel, avec dérivé photo opt-in sûr, et couvert par des tests E2E de sûreté.
 - [x] Workflow administrateur et protections d’accès couverts par un test E2E.

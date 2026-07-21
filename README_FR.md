@@ -25,7 +25,7 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 ### Signalement et revue
 
 - Authentification par téléphone et OTP simulé.
-- Validation des numéros CEMAC et onboarding pays/région principale.
+- Validation des numéros CEMAC et onboarding avec nom d’affichage obligatoire respectueux de la vie privée, pays et région principale.
 - Préférences : catégories, régions suivies et préférence d’e-mail simulée.
 - Parcours guidés et reprenables pour :
   - les personnes disparues ;
@@ -50,6 +50,7 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 
 - Identité visuelle SAVE-US responsive, navigation partagée, footer, menus de notifications et de compte.
 - Tableau de bord, fil d’alertes, détail, centre de notifications et espace déclarant.
+- Un rafraîchissement léger toutes les 30 secondes maintient les compteurs de notifications et de travail du personnel à jour ; Home et Alerts signalent les nouvelles alertes éligibles sans interrompre la lecture.
 - Fiches d’alerte anglaises autorisées : HTML A4 imprimable aux couleurs SAVE-US et PDF généré côté serveur depuis un même contrat public sûr. Les photos d’identification de disparition ou d’enlèvement n’y apparaissent qu’après autorisation explicite du déclarant, sous forme de dérivé redimensionné sans métadonnées.
 - Partage sécurisé depuis le détail : copie de lien, Web Share avec repli vers le presse-papiers et message WhatsApp prérempli contenant `Source: SAVE-US` et une URL opaque. La page sécurisée fournit un aperçu photo autorisé aux réseaux compatibles.
 - Les liens opaques sont révocables, expirent au plus tard après sept jours (ou avec l’alerte) et cessent de fonctionner si l’alerte est retirée, rejetée ou expirée.
@@ -60,6 +61,7 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 
 - L’application est une démonstration de hackathon et ne remplace pas les services d’urgence ou les autorités.
 - OTP, e-mails et notifications sont simulés ; il n’existe pas d’intégration SMS, push ou WhatsApp Business réelle.
+- Les aperçus image WhatsApp exigent un déploiement HTTPS publiquement accessible ; ils ne peuvent pas être générés depuis une URL locale `127.0.0.1`.
 - Le type `Unknown hospital patient` existe dans le modèle métier et les préférences. Les demandes de vérification hospitalière et leur approbation par un administrateur sont implémentées, mais le signalement patient, son renouvellement et sa publication dédiés ne le sont pas encore.
 - Paiements, Mobile Money, intégrations avec les autorités, carte temps réel, applications mobiles natives et commentaires publics sont hors périmètre.
 - L’IA assiste la revue de première ligne ; elle n’établit pas les faits et ne contacte pas les autorités.

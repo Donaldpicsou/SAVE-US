@@ -116,7 +116,7 @@ L’IA ne contacte jamais une autorité et ne prétend jamais confirmer un fait.
 
 ## 9. Parcours de démonstration principal
 
-1. **Onboarding** — Amina crée un compte avec un numéro camerounais simulé, sélectionne Cameroon et Centre, puis active les alertes Missing person et Suspected abduction.
+1. **Onboarding** — Amina crée un compte avec un numéro camerounais simulé, choisit un nom d’affichage responsable, sélectionne Cameroon et Centre, puis active les alertes Missing person et Suspected abduction.
 2. **Report missing person** — Une famille renseigne les informations requises et téléverse une photo.
 3. **AI review** — SAVE-US affiche les données extraites, détecte l’absence éventuelle d’information, compare les alertes existantes et présente les deux scores.
 4. **Publish** — Si les contrôles passent, l’alerte est publiée pour Centre. Une fiche PDF et un lien de partage sont créés ; la photo d’identification n’est incluse que si le déclarant autorise explicitement son dérivé public sûr.
@@ -127,7 +127,7 @@ L’IA ne contacte jamais une autorité et ne prétend jamais confirmer un fait.
 
 1. Landing page : mission, avertissement urgence, bouton « Join SAVE-US ».
 2. Phone sign-in / OTP.
-3. Onboarding : pays, région, préférences d’alertes.
+3. Onboarding : nom d’affichage responsable obligatoire, pays, région, préférences d’alertes.
 4. Alert feed : filtres pays/région/type/statut ; cartes d’alerte.
 5. New report : choix du type, assistant et formulaire structuré.
 6. AI review : résumé, données détectées, contrôles, scores, décision.

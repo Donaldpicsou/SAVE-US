@@ -25,7 +25,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 ### Reporting and review
 
 - Simulated phone-number authentication with OTP verification.
-- CEMAC phone-number validation and country/primary-region onboarding.
+- CEMAC phone-number validation and onboarding with a required privacy-respecting display name, country, and primary region.
 - Alert preferences: categories, followed regions, and simulated e-mail preference.
 - Guided, resumable reporting journeys for:
   - Missing people;
@@ -55,6 +55,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 
 - Responsive SAVE-US visual identity, shared navigation, footer, notification menu, and account menu.
 - Home dashboard, full alert feed, alert details, notification centre, and reporter workspace.
+- Lightweight in-page refresh every 30 seconds keeps notification and staff-work badges current; Home and Alerts announce newly eligible alerts without interrupting reading.
 - Authorised English alert sheets: branded A4-printable HTML and server-generated PDF from one public-safe contract. Missing-person and abduction identification photos appear only after explicit reporter authorisation, as a resized metadata-free derivative.
 - Secure alert sharing from the detail page: copy-link, Web Share with clipboard fallback, and a prefilled WhatsApp message containing `Source: SAVE-US` and an opaque URL. The secure share page supplies an approved photo preview for supported social networks when one is authorised.
 - Opaque share links are revocable, expire within seven days (or sooner with the alert), and stop working when an alert is withdrawn, rejected, or expired.
@@ -65,6 +66,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 
 - The app is a hackathon demonstration, not a substitute for emergency services or authorities.
 - OTP, e-mail, and notifications are simulated; there is no live SMS, push, or WhatsApp Business integration.
+- WhatsApp image previews require a publicly reachable HTTPS deployment. They cannot be generated from a local `127.0.0.1` development URL.
 - The `Unknown hospital patient` alert type exists in the domain model and preferences. Hospital-verification requests and administrator approval are implemented, but the dedicated patient-reporting, renewal, and publication journey is not yet implemented.
 - Payments, Mobile Money, authority integrations, real-time maps, native mobile apps, and public comments are out of scope.
 - AI output assists first-line review; it does not establish facts or contact authorities.

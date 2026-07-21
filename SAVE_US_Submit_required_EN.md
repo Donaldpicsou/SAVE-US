@@ -56,7 +56,7 @@ Suggested 2:50 video structure:
 
 ## Completed PRD promise — Alert sheet, PDF, and secure sharing (T49–T54)
 
-T49–T54 are complete. Published alerts now provide a branded A4 printable HTML sheet, a server-generated PDF, and detail-page sharing actions. The external URL is opaque, revocable, expires after at most seven days or with the alert, and fails after withdrawal, rejection, or expiry. Automated E2E coverage checks HTML, extracted PDF text, English attribution, WhatsApp payload, revocation, and media/privacy exclusion.
+T49–T54 are complete. Published alerts now provide a branded A4 printable HTML sheet, a server-generated PDF, and detail-page sharing actions. The external URL is opaque, revocable, expires after at most seven days or with the alert, and fails after withdrawal, rejection, or expiry. A missing-person or abduction identification photo appears only after explicit reporter authorisation, as a resized metadata-free derivative. Automated E2E coverage checks HTML, extracted PDF text, English attribution, WhatsApp payload, revocation, the authorised derivative, and media/privacy exclusion.
 
 The implemented sheet and external share link never expose:
 
@@ -65,7 +65,7 @@ The implemented sheet and external share link never expose:
 - private circumstances or internal moderation reasons;
 - original uploaded media.
 
-Any future externally shareable photo must require explicit moderation approval and should be a separate derivative rather than the original private upload. The current MVP shares no incident media externally.
+Road-accident media remains excluded from external sharing. Authorised missing-person and abduction identification photos use only a derivative, never the original private upload.
 
 ## Completed PRD promise — Responsible administration (T41–T48)
 
@@ -125,5 +125,5 @@ The following work is valuable but should not delay the items above:
 - [ ] Devpost description and testing instructions are in English.
 - [ ] Code repository URL, YouTube URL, and Codex `/feedback` session ID are added to Devpost.
 - [ ] No API key, real personal data, or unlicensed asset is included.
-- [x] Printable/PDF/share flow works and is covered by automated end-to-end safety tests.
+- [x] Printable/PDF/share flow works, includes a safe opt-in photo derivative, and is covered by automated end-to-end safety tests.
 - [x] Administrator workflow and access protections are covered by an end-to-end test.

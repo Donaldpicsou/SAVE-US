@@ -118,7 +118,7 @@ AI never contacts an authority and never claims to verify facts. Blocked cases, 
 
 ## 9. Primary demo journey
 
-1. **Onboarding** — Amina creates an account using a simulated Cameroonian phone number, selects Cameroon and Centre, and enables Missing person and Suspected abduction alerts.
+1. **Onboarding** — Amina creates an account using a simulated Cameroonian phone number, chooses a responsible display name, selects Cameroon and Centre, and enables Missing person and Suspected abduction alerts.
 2. **Report missing person** — A family provides required information and uploads a photo.
 3. **AI review** — SAVE-US displays extracted data, highlights missing information if any, compares active alerts, and shows both scores.
 4. **Publish** — If all checks pass, the alert is published to Centre. A PDF sheet and sharing link are generated; an identification photo is included only when the reporter explicitly authorises its safe public derivative.
@@ -129,7 +129,7 @@ AI never contacts an authority and never claims to verify facts. Blocked cases, 
 
 1. Landing page: mission, emergency disclaimer, “Join SAVE-US” CTA.
 2. Phone sign-in / OTP.
-3. Onboarding: country, region, and alert preferences.
+3. Onboarding: required responsible display name, country, region, and alert preferences.
 4. Alert feed: country/region/type/status filters and alert cards.
 5. New report: alert-type selection, guided assistant, and structured form.
 6. AI review: summary, detected data, checks, scores, and decision.
