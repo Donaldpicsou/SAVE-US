@@ -82,6 +82,7 @@
             <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} <span>Report</span></a>
             <a class="{{ 'active' if active_page == 'reports' else '' }}" href="{{ url_for('main.my_reports') }}">{{ icons.icon('folder') }} <span>My reports</span></a>
             {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }} <span>Moderator</span></a>{% endif %}
+            {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }} <span>Administration</span></a>{% endif %}
           </nav>
           <a class="sidebar-settings {{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }} <span>Settings</span></a>
           <a class="emergency-button" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }} Emergency report</a>
@@ -98,7 +99,10 @@
         <a class="{{ 'active' if active_page == 'home' else '' }}" href="{{ url_for('main.dashboard') }}">{{ icons.icon('home') }}<span>Home</span></a>
         <a class="{{ 'active' if active_page == 'alerts' else '' }}" href="{{ url_for('main.alerts') }}">{{ icons.icon('alert') }}<span>Alerts</span></a>
         <a class="{{ 'active' if active_page == 'report' else '' }}" href="{{ url_for('main.report_incident') }}">{{ icons.icon('report') }}<span>Report</span></a>
+        {% if current_user and current_user.role.value in ['moderator', 'administrator'] %}<a class="{{ 'active' if active_page == 'moderator' else '' }}" href="{{ url_for('main.moderator_queue') }}">{{ icons.icon('shield') }}<span>Moderator</span></a>{% endif %}
+        {% if current_user and current_user.role.value == 'administrator' %}<a class="{{ 'active' if active_page == 'admin' else '' }}" href="{{ url_for('main.administrator_home') }}">{{ icons.icon('settings') }}<span>Admin</span></a>{% else %}
         <a class="{{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('main.settings') }}">{{ icons.icon('settings') }}<span>Profile</span></a>
+        {% endif %}
       </nav>
     {% endif %}
 

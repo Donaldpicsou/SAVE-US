@@ -186,6 +186,18 @@ def moderator_required(view):
     return wrapped_view
 
 
+def administrator_required(view):
+    """Reserve administration foundations for the administrator role only."""
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if g.current_user is None:
+            return redirect(url_for("main.sign_in", next=request.path))
+        if g.current_user.role != UserRole.ADMINISTRATOR:
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapped_view
+
+
 def normalise_phone(phone_number: str) -> str:
     """Convert a display phone number into a simple E.164-like value."""
     return re.sub(r"[^\d+]", "", phone_number.strip())
@@ -278,6 +290,13 @@ def dashboard():
         alert_count=len(feed_items),
         coverage_regions=coverage_regions,
     )
+
+
+@bp.get("/admin")
+@administrator_required
+def administrator_home():
+    """Provide the restricted entry point for the staged T43–T47 tools."""
+    return render_template("admin_home.html", active_page="admin", app_shell=True)
 
 
 @bp.get("/alerts")
