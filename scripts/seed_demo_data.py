@@ -1,4 +1,4 @@
-"""Seed the SAVE-US local database with CEMAC demo users."""
+"""Seed the SAVE-US local database with CEMAC accounts and safe demo scenarios."""
 
 import sys
 from pathlib import Path
@@ -17,5 +17,6 @@ with app.app_context():
     users_created, preferences_created = seed_demo_data()
     print(
         "Demo data ready: "
-        f"{users_created} user(s) and {preferences_created} preference set(s) created."
+        f"{users_created} user(s) and {preferences_created} preference set(s) created; "
+        "safe alert, moderation, administration, and notification scenarios are available."
     )

@@ -59,7 +59,7 @@ The MVP demonstration is centred on Cameroon and the Centre region while retaini
 - Authorised English alert sheets: branded A4-printable HTML and server-generated PDF from one public-safe contract. Missing-person and abduction identification photos appear only after explicit reporter authorisation, as a resized metadata-free derivative.
 - Secure alert sharing from the detail page: copy-link, Web Share with clipboard fallback, and a prefilled WhatsApp message containing `Source: SAVE-US` and an opaque URL. The secure share page supplies an approved photo preview for supported social networks when one is authorised.
 - Opaque share links are revocable, expire within seven days (or sooner with the alert), and stop working when an alert is withdrawn, rejected, or expired.
-- CEMAC reference data and seeded demo users.
+- CEMAC reference data, seeded demo users, and repeatable fictional alert, moderation, administration, and notification scenarios.
 - Automated tests for reporting, AI contracts, targeting, notifications, protected media, moderation, sheets, sharing, and end-to-end journeys.
 
 ## Known MVP limits
@@ -161,7 +161,7 @@ Use the migrations for a normal local setup:
 .venv/bin/python scripts/seed_demo_data.py
 ```
 
-The seed command is idempotent: it can be run again without duplicating demo users or preferences.
+The seed command is idempotent: it can be run again without duplicating demo users, preferences, alerts, requests, or notifications.
 
 ### 4. Run locally
 
@@ -200,8 +200,21 @@ Useful demo accounts:
 | Administrator | SAVE-US Admin | `+237690001122` | Cameroon / Centre |
 | Regional subscriber | Jonas K. | `+237688445566` | Cameroon / Littoral |
 | CEMAC subscriber | Paul E. | `+24174001122` | Gabon / Estuaire |
+| Hospital-verification applicant | Nora B. | `+237644221100` | Cameroon / Centre |
 
-To sign in, select the matching calling code, then enter the national part of the number without it (for example, select **(+237) 🇨🇲** and enter `612345678` for Amina N.). You may also paste the complete international number. Then enter `123456` on the OTP page, provide the required display name, and choose the country and primary region.
+To sign in, select the matching calling code, then enter the national part of the number without it (for example, select **(+237) 🇨🇲** and enter `612345678` for Amina N.). You may also paste the complete international number. Then enter `123456` on the OTP page. Seeded demo accounts already have a display name, country, and primary region, so they open the application directly. A newly verified phone number is instead asked to provide the required display name and choose its country and primary region before continuing.
+
+### Seeded demo scenarios
+
+The seed also creates fictional, non-sensitive scenarios so a clean installation immediately demonstrates the main workflows:
+
+- a published missing-person alert in Cameroon / Centre for regional targeting, notifications, alert detail, printable sheet, PDF, and secure sharing, including an explicitly authorised fictional avatar rendered as a metadata-free public derivative only when needed;
+- a published suspected-abduction alert for country-wide Cameroon targeting and post-publication moderator visibility;
+- a published road-accident alert in Centre with a 24-hour expiry window and no attached media;
+- a private missing-person report awaiting moderation because of a possible duplicate;
+- one pending hospital-verification request and one pending moderator-access request for the administrator workspace, with private in-app notifications.
+
+All seeded names, locations, contacts, and reports are fictional. The only seeded image is a generated geometric avatar for the opt-in sharing demonstration; it is not a photograph or real personal media.
 
 ## Testing
 
@@ -259,7 +272,7 @@ SAVE-US is original work created and meaningfully extended for OpenAI Build Week
 Near-term planned work is documented in:
 
 - [English roadmap](RoadMap-SAVE-US_EN.md)
-- [French roadmap](RoadMap-SAVE-US.md)
+- [French roadmap](RoadMap-SAVE-US_FR.md)
 - [English submission priorities](SAVE_US_Submit_required_EN.md)
 - [French submission priorities](SAVE_US_Submit_required.md)
 

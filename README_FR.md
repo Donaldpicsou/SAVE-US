@@ -54,7 +54,7 @@ La démonstration du MVP est centrée sur le Cameroun et la région du Centre, t
 - Fiches d’alerte anglaises autorisées : HTML A4 imprimable aux couleurs SAVE-US et PDF généré côté serveur depuis un même contrat public sûr. Les photos d’identification de disparition ou d’enlèvement n’y apparaissent qu’après autorisation explicite du déclarant, sous forme de dérivé redimensionné sans métadonnées.
 - Partage sécurisé depuis le détail : copie de lien, Web Share avec repli vers le presse-papiers et message WhatsApp prérempli contenant `Source: SAVE-US` et une URL opaque. La page sécurisée fournit un aperçu photo autorisé aux réseaux compatibles.
 - Les liens opaques sont révocables, expirent au plus tard après sept jours (ou avec l’alerte) et cessent de fonctionner si l’alerte est retirée, rejetée ou expirée.
-- Données CEMAC et utilisateurs démo préchargés.
+- Données CEMAC, utilisateurs démo et scénarios fictifs répétables d’alertes, de modération, d’administration et de notifications préchargés.
 - Tests automatisés couvrant signalements, contrats IA, ciblage, notifications, médias protégés, modération, fiches, partage et parcours de bout en bout.
 
 ## Limites connues du MVP
@@ -154,7 +154,7 @@ Utiliser les migrations pour une installation locale normale :
 .venv/bin/python scripts/seed_demo_data.py
 ```
 
-Le peuplement est idempotent : la commande peut être relancée sans dupliquer utilisateurs et préférences démo.
+Le peuplement est idempotent : la commande peut être relancée sans dupliquer utilisateurs, préférences, alertes, demandes ou notifications démo.
 
 ### 4. Lancer localement
 
@@ -193,8 +193,21 @@ Comptes démo utiles :
 | Administrateur | SAVE-US Admin | `+237690001122` | Cameroun / Centre |
 | Abonné régional | Jonas K. | `+237688445566` | Cameroun / Littoral |
 | Abonné CEMAC | Paul E. | `+24174001122` | Gabon / Estuaire |
+| Demandeuse de vérification hospitalière | Nora B. | `+237644221100` | Cameroun / Centre |
 
-Pour vous connecter, sélectionner l’indicatif correspondant, puis saisir la partie nationale du numéro sans celui-ci (par exemple, sélectionner **(+237) 🇨🇲** et saisir `612345678` pour Amina N.). Il est aussi possible de coller le numéro international complet. Saisir ensuite `123456` sur la page OTP, renseigner le nom d’affichage obligatoire, puis choisir le pays et la région principale.
+Pour vous connecter, sélectionner l’indicatif correspondant, puis saisir la partie nationale du numéro sans celui-ci (par exemple, sélectionner **(+237) 🇨🇲** et saisir `612345678` pour Amina N.). Il est aussi possible de coller le numéro international complet. Saisir ensuite `123456` sur la page OTP. Les comptes démo disposent déjà d’un nom d’affichage, d’un pays et d’une région principale : ils ouvrent donc directement l’application. Un nouveau numéro vérifié doit, lui, renseigner le nom d’affichage obligatoire, puis choisir son pays et sa région principale avant de continuer.
+
+### Scénarios démo préchargés
+
+Le peuplement crée également des scénarios fictifs et non sensibles afin qu’une installation propre puisse immédiatement démontrer les principaux parcours :
+
+- une disparition publiée au Cameroun / Centre pour le ciblage régional, les notifications, le détail, la fiche imprimable, le PDF et le partage sécurisé, avec un avatar fictif explicitement autorisé et rendu en dérivé public sans métadonnées uniquement si nécessaire ;
+- un enlèvement présumé publié pour le ciblage national au Cameroun et la visibilité du modérateur après publication ;
+- un accident routier publié dans le Centre, expirant après 24 heures et sans média joint ;
+- une disparition privée en attente de modération à cause d’un doublon possible ;
+- une demande de vérification hospitalière et une demande d’accès modérateur en attente dans l’espace administrateur, avec notifications in-app privées.
+
+Tous les noms, lieux, contacts et signalements préchargés sont fictifs. La seule image préchargée est un avatar géométrique généré pour démontrer le partage opt-in ; ce n’est ni une photographie ni un média personnel réel.
 
 ## Tests
 
@@ -252,7 +265,7 @@ SAVE-US est un travail original créé et significativement étendu pour OpenAI 
 Les prochaines étapes sont documentées dans :
 
 - [Roadmap anglaise](RoadMap-SAVE-US_EN.md)
-- [Roadmap française](RoadMap-SAVE-US.md)
+- [Roadmap française](RoadMap-SAVE-US_FR.md)
 - [Priorités de soumission anglaises](SAVE_US_Submit_required_EN.md)
 - [Priorités de soumission françaises](SAVE_US_Submit_required.md)
 

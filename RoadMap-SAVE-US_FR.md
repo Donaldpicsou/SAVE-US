@@ -105,7 +105,7 @@ flowchart LR
 | T3 | Mettre en place la base de données | SQLite et SQLAlchemy configurés ; création des tables reproductible. | T2 |
 | T4 | Créer les modèles métier de base | `User`, `AlertPreference`, `Alert` et statuts d’alerte définis. | T3 |
 | T5 | Installer la charte graphique | Logo, palette SAVE-US, typographie, en-tête, pied de page et styles responsive appliqués. | T1 |
-| T6 | Charger les données CEMAC | Pays, subdivisions, régions du Cameroun et utilisateurs de démonstration disponibles. | T3, T4 |
+| T6 | Charger les données CEMAC | Pays, subdivisions, régions du Cameroun, utilisateurs de démonstration et scénarios fictifs idempotents d’alertes, modération, administration et notifications disponibles pour une démo locale propre. | T3, T4 |
 | T7 | Créer l’authentification simulée | Un sélecteur de pays et un numéro national CEMAC validé démarrent la connexion téléphone/OTP simulée ; le collage d’un numéro international complet reste accepté et la session utilisateur fonctionne. | T2, T4 |
 | T8 | Créer l’onboarding | Un nom d’affichage obligatoire respectueux de la vie privée, le pays et la région principale sont sauvegardés sur le profil ; l’étape de localisation ne peut pas créer un compte anonyme. | T5, T6, T7 |
 | T9 | Créer les préférences | Catégories, régions suivies et préférence e-mail modifiables. | T4, T6, T8 |

@@ -49,13 +49,14 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.cli.command("seed-demo")
     def seed_demo_command() -> None:
-        """Create the idempotent CEMAC demo users and their preferences."""
+        """Create idempotent CEMAC demo users, preferences, and safe scenarios."""
         from .seed import seed_demo_data
 
         users_created, preferences_created = seed_demo_data()
         click.echo(
             "Demo data ready: "
-            f"{users_created} user(s) and {preferences_created} preference set(s) created."
+            f"{users_created} user(s) and {preferences_created} preference set(s) created; "
+            "safe alert, moderation, administration, and notification scenarios are available."
         )
 
     app.register_blueprint(routes.bp)

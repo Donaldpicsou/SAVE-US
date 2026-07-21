@@ -105,7 +105,7 @@ flowchart LR
 | T3 | Set up the database | SQLite and SQLAlchemy are configured; table creation is repeatable. | T2 |
 | T4 | Create base domain models | `User`, `AlertPreference`, `Alert`, and alert statuses are defined. | T3 |
 | T5 | Apply visual identity | Logo, SAVE-US palette, typography, header, footer, and responsive styles are applied. | T1 |
-| T6 | Seed CEMAC data | Countries, subdivisions, Cameroon regions, and demo users are available. | T3, T4 |
+| T6 | Seed CEMAC data | Countries, subdivisions, Cameroon regions, demo users, and idempotent fictional alert, moderation, administration, and notification scenarios are available for a clean local demonstration. | T3, T4 |
 | T7 | Create simulated authentication | A country selector plus validated national CEMAC number starts the simulated phone/OTP sign-in; a pasted full international number remains accepted and the user session works. | T2, T4 |
 | T8 | Create onboarding | A required privacy-respecting display name, country, and primary-region selection are saved to the profile; location cannot create an anonymous account. | T5, T6, T7 |
 | T9 | Create preferences | Categories, followed regions, and email preference can be updated. | T4, T6, T8 |
